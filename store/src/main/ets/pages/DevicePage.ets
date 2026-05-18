@@ -10,6 +10,7 @@ import { FormatUtils } from '../common/utils/FormatUtils'
 struct DevicePage {
   @State devices: ConnectedDevice[] = []
   @State isLoading: boolean = true
+  @State errorText: string = ''
   @State searchText: string = ''
   private apiService: ApiService = new ApiService()
 
@@ -19,13 +20,11 @@ struct DevicePage {
 
   async loadDevices(): Promise<void> {
     this.isLoading = true
+    this.errorText = ''
     try {
       this.devices = await this.apiService.fetchConnectedDevices()
-      if (this.devices.length === 0) {
-        this.devices = this.getMockDevices()
-      }
     } catch (devErr) {
-      this.devices = this.getMockDevices()
+      this.errorText = '加载设备列表失败'
     }
     this.isLoading = false
   }
@@ -46,19 +45,6 @@ struct DevicePage {
     return filtered
   }
 
-  getMockDevices(): ConnectedDevice[] {
-    return [
-      { mac: 'AA:BB:CC:11:22:33', ip: '192.168.1.100', hostname: 'iPhone-15-Pro', vendor: 'Apple', interface: 'lan', onlineTime: '2h 30m', signalStrength: -45, rxRate: 1024 * 512, txRate: 1024 * 128, isOnline: true },
-      { mac: 'AA:BB:CC:44:55:66', ip: '192.168.1.101', hostname: 'MacBook-Pro', vendor: 'Apple', interface: 'lan', onlineTime: '5h 12m', signalStrength: -52, rxRate: 1024 * 1024 * 2, txRate: 1024 * 256, isOnline: true },
-      { mac: 'AA:BB:CC:77:88:99', ip: '192.168.1.102', hostname: 'Xiaomi-13', vendor: 'Xiaomi', interface: 'lan', onlineTime: '1h 5m', signalStrength: -61, rxRate: 1024 * 256, txRate: 1024 * 64, isOnline: true },
-      { mac: 'AA:BB:CC:AA:BB:CC', ip: '192.168.1.103', hostname: 'Samsung-TV', vendor: 'Samsung', interface: 'lan', onlineTime: '12h 0m', signalStrength: -58, rxRate: 1024 * 1024 * 5, txRate: 1024 * 128, isOnline: true },
-      { mac: 'AA:BB:CC:DD:EE:FF', ip: '192.168.1.104', hostname: 'RaspberryPi-NAS', vendor: 'Raspberry Pi', interface: 'lan', onlineTime: '30d 4h', signalStrength: -40, rxRate: 1024 * 512, txRate: 1024 * 1024, isOnline: true },
-      { mac: 'AA:BB:CC:11:AA:22', ip: '192.168.1.105', hostname: 'Google-Home', vendor: 'Google', interface: 'lan', onlineTime: '8d 12h', signalStrength: -68, rxRate: 1024 * 64, txRate: 1024 * 32, isOnline: true },
-      { mac: 'AA:BB:CC:33:BB:44', ip: '192.168.1.106', hostname: 'Huawei-P50', vendor: 'Huawei', interface: 'lan', onlineTime: '3h 45m', signalStrength: -50, rxRate: 1024 * 384, txRate: 1024 * 96, isOnline: false },
-      { mac: 'AA:BB:CC:55:CC:66', ip: '192.168.1.107', hostname: 'ThinkPad-X1', vendor: 'Intel', interface: 'lan', onlineTime: '2d 6h', signalStrength: -48, rxRate: 1024 * 1024 * 3, txRate: 1024 * 512, isOnline: true }
-    ]
-  }
-
   getDeviceIconClass(device: ConnectedDevice): string {
     const icon: string = FormatUtils.getDeviceIcon(device.mac, device.hostname)
     const icons: Record<string, string> = {
@@ -66,6 +52,11 @@ struct DevicePage {
       'camera': '📷', 'printer': '🖨️', 'speaker': '🔊', 'watch': '⌚', 'device': '📡'
     }
     return icons[icon] || icons['device']
+  }
+
+  getVendorName(device: ConnectedDevice): string {
+    if (device.vendor) return device.vendor
+    return FormatUtils.getVendorName(device.mac)
   }
 
   build() {
@@ -105,6 +96,23 @@ struct DevicePage {
                 Text('加载设备列表...').fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_SECONDARY).margin({ top: 12 })
               }
               .width('100%').height(200).justifyContent(FlexAlign.Center)
+            } else if (this.errorText) {
+              GlassCard({ cardWidth: '100%', marginTop: 12 }) {
+                Row() {
+                  Text('⚠').fontSize(20).margin({ right: 8 })
+                  Text(this.errorText).fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.WARNING)
+                }
+                .width('100%')
+              }
+            } else if (this.devices.length === 0) {
+              GlassCard({ cardWidth: '100%', marginTop: 12 }) {
+                Column() {
+                  Text('📡').fontSize(48).margin({ bottom: 12 })
+                  Text('暂无连接设备').fontSize(StyleConstants.FONT_LG).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium)
+                  Text('没有检测到 DHCP 客户端设备').fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_TERTIARY).margin({ top: 4 })
+                }
+                .width('100%').padding({ top: 40, bottom: 40 }).alignItems(HorizontalAlign.Center)
+              }
             } else {
               ForEach(this.getFilteredDevices(), (device: ConnectedDevice, index: number) => {
                 GlassCard({ cardWidth: '100%', marginTop: 6 }) {
@@ -113,13 +121,23 @@ struct DevicePage {
 
                     Column() {
                       Text(device.hostname).fontSize(StyleConstants.FONT_MD).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                      Text(FormatUtils.formatMac(device.mac)).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
+                      Row() {
+                        Text(FormatUtils.formatMac(device.mac)).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
+                        if (this.getVendorName(device) && this.getVendorName(device) !== 'Unknown') {
+                          Text(` · ${this.getVendorName(device)}`).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
+                        }
+                      }
                     }
                     .margin({ left: 12 }).layoutWeight(1).alignItems(HorizontalAlign.Start)
 
                     Column() {
                       Text(device.ip).fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium)
-                      Text(device.onlineTime).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
+                      if (device.onlineTime) {
+                        Text(device.onlineTime).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
+                      }
+                      if (device.signalStrength > -1) {
+                        Text(`${device.signalStrength} dBm`).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
+                      }
                     }
                     .alignItems(HorizontalAlign.End)
 

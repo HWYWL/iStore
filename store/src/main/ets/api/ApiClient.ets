@@ -188,7 +188,6 @@ export class ApiClient {
       const hdr: Record<string, string> = {}
       if (this.cookieStr) {
         hdr['Cookie'] = this.cookieStr
-        hilog.info(DOMAIN, TAG, `GET with cookie: ${this.cookieStr.substring(0, 30)}...`)
       }
       const r = await req.request(`${this.baseUrl}${path}`, {
         method: http.RequestMethod.GET,
@@ -211,22 +210,168 @@ export class ApiClient {
     return empty
   }
 
+  async getSystemInfo(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/system/info/')
+  }
+
+  async getSystemStatus(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/system/status/')
+  }
+
+  async getBoardInfo(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/system/board/')
+  }
+
+  async tryGetJSON(paths: string[]): Promise<ESObject> {
+    for (let i = 0; i < paths.length; i++) {
+      const data: ESObject = await this.getJSON(paths[i])
+      if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+        return data
+      }
+    }
+    const empty: ESObject = {}
+    return empty
+  }
+
   async getNetworkStatus(): Promise<ESObject> {
     return this.getJSON('/cgi-bin/luci/istore/u/network/status/')
   }
-  async getSystemInfo(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getBoardInfo(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getNetworkInterfaces(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getWanStatus(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getLanStatus(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getDhcpLeases(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getWirelessDevices(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getConnectedClients(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getInstalledPackages(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getSystemLog(lines: number = 50): Promise<ESObject> { return this.getNetworkStatus() }
-  async executeCommand(command: string): Promise<ESObject> { return this.getNetworkStatus() }
-  async reboot(): Promise<ESObject> { return this.getNetworkStatus() }
-  async setWifi(params: ESObject): Promise<ESObject> { return this.getNetworkStatus() }
-  async restartFirewall(): Promise<ESObject> { return this.getNetworkStatus() }
-  async getFirewallRules(): Promise<ESObject> { return this.getNetworkStatus() }
+
+  async getNetworkInterfaces(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/network/interfaces/')
+  }
+
+  async getDhcpLeases(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/network/dhcp/')
+  }
+
+  async getWirelessDevices(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/network/wireless/')
+  }
+
+  async getInstalledPackages(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/software/list/')
+  }
+
+  async getFirewallRules(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/firewall/rules/')
+  }
+
+  async getSystemLog(lines: number = 50): Promise<ESObject> {
+    return this.getJSON(`/cgi-bin/luci/istore/u/system/log/?lines=${lines}`)
+  }
+
+  async executeCommand(command: string): Promise<ESObject> {
+    const req = http.createHttp()
+    try {
+      const hdr: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' }
+      if (this.cookieStr) {
+        hdr['Cookie'] = this.cookieStr
+      }
+      const r = await req.request(`${this.baseUrl}/cgi-bin/luci/istore/u/system/command/`, {
+        method: http.RequestMethod.POST,
+        header: hdr,
+        extraData: `cmd=${encodeURIComponent(command)}`,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 10000,
+        readTimeout: 10000
+      })
+      req.destroy()
+      const body: string = r.result as string || ''
+      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
+        return JSON.parse(body) as ESObject
+      }
+    } catch (e) {
+      req.destroy()
+      hilog.error(DOMAIN, TAG, `executeCommand err`)
+    }
+    const empty: ESObject = {}
+    return empty
+  }
+
+  async reboot(): Promise<ESObject> {
+    const req = http.createHttp()
+    try {
+      const hdr: Record<string, string> = {}
+      if (this.cookieStr) {
+        hdr['Cookie'] = this.cookieStr
+      }
+      const r = await req.request(`${this.baseUrl}/cgi-bin/luci/istore/u/system/reboot/`, {
+        method: http.RequestMethod.POST,
+        header: hdr,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 4000,
+        readTimeout: 4000
+      })
+      req.destroy()
+      const body: string = r.result as string || ''
+      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
+        return JSON.parse(body) as ESObject
+      }
+    } catch (e) {
+      req.destroy()
+      hilog.error(DOMAIN, TAG, `reboot err`)
+    }
+    const empty: ESObject = {}
+    return empty
+  }
+
+  async setWifi(params: ESObject): Promise<ESObject> {
+    const req = http.createHttp()
+    try {
+      const hdr: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (this.cookieStr) {
+        hdr['Cookie'] = this.cookieStr
+      }
+      const r = await req.request(`${this.baseUrl}/cgi-bin/luci/istore/u/network/wireless/set/`, {
+        method: http.RequestMethod.POST,
+        header: hdr,
+        extraData: JSON.stringify(params),
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 4000,
+        readTimeout: 4000
+      })
+      req.destroy()
+      const body: string = r.result as string || ''
+      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
+        return JSON.parse(body) as ESObject
+      }
+    } catch (e) {
+      req.destroy()
+      hilog.error(DOMAIN, TAG, `setWifi err`)
+    }
+    const empty: ESObject = {}
+    return empty
+  }
+
+  async restartFirewall(): Promise<ESObject> {
+    const req = http.createHttp()
+    try {
+      const hdr: Record<string, string> = {}
+      if (this.cookieStr) {
+        hdr['Cookie'] = this.cookieStr
+      }
+      const r = await req.request(`${this.baseUrl}/cgi-bin/luci/istore/u/firewall/restart/`, {
+        method: http.RequestMethod.POST,
+        header: hdr,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 4000,
+        readTimeout: 4000
+      })
+      req.destroy()
+      const body: string = r.result as string || ''
+      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
+        return JSON.parse(body) as ESObject
+      }
+    } catch (e) {
+      req.destroy()
+      hilog.error(DOMAIN, TAG, `restartFirewall err`)
+    }
+    const empty: ESObject = {}
+    return empty
+  }
+
+  async getLanStatus(): Promise<ESObject> {
+    return this.getJSON('/cgi-bin/luci/istore/u/network/lan/')
+  }
 }

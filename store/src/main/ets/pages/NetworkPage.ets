@@ -9,8 +9,9 @@ import { FormatUtils } from '../common/utils/FormatUtils'
 @Component
 struct NetworkPage {
   @State interfaces: NetworkInterface[] = []
-  @State wanStatus: WanStatus = this.defaultWanStatus()
+  @State wanStatus: WanStatus = this.emptyWan()
   @State isLoading: boolean = true
+  @State errorText: string = ''
   private apiService: ApiService = new ApiService()
 
   aboutToAppear(): void {
@@ -19,33 +20,18 @@ struct NetworkPage {
 
   async loadData(): Promise<void> {
     this.isLoading = true
+    this.errorText = ''
     try {
       this.wanStatus = await this.apiService.fetchWanStatus()
       this.interfaces = await this.apiService.fetchNetworkInterfaces()
-      if (this.interfaces.length === 0) {
-        this.interfaces = this.getMockInterfaces()
-      }
     } catch (netErr) {
-      this.wanStatus = {
-        interface: 'eth0', uptime: 86400, ipAddress: '123.45.67.89',
-        gateway: '123.45.67.1', dns: ['114.114.114.114', '8.8.8.8'],
-        rxRate: 1024 * 512, txRate: 1024 * 128, onlineTime: '24h 0m'
-      }
-      this.interfaces = this.getMockInterfaces()
+      this.errorText = '加载网络信息失败'
     }
     this.isLoading = false
   }
 
-  defaultWanStatus(): WanStatus {
+  emptyWan(): WanStatus {
     return { interface: '', uptime: 0, ipAddress: '0.0.0.0', gateway: '', dns: [], rxRate: 0, txRate: 0, onlineTime: '' }
-  }
-
-  getMockInterfaces(): NetworkInterface[] {
-    return [
-      { name: 'eth0', type: 'wan', ipAddress: '123.45.67.89', netmask: '255.255.255.0', gateway: '123.45.67.1', macAddress: '00:11:22:33:44:55', mtu: 1500, status: 'up', rxBytes: 1024 * 1024 * 1024 * 50, txBytes: 1024 * 1024 * 1024 * 20, rxRate: 1024 * 512, txRate: 1024 * 128 },
-      { name: 'br-lan', type: 'lan', ipAddress: '192.168.1.1', netmask: '255.255.255.0', gateway: '', macAddress: '00:11:22:33:44:56', mtu: 1500, status: 'up', rxBytes: 1024 * 1024 * 1024 * 200, txBytes: 1024 * 1024 * 1024 * 180, rxRate: 1024 * 2048, txRate: 1024 * 1024 },
-      { name: 'wlan0', type: 'wifi', ipAddress: '192.168.1.1', netmask: '255.255.255.0', gateway: '', macAddress: '00:11:22:33:44:57', mtu: 1500, status: 'up', rxBytes: 1024 * 1024 * 1024 * 30, txBytes: 1024 * 1024 * 1024 * 15, rxRate: 1024 * 768, txRate: 1024 * 256 }
-    ]
   }
 
   getTypeLabel(type: string): string {
@@ -85,12 +71,23 @@ struct NetworkPage {
               }
               .width('100%').height(200).justifyContent(FlexAlign.Center)
             } else {
+              if (this.errorText) {
+                GlassCard({ cardWidth: '100%', marginTop: 12 }) {
+                  Row() {
+                    Text('⚠').fontSize(20).margin({ right: 8 })
+                    Text(this.errorText).fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.WARNING)
+                  }
+                  .width('100%')
+                }
+              }
+
               GlassCard({ cardWidth: '100%', marginTop: 12 }) {
                 Column() {
                   Text('WAN 外网连接').fontSize(StyleConstants.FONT_LG).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium).margin({ bottom: 12 })
 
                   Row() {
-                    Text(this.wanStatus.ipAddress).fontSize(StyleConstants.FONT_XXL).fontColor(StyleConstants.PRIMARY).fontWeight(FontWeight.Bold).fontFamily('monospace')
+                    Text(this.wanStatus.ipAddress)
+                      .fontSize(StyleConstants.FONT_XXL).fontColor(StyleConstants.PRIMARY).fontWeight(FontWeight.Bold).fontFamily('monospace')
                     Blank()
                     Column() {
                       Text(`⇩ ${FormatUtils.formatSpeed(this.wanStatus.rxRate)}`).fontSize(StyleConstants.FONT_MD).fontColor(StyleConstants.SUCCESS)
@@ -107,50 +104,71 @@ struct NetworkPage {
                     Text('DNS').fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_SECONDARY).width(50)
                     Text(this.wanStatus.dns.length > 0 ? this.wanStatus.dns.join(', ') : '--').fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium)
                   }.width('100%').padding({ top: 6, bottom: 6 }).border({ width: { bottom: 0.3 }, color: StyleConstants.BORDER_GLASS })
+                  if (this.wanStatus.interface) {
+                    Row() {
+                      Text('接口').fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_SECONDARY).width(50)
+                      Text(this.wanStatus.interface).fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium)
+                    }.width('100%').padding({ top: 6, bottom: 6 }).border({ width: { bottom: 0.3 }, color: StyleConstants.BORDER_GLASS })
+                  }
                 }
               }
 
-              Text('网络接口').fontSize(StyleConstants.FONT_LG).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium).width('100%').margin({ top: 20, bottom: 4 })
+              if (this.interfaces.length > 0) {
+                Text('网络接口').fontSize(StyleConstants.FONT_LG).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium).width('100%').margin({ top: 20, bottom: 4 })
 
-              ForEach(this.interfaces, (iface: NetworkInterface) => {
-                GlassCard({ cardWidth: '100%', marginTop: 8 }) {
-                  Column() {
-                    Row() {
-                      Text(this.getIfIcon(iface.type)).fontSize(24).width(40).height(40).borderRadius(10).backgroundColor(StyleConstants.BG_CARD).textAlign(TextAlign.Center)
+                ForEach(this.interfaces, (iface: NetworkInterface) => {
+                  GlassCard({ cardWidth: '100%', marginTop: 8 }) {
+                    Column() {
+                      Row() {
+                        Text(this.getIfIcon(iface.type)).fontSize(24).width(40).height(40).borderRadius(10).backgroundColor(StyleConstants.BG_CARD).textAlign(TextAlign.Center)
 
-                      Column() {
-                        Text(iface.name).fontSize(StyleConstants.FONT_MD).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium)
-                        Text(this.getTypeLabel(iface.type)).fontSize(StyleConstants.FONT_XS).fontColor(this.getTypeColor(iface.type))
+                        Column() {
+                          Text(iface.name).fontSize(StyleConstants.FONT_MD).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium)
+                          Text(this.getTypeLabel(iface.type)).fontSize(StyleConstants.FONT_XS).fontColor(this.getTypeColor(iface.type))
+                        }
+                        .margin({ left: 10 }).alignItems(HorizontalAlign.Start)
+
+                        Blank()
+
+                        Column() {
+                          Circle().width(8).height(8)
+                            .fill(iface.status === 'up' ? StyleConstants.SUCCESS : StyleConstants.DANGER)
+                            .shadow(iface.status === 'up' ? { radius: 4, color: 'rgba(0,230,118,0.5)', offsetX: 0, offsetY: 0 } :
+                              { radius: 0, color: '#00000000', offsetX: 0, offsetY: 0 })
+                          Text(iface.status === 'up' ? '已连接' : '断开').fontSize(StyleConstants.FONT_XS).fontColor(iface.status === 'up' ? StyleConstants.SUCCESS : StyleConstants.TEXT_TERTIARY)
+                        }
                       }
-                      .margin({ left: 10 }).alignItems(HorizontalAlign.Start)
+                      .width('100%')
 
-                      Blank()
-
-                      Column() {
-                        Circle().width(8).height(8)
-                          .fill(iface.status === 'up' ? StyleConstants.SUCCESS : StyleConstants.DANGER)
-                          .shadow(iface.status === 'up' ? { radius: 4, color: 'rgba(0,230,118,0.5)', offsetX: 0, offsetY: 0 } :
-                            { radius: 0, color: '#00000000', offsetX: 0, offsetY: 0 })
-                        Text(iface.status === 'up' ? '已连接' : '断开').fontSize(StyleConstants.FONT_XS).fontColor(iface.status === 'up' ? StyleConstants.SUCCESS : StyleConstants.TEXT_TERTIARY)
+                      Row() {
+                        if (iface.ipAddress) {
+                          Text(`IP: ${iface.ipAddress}`).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_SECONDARY)
+                          Blank()
+                        }
+                        if (iface.macAddress) {
+                          Text(`MAC: ${FormatUtils.formatMac(iface.macAddress)}`).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
+                        }
                       }
+                      .width('100%').margin({ top: 10 }).padding({ top: 10 }).border({ width: { top: 0.3 }, color: StyleConstants.BORDER_GLASS })
+
+                      Row() {
+                        Text(`↓ ${FormatUtils.formatBytes(iface.rxBytes)} | ↑ ${FormatUtils.formatBytes(iface.txBytes)}`).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
+                      }
+                      .width('100%').margin({ top: 4 })
                     }
                     .width('100%')
-
-                    Row() {
-                      Text(`IP: ${iface.ipAddress}`).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_SECONDARY)
-                      Blank()
-                      Text(`MAC: ${FormatUtils.formatMac(iface.macAddress)}`).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
-                    }
-                    .width('100%').margin({ top: 10 }).padding({ top: 10 }).border({ width: { top: 0.3 }, color: StyleConstants.BORDER_GLASS })
-
-                    Row() {
-                      Text(`↓ ${FormatUtils.formatBytes(iface.rxBytes)} | ↑ ${FormatUtils.formatBytes(iface.txBytes)}`).fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
-                    }
-                    .width('100%').margin({ top: 4 })
                   }
-                  .width('100%')
+                }, (item: NetworkInterface): string => item.name)
+              } else if (!this.errorText) {
+                GlassCard({ cardWidth: '100%', marginTop: 12 }) {
+                  Column() {
+                    Text('🔌').fontSize(48).margin({ bottom: 12 })
+                    Text('暂无网络接口数据').fontSize(StyleConstants.FONT_LG).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium)
+                    Text('尝试刷新或检查设备连接').fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_TERTIARY).margin({ top: 4 })
+                  }
+                  .width('100%').padding({ top: 40, bottom: 40 }).alignItems(HorizontalAlign.Center)
                 }
-              }, (item: NetworkInterface): string => item.name)
+              }
             }
           }
           .width('100%')

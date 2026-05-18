@@ -9,6 +9,7 @@ import { Plugin } from '../models/Models'
 struct PluginPage {
   @State plugins: Plugin[] = []
   @State isLoading: boolean = true
+  @State errorText: string = ''
   @State activeCategory: string = 'all'
   @State searchText: string = ''
   private apiService: ApiService = new ApiService()
@@ -21,13 +22,11 @@ struct PluginPage {
 
   async loadPlugins(): Promise<void> {
     this.isLoading = true
+    this.errorText = ''
     try {
       this.plugins = await this.apiService.fetchPlugins()
-      if (this.plugins.length === 0) {
-        this.plugins = this.getMockPlugins()
-      }
     } catch (plgErr) {
-      this.plugins = this.getMockPlugins()
+      this.errorText = '加载插件列表失败'
     }
     this.isLoading = false
   }
@@ -64,23 +63,6 @@ struct PluginPage {
       'docker': 'Docker', 'utility': '工具', 'monitor': '监控', 'media': '媒体'
     }
     return labels[cat] || cat
-  }
-
-  getMockPlugins(): Plugin[] {
-    return [
-      { id: '1', name: 'luci-app-passwall', displayName: 'PassWall', description: '科学上网代理工具', version: '4.7.0', author: 'xiaorouji', category: 'vpn', installed: true, enabled: true, running: true, iconUrl: '', size: '2.3MB' },
-      { id: '2', name: 'luci-app-adguardhome', displayName: 'AdGuard Home', description: '网络级广告拦截与跟踪保护', version: '0.107.48', author: 'AdGuard Team', category: 'network', installed: true, enabled: true, running: true, iconUrl: '', size: '15.6MB' },
-      { id: '3', name: 'luci-app-dockerman', displayName: 'Docker Man', description: 'Docker 容器管理器', version: '1.0.0', author: 'lisaac', category: 'docker', installed: true, enabled: true, running: true, iconUrl: '', size: '8.2MB' },
-      { id: '4', name: 'luci-app-istorex', displayName: 'iStore X', description: '应用商店增强版', version: '1.5.2', author: 'linkease', category: 'utility', installed: true, enabled: true, running: true, iconUrl: '', size: '3.1MB' },
-      { id: '5', name: 'luci-app-netdata', displayName: 'NetData', description: '实时性能监控面板', version: '2.0.3', author: 'NetData Team', category: 'monitor', installed: true, enabled: false, running: false, iconUrl: '', size: '12.8MB' },
-      { id: '6', name: 'luci-app-samba4', displayName: 'Samba 共享', description: '网络文件共享服务', version: '4.19.4', author: 'Samba Team', category: 'nas', installed: true, enabled: true, running: true, iconUrl: '', size: '5.4MB' },
-      { id: '7', name: 'luci-app-aria2', displayName: 'Aria2', description: '多协议下载工具', version: '1.37.0', author: 'aria2', category: 'utility', installed: false, enabled: false, running: false, iconUrl: '', size: '1.8MB' },
-      { id: '8', name: 'luci-app-jellyfin', displayName: 'Jellyfin', description: '开源媒体服务器', version: '10.9.6', author: 'Jellyfin Team', category: 'media', installed: false, enabled: false, running: false, iconUrl: '', size: '25.3MB' },
-      { id: '9', name: 'luci-app-openclash', displayName: 'OpenClash', description: 'Clash 代理客户端', version: '0.46.003', author: 'vernesong', category: 'vpn', installed: false, enabled: false, running: false, iconUrl: '', size: '4.2MB' },
-      { id: '10', name: 'luci-app-qbittorrent', displayName: 'qBittorrent', description: 'BT 下载工具', version: '4.6.3', author: 'qBittorrent', category: 'utility', installed: false, enabled: false, running: false, iconUrl: '', size: '8.7MB' },
-      { id: '11', name: 'luci-app-smartdns', displayName: 'SmartDNS', description: '智能 DNS 加速与防污染', version: '1.2024.43', author: 'pymumu', category: 'network', installed: true, enabled: true, running: true, iconUrl: '', size: '1.2MB' },
-      { id: '12', name: 'luci-app-cifs-mount', displayName: 'CIFS 挂载', description: '远程文件系统挂载', version: '1.0.0', author: 'community', category: 'nas', installed: false, enabled: false, running: false, iconUrl: '', size: '0.5MB' }
-    ]
   }
 
   getPluginIcon(category: string): string {
@@ -138,6 +120,23 @@ struct PluginPage {
                 Text('加载插件列表...').fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_SECONDARY).margin({ top: 12 })
               }
               .width('100%').height(200).justifyContent(FlexAlign.Center)
+            } else if (this.errorText) {
+              GlassCard({ cardWidth: '100%', marginTop: 12 }) {
+                Row() {
+                  Text('⚠').fontSize(20).margin({ right: 8 })
+                  Text(this.errorText).fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.WARNING)
+                }
+                .width('100%')
+              }
+            } else if (this.plugins.length === 0) {
+              GlassCard({ cardWidth: '100%', marginTop: 12 }) {
+                Column() {
+                  Text('📦').fontSize(48).margin({ bottom: 12 })
+                  Text('暂无插件').fontSize(StyleConstants.FONT_LG).fontColor(StyleConstants.TEXT_PRIMARY).fontWeight(FontWeight.Medium)
+                  Text('设备暂无安装的插件').fontSize(StyleConstants.FONT_SM).fontColor(StyleConstants.TEXT_TERTIARY).margin({ top: 4 })
+                }
+                .width('100%').padding({ top: 40, bottom: 40 }).alignItems(HorizontalAlign.Center)
+              }
             } else {
               ForEach(this.getFilteredPlugins(), (plugin: Plugin, index: number) => {
                 GlassCard({ cardWidth: '100%', marginTop: 6 }) {
@@ -162,7 +161,9 @@ struct PluginPage {
                       } else {
                         Text('未安装').fontSize(StyleConstants.FONT_XS).fontColor(StyleConstants.TEXT_TERTIARY)
                       }
-                      Text(`v${plugin.version}`).fontSize(10).fontColor(StyleConstants.TEXT_TERTIARY).margin({ top: 2 })
+                      if (plugin.version) {
+                        Text(`v${plugin.version}`).fontSize(10).fontColor(StyleConstants.TEXT_TERTIARY).margin({ top: 2 })
+                      }
                     }
                     .alignItems(HorizontalAlign.End)
                   }
