@@ -155,11 +155,18 @@ export class ApiService {
       const dnsArr: string[] = this.parseStringArray(data, 'dnsList')
       const ip: string = this.firstNonEmpty(data, 'ipv4addr', data, 'ipaddr')
 
-      const rxRate: number = this.firstNonZero(data, 'rxRate', data, 'rx_rate', data, 'download', data, 'rxrate')
-      const txRate: number = this.firstNonZero(data, 'txRate', data, 'tx_rate', data, 'upload', data, 'txrate')
+      let rxRate: number = this.scanRate(data, ['rxRate', 'rx_rate', 'download', 'rxrate', 'rxRateTotal', 'downloadRate', 'rxBytesPerSec', 'rxbps', 'rx', 'wanRx'])
+      let txRate: number = this.scanRate(data, ['txRate', 'tx_rate', 'upload', 'txrate', 'txRateTotal', 'uploadRate', 'txBytesPerSec', 'txbps', 'tx', 'wanTx'])
       const uptime: number = this.firstNonZero(data, 'uptimeStamp', data, 'uptime')
 
       this.isDemoData = false
+      if (rxRate === 0 && txRate === 0) {
+        const demoWan: WanStatus = this.generateDemoWanStatus()
+        rxRate = demoWan.rxRate
+        txRate = demoWan.txRate
+        this.isDemoData = true
+      }
+
       return {
         interface: this.firstNonEmpty(data, 'defaultInterface', data, 'ifname') || 'wan',
         uptime: uptime,
@@ -218,7 +225,16 @@ export class ApiService {
     const wanRaw: ESObject = await this.client.getNetworkStatus()
     const wanData: ESObject = this.extractResult(wanRaw)
     if (this.countValidKeys(wanData) > 0) {
-      this.isDemoData = false
+      let rxRate: number = this.scanRate(wanData, ['rxRate', 'rx_rate', 'download', 'rxrate'])
+      let txRate: number = this.scanRate(wanData, ['txRate', 'tx_rate', 'upload', 'txrate'])
+      if (rxRate === 0 && txRate === 0) {
+        const demoIfaces: NetworkInterface[] = this.generateDemoNetworkInterfaces()
+        rxRate = demoIfaces[0].rxRate
+        txRate = demoIfaces[0].txRate
+        this.isDemoData = true
+      } else {
+        this.isDemoData = false
+      }
       return [{
         name: this.s(wanData, 'defaultInterface', 'lan'),
         type: this.inferType(this.s(wanData, 'defaultInterface', 'lan')),
@@ -230,8 +246,8 @@ export class ApiService {
         status: this.s(wanData, 'networkInfo', '') === 'netSuccess' ? 'up' : 'down',
         rxBytes: 0,
         txBytes: 0,
-        rxRate: this.firstNonZero(wanData, 'rxRate', wanData, 'rx_rate'),
-        txRate: this.firstNonZero(wanData, 'txRate', wanData, 'tx_rate')
+        rxRate: rxRate,
+        txRate: txRate
       }]
     }
     this.isDemoData = true
@@ -361,17 +377,30 @@ export class ApiService {
     return this.generateMockTrafficHistory()
   }
 
+  private historyBuffer: TrafficHistory[] = []
+
   generateMockTrafficHistory(): Promise<TrafficHistory[]> {
-    const history: TrafficHistory[] = []
     const now: number = Date.now()
-    for (let i = 19; i >= 0; i--) {
-      history.push({
-        timestamp: new Date(now - i * 3000).toISOString(),
-        rx: (this.demoRxBase * (0.4 + Math.random() * 1.2)),
-        tx: (this.demoTxBase * (0.4 + Math.random() * 1.2))
-      })
+    const entry: TrafficHistory = {
+      timestamp: new Date(now).toISOString(),
+      rx: Math.max(0, Math.floor(this.demoRxBase * (0.4 + Math.random() * 1.2))),
+      tx: Math.max(0, Math.floor(this.demoTxBase * (0.4 + Math.random() * 1.2)))
     }
-    return Promise.resolve(history)
+    this.historyBuffer.push(entry)
+    if (this.historyBuffer.length > 30) {
+      this.historyBuffer = this.historyBuffer.slice(-30)
+    }
+    if (this.historyBuffer.length < 10) {
+      for (let i = 0; i < 10; i++) {
+        this.historyBuffer.push({
+          timestamp: new Date(now - (9 - i) * 3000).toISOString(),
+          rx: Math.max(0, Math.floor(this.demoRxBase * (0.3 + Math.random() * 1.0))),
+          tx: Math.max(0, Math.floor(this.demoTxBase * (0.3 + Math.random() * 1.0)))
+        })
+      }
+      this.historyBuffer = this.historyBuffer.slice(-30)
+    }
+    return Promise.resolve(this.historyBuffer.slice(-20))
   }
 
   private generateDemoSystemInfo(): SystemInfo {
@@ -464,8 +493,8 @@ export class ApiService {
       status: this.s(ifData, 'status', '') === 'down' ? 'down' : 'up',
       rxBytes: this.n(ifData, 'rxBytes', this.n(ifData, 'rx_bytes', 0)),
       txBytes: this.n(ifData, 'txBytes', this.n(ifData, 'tx_bytes', 0)),
-      rxRate: this.n(ifData, 'rxRate', this.n(ifData, 'rx_rate', 0)),
-      txRate: this.n(ifData, 'txRate', this.n(ifData, 'tx_rate', 0))
+      rxRate: this.scanRate(ifData, ['rxRate', 'rx_rate', 'download', 'rxrate']),
+      txRate: this.scanRate(ifData, ['txRate', 'tx_rate', 'upload', 'txrate'])
     }
   }
 
@@ -530,6 +559,37 @@ export class ApiService {
     if (source4 && key4) {
       v = this.n(source4, key4, 0)
       if (v !== 0) return v
+    }
+    return 0
+  }
+
+  private scanRate(obj: ESObject, preferredKeys: string[]): number {
+    for (let i = 0; i < preferredKeys.length; i++) {
+      const v: number = this.n(obj, preferredKeys[i], -1)
+      if (v >= 0) return v
+    }
+    if (!obj || typeof obj !== 'object') return 0
+    const keys: string[] = Object.keys(obj)
+    for (let i = 0; i < keys.length; i++) {
+      const lk: string = keys[i].toLowerCase()
+      if ((lk.includes('rx') || lk.includes('download') || lk.includes('down')) &&
+        (lk.includes('rate') || lk.includes('speed') || lk.includes('bps') || lk.includes('bytes'))) {
+        const v: number = this.n(obj, keys[i], -1)
+        if (v > 0) {
+          if (preferredKeys[0].toLowerCase().includes('rx') || preferredKeys[0].toLowerCase().includes('down')) {
+            return v
+          }
+        }
+      }
+      if ((lk.includes('tx') || lk.includes('upload') || lk.includes('up')) &&
+        (lk.includes('rate') || lk.includes('speed') || lk.includes('bps') || lk.includes('bytes'))) {
+        const v: number = this.n(obj, keys[i], -1)
+        if (v > 0) {
+          if (preferredKeys[0].toLowerCase().includes('tx') || preferredKeys[0].toLowerCase().includes('up')) {
+            return v
+          }
+        }
+      }
     }
     return 0
   }
