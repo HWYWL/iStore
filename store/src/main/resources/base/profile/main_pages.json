@@ -1,0 +1,10 @@
+{
+  "src": [
+    "pages/LoginPage",
+    "pages/DashboardPage",
+    "pages/DevicePage",
+    "pages/NetworkPage",
+    "pages/PluginPage",
+    "pages/Index"
+  ]
+}

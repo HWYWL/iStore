@@ -1,0 +1,20 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "StoreAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "StoreAbility_label",
+      "value": "label"
+    },
+    {
+      "name": "internet_permission_reason",
+      "value": "需要网络权限用于连接 iStoreOS 设备"
+    }
+  ]
+}
