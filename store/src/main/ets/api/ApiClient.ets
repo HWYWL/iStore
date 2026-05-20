@@ -11,7 +11,9 @@ export class ApiClient {
   password: string = ''
   connected: boolean = false
   lastError: string = ''
-  private cookieStr: string = ''
+  private authCookie: string = ''
+  private sessionId: string = ''
+  private rpcId: number = 1
 
   private static instance: ApiClient
 
@@ -31,23 +33,34 @@ export class ApiClient {
     this.password = config.password
     this.lastError = ''
     this.connected = false
-    this.cookieStr = ''
+    this.authCookie = ''
+    this.sessionId = ''
+    this.rpcId = 1
     hilog.info(DOMAIN, TAG, `Configured: ${this.baseUrl}`)
   }
 
-  getConnected(): boolean { return this.connected }
+  getConnected(): boolean {
+    return this.connected
+  }
 
   async connect(): Promise<boolean> {
     this.lastError = ''
     this.connected = false
+    this.sessionId = ''
 
     if (!await this.probe()) {
-      this.lastError = '无法连接到设备，请检查地址和网络'
+      this.lastError = '无法连接到设备'
       return false
     }
 
-    if (!await this.formLoginAndGetCookie()) {
+    const loginResult: Record<string, Object> | null = await this.ubusLogin()
+    if (!loginResult) {
       this.lastError = '登录失败，请检查用户名和密码'
+      return false
+    }
+
+    if (!await this.verifyLogin()) {
+      this.lastError = '会话验证失败'
       return false
     }
 
@@ -72,306 +85,359 @@ export class ApiClient {
     }
   }
 
-  private async formLoginAndGetCookie(): Promise<boolean> {
-    const paths: string[] = ['/cgi-bin/luci', '/cgi-bin/luci/', '/']
-    for (let i = 0; i < paths.length; i++) {
-      const ok: boolean = await this.tryPath(paths[i])
-      if (ok) return true
+  private async ubusLogin(): Promise<Record<string, Object> | null> {
+    const loginObj: Record<string, Object> = {}
+    loginObj['username'] = this.username
+    loginObj['password'] = this.password
+    const body = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'call',
+      params: ['00000000000000000000000000000000', 'session', 'login', loginObj]
+    })
+    try {
+      const result = await this.rpcPost('/ubus', body)
+      if (!result || typeof result !== 'object') {
+        return null
+      }
+      const resArr = result['result'] as Object[] | undefined
+      if (!resArr || !Array.isArray(resArr) || resArr.length < 2) {
+        return null
+      }
+      const code = Number(resArr[0])
+      if (code !== 0) {
+        return null
+      }
+      const data = resArr[1] as Record<string, Object>
+      if (!data) {
+        return null
+      }
+      const sid = data['ubus_rpc_session'] as string | undefined
+      if (!sid) {
+        return null
+      }
+      this.sessionId = sid
+      const timeoutVal = data['timeout'] as number | undefined
+      const timeout = timeoutVal || 300
+      this.authCookie = `sysauth=${sid}`
+      hilog.info(DOMAIN, TAG, `ubus login OK, session: ${sid.substring(0, 12)}...`)
+      return data
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'ubusLogin err')
+      return null
+    }
+  }
+
+  private async verifyLogin(): Promise<boolean> {
+    const board = await this.getSystemBoard()
+    if (board && typeof board === 'object') {
+      const hostname = board['hostname']
+      if (hostname) {
+        return true
+      }
     }
     return false
   }
 
-  private async tryPath(path: string): Promise<boolean> {
-    const body: string = `luci_username=${encodeURIComponent(this.username)}&luci_password=${encodeURIComponent(this.password)}`
+  private async rpcPost(path: string, body: string): Promise<Record<string, Object> | null> {
+    const url: string = `${this.baseUrl}${path}`
+
+    const hdr: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (this.authCookie) {
+      hdr['Cookie'] = this.authCookie
+    }
+
     const req = http.createHttp()
     try {
-      const r = await req.request(`${this.baseUrl}${path}`, {
+      const r = await req.request(url, {
         method: http.RequestMethod.POST,
-        header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        header: hdr,
         extraData: body,
         expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 4000,
-        readTimeout: 4000
+        connectTimeout: 5000,
+        readTimeout: 5000
       })
       req.destroy()
 
-      const code: number = r.responseCode
-      hilog.info(DOMAIN, TAG, `POST ${path}: ${code}`)
-      if (code < 200 || code >= 500) return false
+      const respBody: string = r.result as string || ''
+      if (r.responseCode >= 200 && r.responseCode < 400 && respBody.length > 5) {
+        return JSON.parse(respBody) as Record<string, Object>
+      }
+    } catch (e) {
+      req.destroy()
+    }
+    return null
+  }
 
-      const rawCookies: string = r.cookies as string || ''
-      hilog.info(DOMAIN, TAG, `cookies: "${rawCookies}"`)
+  async callUbus(namespace: string, procedure: string, params: Record<string, Object>): Promise<Record<string, Object>[]> {
+    const body: string = JSON.stringify({
+      jsonrpc: '2.0',
+      id: this.rpcId++,
+      method: 'call',
+      params: [this.sessionId, namespace, procedure, params || {}]
+    })
 
-      const headerCookies: string = this.findHeaderCookie(r)
-      hilog.info(DOMAIN, TAG, `headerCookie: "${headerCookies}"`)
-
-      const combined: string = this.mergeCookies(rawCookies, headerCookies)
-      if (combined) {
-        this.cookieStr = combined
-        hilog.info(DOMAIN, TAG, `Got cookie: ${combined.substring(0, 40)}...`)
+    try {
+      const resp: Record<string, Object> | null = await this.rpcPost('/ubus/', body)
+      if (!resp || typeof resp !== 'object') {
+        return []
       }
 
-      if (!this.cookieStr) {
-        const bodyText: string = r.result as string || ''
-        const sysauth: string = this.extractSysauth(bodyText)
-        if (sysauth) {
-          this.cookieStr = `sysauth=${sysauth}`
+      const result: Object | undefined = resp['result']
+      if (result === undefined || result === null) {
+        return []
+      }
+
+      if (Array.isArray(result)) {
+        if (result.length >= 2 && typeof result[0] === 'number' && result[0] === 0) {
+          const payload: Record<string, Object> = result[1] as Record<string, Object>
+          if (payload && typeof payload === 'object') {
+            return [payload]
+          }
+          return []
+        }
+        if (result.length >= 2 && typeof result[0] === 'number' && result[0] !== 0) {
+          hilog.warn(DOMAIN, TAG, `ubus ${namespace}.${procedure} err: ${result[1]}`)
+          return []
         }
       }
 
-      return true
+      return []
     } catch (e) {
-      req.destroy()
-      return false
+      hilog.error(DOMAIN, TAG, `ubus ${namespace}.${procedure} err`)
     }
+    return []
   }
 
-  private findHeaderCookie(resp: http.HttpResponse): string {
-    const h: Record<string, string> = resp.header as Record<string, string> || {}
-    const keys: string[] = Object.keys(h)
-    for (let i = 0; i < keys.length; i++) {
-      const k: string = keys[i]
-      const lk: string = k.toLowerCase()
-      if (lk.includes('set-cookie') || lk === 'cookie') {
-        return h[k] || ''
+  async callUbusFirst(namespace: string, procedure: string, params: Record<string, Object>): Promise<Record<string, Object>> {
+    const arr: Record<string, Object>[] = await this.callUbus(namespace, procedure, params)
+    if (arr.length > 0 && typeof arr[0] === 'object' && arr[0] !== null) {
+      return arr[0] as Record<string, Object>
+    }
+    return {}
+  }
+
+  async getSystemBoard(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('system', 'board', {})
+  }
+
+  async getSystemInfo(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('system', 'info', {})
+  }
+
+  async getLuciNetworkDevices(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci-rpc', 'getNetworkDevices', {})
+  }
+
+  async getLuciDHCPLeases(): Promise<Record<string, Object>> {
+    const arr: Record<string, Object>[] = await this.callUbus('luci-rpc', 'getDHCPLeases', {})
+    if (arr.length > 0) {
+      const container: Record<string, Object> = arr[0] as Record<string, Object>
+      if (container) {
+        return container
+      }
+    }
+    return {}
+  }
+
+  async readFile(filepath: string): Promise<string> {
+    const readParams: Record<string, Object> = {}
+    readParams['path'] = filepath
+    const arr: Record<string, Object>[] = await this.callUbus('file', 'read', readParams)
+    if (arr.length > 0) {
+      const container: Record<string, Object> = arr[0] as Record<string, Object>
+      if (container) {
+        const data: string | undefined = container['data'] as string | undefined
+        if (data) {
+          return data
+        }
       }
     }
     return ''
   }
 
-  private mergeCookies(rawCookies: string, headerCookie: string): string {
-    const parts: Record<string, string> = {}
-    const merged: string = rawCookies + (headerCookie ? '; ' + headerCookie : '')
-    const chunks: string[] = merged.split(/[;\n]+/)
-    for (let i = 0; i < chunks.length; i++) {
-      const c: string = chunks[i].trim()
-      if (!c || c === ',') continue
-      const eq: number = c.indexOf('=')
-      if (eq < 0) continue
-      const k: string = c.substring(0, eq).trim()
-      let v: string = c.substring(eq + 1).trim().replace(/[,;]+.*$/, '').trim()
-      if (k && v) {
-        parts[k] = v
-      }
-    }
-
-    const result: string[] = []
-    const pkeys: string[] = Object.keys(parts)
-    for (let i = 0; i < pkeys.length; i++) {
-      result.push(`${pkeys[i]}=${parts[pkeys[i]]}`)
-    }
-    return result.join('; ')
-  }
-
-  private extractSysauth(text: string): string {
-    if (!text) return ''
-    const patterns: RegExp[] = [
-      /sysauth%5b%5d=([^;&\s'"]+)/i,
-      /sysauth%5B%5D=([^;&\s'"]+)/i,
-      /sysauth=([^;&\s'"]+)/i
+  async getCPUTemp(): Promise<number> {
+    const paths: string[] = [
+      '/sys/class/thermal/thermal_zone0/temp',
+      '/sys/class/thermal/thermal_zone1/temp',
+      '/sys/class/hwmon/hwmon0/temp1_input',
+      '/sys/class/hwmon/hwmon1/temp1_input'
     ]
-    for (let i = 0; i < patterns.length; i++) {
-      const m: RegExpMatchArray | null = text.match(patterns[i])
-      if (m && m[1] && m[1].length > 3) return m[1]
+    for (let i = 0; i < paths.length; i++) {
+      try {
+        const raw: string = await this.readFile(paths[i])
+        const val: number = parseInt(raw.trim(), 10)
+        if (!isNaN(val) && val > 0) {
+          return val > 200 ? val / 1000 : val
+        }
+      } catch (e) {
+      }
+    }
+    return 0
+  }
+
+  async getCPUUsage(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci', 'getCPUUsage', {})
+  }
+
+  async getOnlineUsers(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci', 'getOnlineUsers', {})
+  }
+
+  async getTempInfo(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci', 'getTempInfo', {})
+  }
+
+  async getMountPoints(): Promise<Record<string, Object>[]> {
+    return this.callUbus('luci', 'getMountPoints', {})
+  }
+
+  async getRealtimeStats(params: Record<string, Object>): Promise<Record<string, Object>[]> {
+    return this.callUbus('luci', 'getRealtimeStats', params)
+  }
+
+  async getProcessList(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci', 'getProcessList', {})
+  }
+
+  async getWirelessDevices(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci-rpc', 'getWirelessDevices', {})
+  }
+
+  async execCommand(command: string, params?: string[]): Promise<string> {
+    const execObj: Record<string, Object> = {}
+    execObj['command'] = command
+    execObj['params'] = params || []
+    const execParams: Record<string, Object> = execObj
+    const arr = await this.callUbus('file', 'exec', execParams)
+    if (arr.length > 0) {
+      const container = arr[0] as Record<string, Object>
+      if (container) {
+        const codeVal = container['code']
+        const code: number = codeVal !== undefined ? Number(codeVal) : -1
+        if (code === 0) {
+          const stdout = container['stdout'] as string | undefined
+          if (stdout) {
+            return stdout
+          }
+        }
+      }
     }
     return ''
   }
 
-  private async verifyCookieWorks(): Promise<boolean> {
-    const data: ESObject = await this.getJSON('/cgi-bin/luci/istore/u/network/status/')
-    return data && Object.keys(data).length > 0
+  async systemReboot(): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('system', 'reboot', {})
+    return arr.length > 0
   }
 
-  async getJSON(path: string): Promise<ESObject> {
-    const req = http.createHttp()
-    try {
-      const hdr: Record<string, string> = {}
-      if (this.cookieStr) {
-        hdr['Cookie'] = this.cookieStr
-      }
-      const r = await req.request(`${this.baseUrl}${path}`, {
-        method: http.RequestMethod.GET,
-        header: hdr,
-        expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 4000,
-        readTimeout: 4000
-      })
-      req.destroy()
-      const body: string = r.result as string || ''
-      hilog.info(DOMAIN, TAG, `GET ${path}: ${r.responseCode} len=${body.length}`)
-      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
-        return JSON.parse(body) as ESObject
-      }
-    } catch (e) {
-      req.destroy()
-      hilog.error(DOMAIN, TAG, `getJSON ${path} err`)
-    }
-    const empty: ESObject = {}
-    return empty
+  async networkInterfaceDump(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('network.interface', 'dump', {})
   }
 
-  async getSystemInfo(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/system/info/')
+  async networkDeviceStatus(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('network.device', 'status', {})
   }
 
-  async getSystemStatus(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/system/status/')
+  async iwinfoAssoclist(ifname: string): Promise<Record<string, Object>> {
+    const iwinfoParams: Record<string, Object> = {}
+    iwinfoParams['device'] = ifname
+    return this.callUbusFirst('iwinfo', 'assoclist', iwinfoParams)
   }
 
-  async getBoardInfo(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/system/board/')
+  async rcList(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('rc', 'list', {})
   }
 
-  async tryGetJSON(paths: string[]): Promise<ESObject> {
-    for (let i = 0; i < paths.length; i++) {
-      const data: ESObject = await this.getJSON(paths[i])
-      if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-        return data
-      }
-    }
-    const empty: ESObject = {}
-    return empty
+  async hostapdDelClient(ifname: string, mac: string): Promise<boolean> {
+    const delParams: Record<string, Object> = {}
+    delParams['addr'] = mac
+    const arr: Record<string, Object>[] = await this.callUbus('hostapd.' + ifname, 'del_client', delParams)
+    return arr.length > 0
   }
 
-  async getNetworkStatus(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/network/status/')
+  async getOafStatus(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('appfilter', 'get_oaf_status', {})
   }
 
-  async getNetworkInterfaces(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/network/interfaces/')
+  async getAppFilterBase(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('appfilter', 'get_app_filter_base', {})
   }
 
-  async getDhcpLeases(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/network/dhcp/')
+  async setAppFilterBase(params: Record<string, Object>): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'set_app_filter_base', params)
+    return arr.length > 0
   }
 
-  async getWirelessDevices(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/network/wireless/')
+  async getAppFilterClassList(): Promise<Record<string, Object>[]> {
+    return this.callUbus('appfilter', 'class_list', {})
   }
 
-  async getInstalledPackages(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/software/list/')
+  async getAppFilter(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('appfilter', 'get_app_filter', {})
   }
 
-  async getFirewallRules(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/firewall/rules/')
+  async setAppFilter(params: Record<string, Object>): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'set_app_filter', params)
+    return arr.length > 0
   }
 
-  async getSystemLog(lines: number = 50): Promise<ESObject> {
-    return this.getJSON(`/cgi-bin/luci/istore/u/system/log/?lines=${lines}`)
+  async getAppFilterTime(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('appfilter', 'get_app_filter_time', {})
   }
 
-  async executeCommand(command: string): Promise<ESObject> {
-    const req = http.createHttp()
-    try {
-      const hdr: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' }
-      if (this.cookieStr) {
-        hdr['Cookie'] = this.cookieStr
-      }
-      const r = await req.request(`${this.baseUrl}/cgi-bin/luci/istore/u/system/command/`, {
-        method: http.RequestMethod.POST,
-        header: hdr,
-        extraData: `cmd=${encodeURIComponent(command)}`,
-        expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 10000,
-        readTimeout: 10000
-      })
-      req.destroy()
-      const body: string = r.result as string || ''
-      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
-        return JSON.parse(body) as ESObject
-      }
-    } catch (e) {
-      req.destroy()
-      hilog.error(DOMAIN, TAG, `executeCommand err`)
-    }
-    const empty: ESObject = {}
-    return empty
+  async setAppFilterTime(params: Record<string, Object>): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'set_app_filter_time', params)
+    return arr.length > 0
   }
 
-  async reboot(): Promise<ESObject> {
-    const req = http.createHttp()
-    try {
-      const hdr: Record<string, string> = {}
-      if (this.cookieStr) {
-        hdr['Cookie'] = this.cookieStr
-      }
-      const r = await req.request(`${this.baseUrl}/cgi-bin/luci/istore/u/system/reboot/`, {
-        method: http.RequestMethod.POST,
-        header: hdr,
-        expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 4000,
-        readTimeout: 4000
-      })
-      req.destroy()
-      const body: string = r.result as string || ''
-      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
-        return JSON.parse(body) as ESObject
-      }
-    } catch (e) {
-      req.destroy()
-      hilog.error(DOMAIN, TAG, `reboot err`)
-    }
-    const empty: ESObject = {}
-    return empty
+  async getAppFilterUser(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('appfilter', 'get_app_filter_user', {})
   }
 
-  async setWifi(params: ESObject): Promise<ESObject> {
-    const req = http.createHttp()
-    try {
-      const hdr: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (this.cookieStr) {
-        hdr['Cookie'] = this.cookieStr
-      }
-      const r = await req.request(`${this.baseUrl}/cgi-bin/luci/istore/u/network/wireless/set/`, {
-        method: http.RequestMethod.POST,
-        header: hdr,
-        extraData: JSON.stringify(params),
-        expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 4000,
-        readTimeout: 4000
-      })
-      req.destroy()
-      const body: string = r.result as string || ''
-      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
-        return JSON.parse(body) as ESObject
-      }
-    } catch (e) {
-      req.destroy()
-      hilog.error(DOMAIN, TAG, `setWifi err`)
-    }
-    const empty: ESObject = {}
-    return empty
+  async setAppFilterUser(params: Record<string, Object>): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'set_app_filter_user', params)
+    return arr.length > 0
   }
 
-  async restartFirewall(): Promise<ESObject> {
-    const req = http.createHttp()
-    try {
-      const hdr: Record<string, string> = {}
-      if (this.cookieStr) {
-        hdr['Cookie'] = this.cookieStr
-      }
-      const r = await req.request(`${this.baseUrl}/cgi-bin/luci/istore/u/firewall/restart/`, {
-        method: http.RequestMethod.POST,
-        header: hdr,
-        expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 4000,
-        readTimeout: 4000
-      })
-      req.destroy()
-      const body: string = r.result as string || ''
-      if (r.responseCode >= 200 && r.responseCode < 400 && body.length > 5) {
-        return JSON.parse(body) as ESObject
-      }
-    } catch (e) {
-      req.destroy()
-      hilog.error(DOMAIN, TAG, `restartFirewall err`)
-    }
-    const empty: ESObject = {}
-    return empty
+  async addAppFilterUser(user: Record<string, Object>): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'add_app_filter_user', user)
+    return arr.length > 0
   }
 
-  async getLanStatus(): Promise<ESObject> {
-    return this.getJSON('/cgi-bin/luci/istore/u/network/lan/')
+  async delAppFilterUser(user: Record<string, Object>): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'del_app_filter_user', user)
+    return arr.length > 0
+  }
+
+  async getAppFilterAdv(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('appfilter', 'get_app_filter_adv', {})
+  }
+
+  async setAppFilterAdv(params: Record<string, Object>): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'set_app_filter_adv', params)
+    return arr.length > 0
+  }
+
+  async getAllOafUsers(): Promise<Record<string, Object>[]> {
+    const oafParams: Record<string, Object> = {}
+    oafParams['flag'] = 3
+    return this.callUbus('appfilter', 'get_all_users', oafParams)
+  }
+
+  async devVisitTime(mac: string): Promise<Record<string, Object>[]> {
+    const devVisitTimeParams: Record<string, Object> = {}
+    devVisitTimeParams['mac'] = mac
+    return this.callUbus('appfilter', 'dev_visit_time', devVisitTimeParams)
+  }
+
+  async devVisitList(mac: string): Promise<Record<string, Object>[]> {
+    const devVisitListParams: Record<string, Object> = {}
+    devVisitListParams['mac'] = mac
+    return this.callUbus('appfilter', 'dev_visit_list', devVisitListParams)
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl
   }
 }

@@ -1,10 +1,20 @@
 {
   "src": [
     "pages/LoginPage",
-    "pages/DashboardPage",
-    "pages/DevicePage",
-    "pages/NetworkPage",
-    "pages/PluginPage",
-    "pages/Index"
+    "pages/MainPage",
+    "pages/StatisticsPage",
+    "pages/ClientDetailPage",
+    "pages/AppsPage",
+    "pages/ParentalControlPage",
+    "pages/ParentalBasicPage",
+    "pages/ParentalFilterPage",
+    "pages/ParentalAdvancedPage",
+    "pages/RouteTablePage",
+    "pages/ProcessListPage",
+    "pages/StartupPage",
+    "pages/RebootPage",
+    "pages/FactoryResetPage",
+    "pages/AboutPage",
+    "pages/HelpPage"
   ]
 }

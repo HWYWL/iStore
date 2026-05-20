@@ -1,6 +1,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { window } from '@kit.ArkUI'
+import { BusinessError } from '@kit.BasicServicesKit'
 
 const DOMAIN = 0x0000
 
@@ -20,6 +21,20 @@ export default class StoreAbility extends UIAbility {
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
     hilog.info(DOMAIN, 'StoreAbility', 'Ability onWindowStageCreate')
+    // 获取主窗口并设置全屏布局，消除状态栏和导航栏的白色边框
+    let mainWindow: window.Window
+    try {
+      mainWindow = windowStage.getMainWindowSync()
+    } catch (err) {
+      hilog.error(0xFF00, 'iStore', 'Failed to get main window: %{public}s', String(err))
+      return
+    }
+    mainWindow.setWindowLayoutFullScreen(true).then(() => {
+      hilog.info(DOMAIN, 'StoreAbility', 'Succeeded in setting full-screen layout')
+    }).catch((err: BusinessError) => {
+      hilog.error(DOMAIN, 'StoreAbility', 'Failed to set full-screen layout: %{public}s', JSON.stringify(err))
+    })
+
     windowStage.loadContent('pages/LoginPage', (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'StoreAbility', 'Failed to load content: %{public}s', JSON.stringify(err))
