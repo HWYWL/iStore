@@ -37,13 +37,13 @@ export struct TrafficLineChart {
       }
 
       Row() {
-        ForEach(this.getLabels(), (label: string) => {
+        ForEach(this.getLabels(), (label: string, index: number) => {
           Text(label)
             .fontSize(9)
             .fontColor(StyleConstants.TEXT_TERTIARY)
             .width('25%')
             .textAlign(TextAlign.Center)
-        })
+        }, (label: string, index: number) => index.toString())
       }
       .width('100%')
       .margin({ bottom: 2 })
@@ -55,7 +55,7 @@ export struct TrafficLineChart {
               .strokeWidth(0.3)
               .color('rgba(255, 255, 255, 0.04)')
               .margin({ top: 4, bottom: 4 })
-          })
+          }, (_: number, index: number) => index.toString())
         }
         .width('100%')
         .height(120)

@@ -329,7 +329,7 @@ export class ApiClient {
           continue
         }
         const trimmed = raw.trim()
-        let match = trimmed.match(/(\d+)/)
+        const match = trimmed.match(/(\d+)/)
         if (match && match[1]) {
           const val: number = parseInt(match[1], 10)
           if (!isNaN(val) && val > 0) {

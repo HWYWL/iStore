@@ -2,6 +2,7 @@ import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
 import { AppState } from '../common/store/AppState'
 import { ApiService } from '../api/ApiService'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
 @Component
@@ -47,7 +48,11 @@ struct RebootPage {
         clearInterval(this.countdownTimer)
         this.countdownTimer = -1
         this.isRebooting = false
-        router.back()
+        try {
+          router.back()
+        } catch (e) {
+          hilog.error(0x0001, 'RebootPage', `router.back failed: ${e}`)
+        }
       }
     }, 1000)
   }
@@ -92,7 +97,11 @@ struct RebootPage {
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'RebootPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()

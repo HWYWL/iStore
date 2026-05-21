@@ -2,6 +2,7 @@ import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
 import { AppState } from '../common/store/AppState'
 import { ApiService } from '../api/ApiService'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
 @Component
@@ -47,7 +48,11 @@ struct FactoryResetPage {
         clearInterval(this.countdownTimer)
         this.countdownTimer = -1
         this.isResetting = false
-        router.back()
+        try {
+          router.back()
+        } catch (e) {
+          hilog.error(0x0001, 'FactoryResetPage', `router.back failed: ${e}`)
+        }
       }
     }, 1000)
   }
@@ -92,7 +97,11 @@ struct FactoryResetPage {
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'FactoryResetPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()
@@ -206,23 +215,27 @@ struct FactoryResetPage {
             .enabled(!this.isResetting)
             .opacity(this.isResetting ? 0.4 : 1)
             .onClick(() => {
-              AlertDialog.show({
-                title: '恢复出厂设置',
-                message: '此操作将清除所有配置并恢复出厂状态，确定要执行吗？',
-                autoCancel: true,
-                alignment: DialogAlignment.Center,
-                primaryButton: {
-                  value: '取消',
-                  action: () => {}
-                },
-                secondaryButton: {
-                  value: '确定恢复',
-                  fontColor: this.theme.danger,
-                  action: () => {
-                    this.doFactoryReset()
+              try {
+                AlertDialog.show({
+                  title: '恢复出厂设置',
+                  message: '此操作将清除所有配置并恢复出厂状态，确定要执行吗？',
+                  autoCancel: true,
+                  alignment: DialogAlignment.Center,
+                  primaryButton: {
+                    value: '取消',
+                    action: () => {}
+                  },
+                  secondaryButton: {
+                    value: '确定恢复',
+                    fontColor: this.theme.danger,
+                    action: () => {
+                      this.doFactoryReset()
+                    }
                   }
-                }
-              })
+                })
+              } catch (e) {
+                hilog.error(0x0001, 'FactoryResetPage', `AlertDialog.show failed: ${e}`)
+              }
             })
           }
           .width('100%')

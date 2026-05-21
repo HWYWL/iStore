@@ -1,6 +1,7 @@
 import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
 import { AppState } from '../common/store/AppState'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 interface ToolEntry {
   emoji: string
@@ -61,7 +62,11 @@ struct AppsPage {
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'AppsPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()
@@ -116,7 +121,11 @@ struct AppsPage {
                 .backdropBlur(20)
                 .border({ width: 0.5, color: this.theme.borderGlass })
                 .onClick(() => {
-                  router.pushUrl({ url: tool.route })
+                  try {
+                    router.pushUrl({ url: tool.route })
+                  } catch (e) {
+                    hilog.error(0x0001, 'AppsPage', `pushUrl failed: ${e}`)
+                  }
                 })
               }
             }, (tool: ToolEntry): string => tool.route)

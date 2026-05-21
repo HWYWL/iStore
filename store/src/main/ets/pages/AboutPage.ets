@@ -1,6 +1,7 @@
 import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
 import { AppState } from '../common/store/AppState'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
 @Component
@@ -47,7 +48,11 @@ struct AboutPage {
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'AboutPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()

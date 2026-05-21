@@ -3,6 +3,7 @@ import { AppState } from '../common/store/AppState'
 import { ApiService } from '../api/ApiService'
 import { AppFilterBase } from '../models/Models'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
 @Component
@@ -93,7 +94,11 @@ struct ParentalBasicPage {
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'ParentalBasicPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()

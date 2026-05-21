@@ -270,10 +270,6 @@ export class ApiService {
           netmask = `${this.n(istoreNet, 'ipv4mask', 24)}`
           gateway = this.s(istoreNet, 'gateway', '')
           lanUptime = this.n(istoreNet, 'uptimeStamp', 0)
-          const iface: string = this.s(istoreNet, 'defaultInterface', '')
-          if (!iface) {
-            const ifaceAlt: string = this.s(istoreNet, 'interface', '')
-          }
           const rawDns: Object = istoreNet['dnsList']
           if (Array.isArray(rawDns)) {
             const arr: Object[] = rawDns as Object[]

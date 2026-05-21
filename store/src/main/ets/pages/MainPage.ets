@@ -1,9 +1,10 @@
 import { AppState } from '../common/store/AppState'
 import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
-import { SystemInfo, WanStatus, TrafficHistory, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../models/Models'
+import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../models/Models'
 import { FormatUtils } from '../common/utils/FormatUtils'
 import { ApiService } from '../api/ApiService'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 // ============================================================
 // DashboardTab - 首页
@@ -933,10 +934,14 @@ struct DeviceTab {
               .backdropBlur(20)
               .border({ width: 0.5, color: this.theme.borderGlass })
               .onClick(() => {
-                router.pushUrl({
-                  url: 'pages/ClientDetailPage',
-                  params: { mac: device.mac, hostname: device.hostname }
-                })
+                try {
+                  router.pushUrl({
+                    url: 'pages/ClientDetailPage',
+                    params: { mac: device.mac, hostname: device.hostname }
+                  })
+                } catch (e) {
+                  hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
+                }
               })
             }, (item: ConnectedDevice): string => item.mac + item.ip)
           }
@@ -1031,10 +1036,14 @@ struct DeviceTab {
             .backdropBlur(20)
             .border({ width: 0.5, color: this.theme.borderGlass })
             .onClick(() => {
-              router.pushUrl({
-                url: 'pages/ClientDetailPage',
-                params: { mac: client.mac, hostname: client.hostname || client.mac }
-              })
+              try {
+                router.pushUrl({
+                  url: 'pages/ClientDetailPage',
+                  params: { mac: client.mac, hostname: client.hostname || client.mac }
+                })
+              } catch (e) {
+                hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
+              }
             })
           }, (item: WirelessClient): string => item.mac)
           }
@@ -1381,7 +1390,11 @@ struct MainPage {
           .backgroundColor(this.theme.bgCard)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'MainPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()
@@ -1532,7 +1545,11 @@ struct MainPage {
           .height(60)
           .justifyContent(FlexAlign.Center)
           .onClick(() => {
-            router.pushUrl({ url: 'pages/StatisticsPage' })
+            try {
+              router.pushUrl({ url: 'pages/StatisticsPage' })
+            } catch (e) {
+              hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
+            }
           })
 
           // 应用
@@ -1554,7 +1571,11 @@ struct MainPage {
           .height(60)
           .justifyContent(FlexAlign.Center)
           .onClick(() => {
-            router.pushUrl({ url: 'pages/AppsPage' })
+            try {
+              router.pushUrl({ url: 'pages/AppsPage' })
+            } catch (e) {
+              hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
+            }
           })
         }
         .width('100%')

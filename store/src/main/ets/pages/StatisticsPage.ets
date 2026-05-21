@@ -4,6 +4,7 @@ import { ApiService } from '../api/ApiService'
 import { FormatUtils } from '../common/utils/FormatUtils'
 import { RealtimeBandwidth, RealtimeLoad, NetworkInterface } from '../models/Models'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 interface BandwidthStats {
   currentRx: number
@@ -524,7 +525,7 @@ struct LineChart {
             .strokeWidth(0.3)
             .color(this.gridColor)
             .margin({ top: idx === 0 ? 0 : 6, bottom: 6 })
-        })
+        }, (_: string, idx: number) => idx.toString())
       }
       .width('100%')
       .height(160)
@@ -580,7 +581,7 @@ struct LineChart {
             .fontColor('rgba(255,255,255,0.25)')
             .width('20%')
             .textAlign(idx === 4 ? TextAlign.End : idx === 0 ? TextAlign.Start : TextAlign.Center)
-        })
+        }, (label: string, idx: number) => idx.toString())
       }
       .width('100%')
       .position({ bottom: 0 })
@@ -642,7 +643,11 @@ struct StatisticsPage {
           .backgroundColor(this.theme.bgCard)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'StatisticsPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()

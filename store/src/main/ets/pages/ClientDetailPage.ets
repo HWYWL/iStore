@@ -4,6 +4,7 @@ import { ApiService } from '../api/ApiService'
 import { FormatUtils } from '../common/utils/FormatUtils'
 import { DeviceVisitTime, DeviceVisitRecord, UserListItem } from '../models/Models'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
 @Component
@@ -144,7 +145,11 @@ struct ClientDetailPage {
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'ClientDetailPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()

@@ -3,6 +3,7 @@ import { AppState } from '../common/store/AppState'
 import { ApiService } from '../api/ApiService'
 import { OafStatus } from '../models/Models'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
 @Component
@@ -90,7 +91,11 @@ struct ParentalControlPage {
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'ParentalControlPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()
@@ -302,7 +307,11 @@ struct ParentalControlPage {
       .backdropBlur(20)
       .border({ width: 0.5, color: this.theme.borderGlass })
       .onClick(() => {
-        router.pushUrl({ url: route })
+        try {
+          router.pushUrl({ url: route })
+        } catch (e) {
+          hilog.error(0x0001, 'ParentalControlPage', `pushUrl failed: ${e}`)
+        }
       })
     }
     .width('100%')

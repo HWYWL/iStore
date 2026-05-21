@@ -1,9 +1,10 @@
 import { AppState } from '../common/store/AppState'
 import { SavedDevice } from '../common/store/DeviceStore'
 import { ConnectionConfig } from '../models/Models'
-import { ThemePalette, DARK_THEME, LIGHT_THEME } from '../common/theme/ThemeColors'
+import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
 import { router } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
 @Component
@@ -28,7 +29,7 @@ struct LoginPage {
   private connectTimerId: number = -1
 
   async aboutToAppear(): Promise<void> {
-    const ctx: common.Context = getContext(this)
+    const ctx: common.Context = getContext(this) as common.Context
     await this.appState.init(ctx)
     this.savedDevices = this.appState.devices
     this.isDark = this.appState.isDarkMode
@@ -41,7 +42,11 @@ struct LoginPage {
 
     // 如果已有活跃连接，直接进入主页面
     if (this.appState.getActiveDeviceId()) {
-      router.replaceUrl({ url: 'pages/MainPage' })
+      try {
+        router.replaceUrl({ url: 'pages/MainPage' })
+      } catch (e) {
+        hilog.error(0x0001, 'LoginPage', `replaceUrl failed: ${e}`)
+      }
     }
   }
 
@@ -170,7 +175,11 @@ struct LoginPage {
       if (connected) {
         this.isConnecting = false
         this.connectingId = ''
-        router.pushUrl({ url: 'pages/MainPage' })
+        try {
+          router.pushUrl({ url: 'pages/MainPage' })
+        } catch (e) {
+          hilog.error(0x0001, 'LoginPage', `pushUrl failed: ${e}`)
+        }
       } else {
         this.isConnecting = false
         this.connectingId = ''

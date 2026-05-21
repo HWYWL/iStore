@@ -4,6 +4,7 @@ import { ApiService } from '../api/ApiService'
 import { ProcessInfo } from '../models/Models'
 import { FormatUtils } from '../common/utils/FormatUtils'
 import { router } from '@kit.ArkUI'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
 @Component
@@ -81,7 +82,11 @@ struct ProcessListPage {
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
-            router.back()
+            try {
+              router.back()
+            } catch (e) {
+              hilog.error(0x0001, 'ProcessListPage', `router.back failed: ${e}`)
+            }
           })
 
           Blank()
