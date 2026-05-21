@@ -40,11 +40,14 @@ export interface WanStatus {
   interface: string
   uptime: number
   ipAddress: string
+  netmask: string
   gateway: string
   dns: string[]
   rxRate: number
   txRate: number
   onlineTime: string
+  proto: string
+  macAddr: string
 }
 
 export interface ConnectedDevice {

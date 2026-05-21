@@ -33,15 +33,8 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 const TAG = 'ApiService'
 const DOMAIN = 0x0001
 
-class DevSnapshot {
-  time: number = 0
-  rxBytes: number = 0
-  txBytes: number = 0
-}
-
 export class ApiService {
   private client: ApiClient
-  private lastDevStats: DevSnapshot = new DevSnapshot()
   private historyBuffer: TrafficHistory[] = []
 
   constructor() {
@@ -66,55 +59,165 @@ export class ApiService {
 
   async fetchSystemInfo(): Promise<SystemInfo> {
     try {
-      const board: Record<string, Object> = await this.client.getSystemBoard()
-      const info: Record<string, Object> = await this.client.getSystemInfo()
+      let hostname: string = 'iStoreOS'
+      let systemDesc: string = ''
+      let kernel: string = ''
+      let cpuModel: string = ''
+      let boardName: string = ''
+      let fw: string = ''
+      let distribution: string = ''
+      let rversion: string = ''
+      let rrevision: string = ''
+      let rtarget: string = ''
 
-      const hostname: string = this.s(board, 'hostname', 'iStoreOS')
-      const systemDesc: string = this.s(board, 'system', '')
-      const kernel: string = this.s(board, 'kernel', '')
-      const cpuModel: string = this.s(board, 'model', '')
-      const boardName: string = this.s(board, 'board_name', '')
+      try {
+        const istoreVer: Record<string, Object> = await this.client.getIstoreSystemVersion()
+        if (istoreVer && typeof istoreVer === 'object') {
+          hostname = this.s(istoreVer, 'hostname', '') ||
+            this.s(istoreVer, 'Hostname', '') || 'iStoreOS'
+          systemDesc = this.s(istoreVer, 'model', '')
+          cpuModel = this.s(istoreVer, 'arch', '') ||
+            this.s(istoreVer, 'cpuModel', '')
+          boardName = this.s(istoreVer, 'target', '') ||
+            this.s(istoreVer, 'boardName', '')
+          fw = this.s(istoreVer, 'firmwareVersion', '') ||
+            this.s(istoreVer, 'version', '') ||
+            this.s(istoreVer, 'firmware', '')
+          rversion = this.s(istoreVer, 'version', '')
+          rtarget = this.s(istoreVer, 'target', '')
+          kernel = this.s(istoreVer, 'kernelVersion', '') ||
+            this.s(istoreVer, 'kernel', '')
+        }
+      } catch (e) {
+        hilog.warn(DOMAIN, TAG, 'istore version API failed, trying ubus board')
+      }
 
-      const release: Record<string, Object> | undefined = board['release'] as Record<string, Object> | undefined
-      const fw: string = release ? this.s(release, 'description', '') : ''
-      const distribution: string = release ? this.s(release, 'distribution', '') : ''
-      const rversion: string = release ? this.s(release, 'version', '') : ''
-      const rrevision: string = release ? this.s(release, 'revision', '') : ''
-      const rtarget: string = release ? this.s(release, 'target', '') : ''
+      if (!kernel || !cpuModel || !boardName) {
+        const board: Record<string, Object> = await this.client.getSystemBoard()
+        if (board && typeof board === 'object') {
+          if (!hostname || hostname === 'iStoreOS') {
+            hostname = this.s(board, 'hostname', 'iStoreOS')
+          }
+          if (!systemDesc) {
+            systemDesc = this.s(board, 'system', '')
+          }
+          if (!cpuModel) {
+            cpuModel = this.s(board, 'system', '') || this.s(board, 'model', '')
+          }
+          if (!boardName) {
+            boardName = this.s(board, 'board_name', '')
+          }
+          if (!kernel) {
+            kernel = this.s(board, 'kernel', '')
+          }
+          const release: Record<string, Object> | undefined = board['release'] as Record<string, Object> | undefined
+          if (release) {
+            if (!distribution) {
+              distribution = this.s(release, 'distribution', '')
+            }
+            if (!rversion) {
+              rversion = this.s(release, 'version', '')
+            }
+            if (!rrevision) {
+              rrevision = this.s(release, 'revision', '')
+            }
+            if (!rtarget) {
+              rtarget = this.s(release, 'target', '')
+            }
+            if (!fw) {
+              fw = this.s(release, 'description', '') || rversion
+            }
+          }
+        }
+      }
 
       let uptime: number = 0
       let localTime: string = ''
+      let cpuUsage: number = 0
       let memTotal: number = 0
       let memFree: number = 0
       let memBuffered: number = 0
       let memShared: number = 0
       let memAvailable: number = 0
-      let cpuUsage: number = 0
 
-      if (info && typeof info === 'object') {
-        uptime = this.n(info, 'uptime', 0)
-        const lt: number = this.n(info, 'localtime', 0)
-        if (lt > 0) {
-          localTime = new Date(lt * 1000).toISOString()
+      try {
+        const istoreSys: Record<string, Object> = await this.client.getIstoreSystemStatus()
+        if (istoreSys && typeof istoreSys === 'object') {
+          cpuUsage = this.n(istoreSys, 'cpuUsage', -1)
+          if (cpuUsage < 0) {
+            cpuUsage = 0
+          }
+          uptime = this.n(istoreSys, 'uptime', 0)
+          const ltStr: string = this.s(istoreSys, 'localtime', '')
+          if (ltStr) {
+            localTime = new Date(ltStr).toISOString()
+          }
+          const memTotalStr: string = this.s(istoreSys, 'memTotal', '')
+          if (memTotalStr) {
+            const parsed: number = parseFloat(memTotalStr)
+            if (!isNaN(parsed)) {
+              if (memTotalStr.includes('GiB') || memTotalStr.includes('GB')) {
+                memTotal = parsed * 1073741824
+              } else if (memTotalStr.includes('MiB') || memTotalStr.includes('MB')) {
+                memTotal = parsed * 1048576
+              } else if (memTotalStr.includes('KiB') || memTotalStr.includes('KB')) {
+                memTotal = parsed * 1024
+              } else {
+                memTotal = Math.floor(parsed)
+              }
+            }
+          }
+          const memAvailStr: string = this.s(istoreSys, 'memAvailable', '')
+          if (memAvailStr) {
+            const parsed: number = parseFloat(memAvailStr)
+            if (!isNaN(parsed)) {
+              if (memAvailStr.includes('GiB') || memAvailStr.includes('GB')) {
+                memAvailable = parsed * 1073741824
+              } else if (memAvailStr.includes('MiB') || memAvailStr.includes('MB')) {
+                memAvailable = parsed * 1048576
+              } else if (memAvailStr.includes('KiB') || memAvailStr.includes('KB')) {
+                memAvailable = parsed * 1024
+              } else {
+                memAvailable = Math.floor(parsed)
+              }
+            }
+          }
         }
+      } catch (e) {
+        hilog.warn(DOMAIN, TAG, 'istore system status API failed')
+      }
 
-        const loadArr: Record<string, Object> | undefined = info['load'] as Record<string, Object> | undefined
-        if (loadArr && Array.isArray(loadArr) && loadArr.length > 0) {
-          const rawLoad: number = this.n(loadArr, '0', 0)
-          cpuUsage = Math.min(100, Math.max(0, (rawLoad / 65536) * 100))
-        }
-
-        const memory: Record<string, Object> | undefined = info['memory'] as Record<string, Object> | undefined
-        if (memory) {
-          memTotal = this.n(memory, 'total', 0)
-          memFree = this.n(memory, 'free', 0)
-          memBuffered = this.n(memory, 'buffered', 0)
-          memShared = this.n(memory, 'shared', 0)
-          memAvailable = this.n(memory, 'available', 0)
+      if (uptime === 0 && cpuUsage === 0) {
+        const info: Record<string, Object> = await this.client.getSystemInfo()
+        if (info && typeof info === 'object') {
+          uptime = uptime || this.n(info, 'uptime', 0)
+          const lt: number = this.n(info, 'localtime', 0)
+          if (lt > 0 && !localTime) {
+            localTime = new Date(lt * 1000).toISOString()
+          }
+          const loadArr: Record<string, Object> | undefined = info['load'] as Record<string, Object> | undefined
+          if (loadArr && Array.isArray(loadArr) && loadArr.length > 0) {
+            const rawLoad: number = this.n(loadArr, '0', 0)
+            cpuUsage = Math.min(100, Math.max(0, (rawLoad / 65536) * 100))
+          }
+          if (memTotal === 0) {
+            const memory: Record<string, Object> | undefined = info['memory'] as Record<string, Object> | undefined
+            if (memory) {
+              memTotal = this.n(memory, 'total', 0)
+              memFree = this.n(memory, 'free', 0)
+              memBuffered = this.n(memory, 'buffered', 0)
+              memShared = this.n(memory, 'shared', 0)
+              memAvailable = this.n(memory, 'available', 0)
+            }
+          }
         }
       }
 
-      const cpuTemp: number = await this.fetchCPUTemp()
+      const cpuTemp: number = await this.fetchIstoreCPUTemp()
+
+      if (!localTime) {
+        localTime = new Date().toISOString()
+      }
 
       const memRealUsed: number = memAvailable > 0
         ? memTotal - memAvailable
@@ -150,82 +253,100 @@ export class ApiService {
 
   async fetchWanStatus(): Promise<WanStatus> {
     try {
-      const ndResult: Record<string, Object> = await this.client.getLuciNetworkDevices()
-      if (!ndResult || typeof ndResult !== 'object') {
-        return this.emptyWanStatus()
-      }
-
-      const brLan: Record<string, Object> = ndResult['br-lan'] as Record<string, Object>
-
       let ipAddress: string = '0.0.0.0'
+      let netmask: string = ''
       let gateway: string = ''
       let dnsList: string[] = []
-      let ifname: string = 'br-lan'
+      let proto: string = ''
+      let macAddr: string = ''
+      let lanUptime: number = 0
+      const ifname: string = 'br-lan'
 
-      if (brLan && typeof brLan === 'object') {
-        const ipArr: Record<string, Object>[] | undefined = brLan['ipaddrs'] as Record<string, Object>[] | undefined
-        if (ipArr && Array.isArray(ipArr) && ipArr.length > 0) {
-          ipAddress = this.s(ipArr[0], 'address', '0.0.0.0')
-        }
-
-        ifname = this.s(brLan, 'name', 'br-lan')
-      }
-
-      const devKeys: string[] = Object.keys(ndResult)
-      let totalRx: number = 0
-      let totalTx: number = 0
-
-      for (let i = 0; i < devKeys.length; i++) {
-        const devData: Record<string, Object> = ndResult[devKeys[i]] as Record<string, Object>
-        if (devData && typeof devData === 'object') {
-          const isBridge: boolean = this.b(devData, 'bridge', false)
-          const name: string = this.s(devData, 'name', '')
-          if (name === 'lo' || isBridge) {
-            continue
+      try {
+        const istoreNet: Record<string, Object> = await this.client.getIstoreNetworkStatus()
+        if (istoreNet && typeof istoreNet === 'object') {
+          proto = this.s(istoreNet, 'proto', '')
+          ipAddress = this.s(istoreNet, 'ipv4addr', '')
+          netmask = `${this.n(istoreNet, 'ipv4mask', 24)}`
+          gateway = this.s(istoreNet, 'gateway', '')
+          lanUptime = this.n(istoreNet, 'uptimeStamp', 0)
+          const iface: string = this.s(istoreNet, 'defaultInterface', '')
+          if (!iface) {
+            const ifaceAlt: string = this.s(istoreNet, 'interface', '')
           }
-          const stats: Record<string, Object> | undefined = devData['stats'] as Record<string, Object> | undefined
-          if (stats) {
-            totalRx += this.n(stats, 'rx_bytes', 0)
-            totalTx += this.n(stats, 'tx_bytes', 0)
+          const rawDns: Object = istoreNet['dnsList']
+          if (Array.isArray(rawDns)) {
+            const arr: Object[] = rawDns as Object[]
+            if (arr.length > 0) {
+              dnsList.push(String(arr[0]))
+            }
+            if (arr.length > 1) {
+              dnsList.push(String(arr[1]))
+            }
           }
         }
+      } catch (e) {
+        hilog.warn(DOMAIN, TAG, 'getIstoreNetworkStatus failed, fallback')
       }
 
       let rxRate: number = 0
       let txRate: number = 0
 
-      if (this.lastDevStats.time > 0 && totalRx > 0) {
-        const dt: number = (Date.now() - this.lastDevStats.time) / 1000
-        if (dt > 0.5) {
-          rxRate = Math.max(0, Math.floor((totalRx - this.lastDevStats.rxBytes) / dt))
-          txRate = Math.max(0, Math.floor((totalTx - this.lastDevStats.txBytes) / dt))
+      try {
+        const rtStatsParams: Record<string, Object> = {}
+        rtStatsParams['mode'] = 'interface'
+        rtStatsParams['device'] = 'br-lan'
+        const raw: Record<string, Object>[] = await this.client.getRealtimeStats(rtStatsParams)
+        const results = raw.length > 0 ? raw[0] : null
+        const arr = results ? (results['result'] as (number[])[] | undefined) : undefined
+        if (arr && Array.isArray(arr) && arr.length >= 2) {
+          const last: number[] = arr[arr.length - 1]
+          const prev: number[] = arr[arr.length - 2]
+          if (last && last.length >= 5 && prev && prev.length >= 5) {
+            const dt: number = last[0] - prev[0]
+            if (dt > 0) {
+              rxRate = Math.max(0, Math.floor((last[1] - prev[1]) / dt))
+              txRate = Math.max(0, Math.floor((last[3] - prev[3]) / dt))
+            }
+          }
+        }
+      } catch (e) {
+        hilog.warn(DOMAIN, TAG, 'getRealtimeStats failed for wan status')
+      }
+
+      if (rxRate === 0 && txRate === 0) {
+        try {
+          const netStats: Record<string, Object> = await this.client.getIstoreNetworkStatistics()
+          if (netStats && typeof netStats === 'object') {
+            rxRate = this.extractSpeed(netStats, ['downloadSpeed', 'downSpeed', 'rxSpeed', 'rx', 'down'])
+            txRate = this.extractSpeed(netStats, ['uploadSpeed', 'upSpeed', 'txSpeed', 'tx', 'up'])
+          }
+        } catch (e) {
+          hilog.warn(DOMAIN, TAG, 'getIstoreNetworkStatistics failed for wan status')
         }
       }
 
-      this.lastDevStats.time = Date.now()
-      this.lastDevStats.rxBytes = totalRx
-      this.lastDevStats.txBytes = totalTx
-
-      if (rxRate > 0 || txRate > 0) {
-        this.historyBuffer.push({
-          timestamp: new Date().toISOString(),
-          rx: rxRate,
-          tx: txRate
-        })
-        if (this.historyBuffer.length > 30) {
-          this.historyBuffer = this.historyBuffer.slice(-30)
-        }
+      this.historyBuffer.push({
+        timestamp: new Date().toISOString(),
+        rx: rxRate,
+        tx: txRate
+      })
+      if (this.historyBuffer.length > 30) {
+        this.historyBuffer = this.historyBuffer.slice(-30)
       }
 
       return {
         interface: ifname,
-        uptime: 0,
+        uptime: lanUptime,
         ipAddress: ipAddress,
+        netmask: netmask,
         gateway: gateway,
         dns: dnsList,
         rxRate: rxRate,
         txRate: txRate,
-        onlineTime: ''
+        onlineTime: '',
+        proto: proto,
+        macAddr: macAddr
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, `fetchWanStatus err`)
@@ -326,24 +447,35 @@ export class ApiService {
     return []
   }
 
-  private async fetchCPUTemp(): Promise<number> {
+  private async fetchIstoreCPUTemp(): Promise<number> {
+    let temp: number = await this.client.getIstoreCPUTemperature()
+    if (temp > 0 && temp < 150) {
+      return temp
+    }
     try {
       const tempInfo: Record<string, Object> = await this.client.getTempInfo()
       const raw: string = this.s(tempInfo, 'tempinfo', '')
       if (raw) {
         const match: RegExpMatchArray | null = raw.match(/CPU:\s*([\d.]+)/i)
         if (match && match[1]) {
-          return parseFloat(match[1])
+          const parsed = parseFloat(match[1])
+          if (parsed > 0 && parsed < 150) {
+            return parsed
+          }
         }
         const numMatch: RegExpMatchArray | null = raw.match(/([\d.]+)/)
         if (numMatch && numMatch[1]) {
-          return parseFloat(numMatch[1])
+          const parsed = parseFloat(numMatch[1])
+          if (parsed > 0 && parsed < 150) {
+            return parsed
+          }
         }
       }
     } catch (e) {
-      hilog.warn(DOMAIN, TAG, 'fetchCPUTemp via getTempInfo failed, fallback to file read')
+      hilog.warn(DOMAIN, TAG, 'getTempInfo failed')
     }
-    return this.client.getCPUTemp()
+    const fileTemp = await this.client.getCPUTemp()
+    return fileTemp > 0 && fileTemp < 150 ? fileTemp : 0
   }
 
   private emptySystemInfo(): SystemInfo {
@@ -357,8 +489,9 @@ export class ApiService {
 
   private emptyWanStatus(): WanStatus {
     return {
-      interface: '', uptime: 0, ipAddress: '0.0.0.0', gateway: '',
-      dns: [], rxRate: 0, txRate: 0, onlineTime: ''
+      interface: '', uptime: 0, ipAddress: '0.0.0.0', netmask: '',
+      gateway: '', dns: [], rxRate: 0, txRate: 0, onlineTime: '',
+      proto: '', macAddr: ''
     }
   }
 
@@ -408,6 +541,39 @@ export class ApiService {
       return def
     }
     return Boolean(v)
+  }
+
+  private extractSpeed(obj: Record<string, Object>, fields: string[]): number {
+    for (let i = 0; i < fields.length; i++) {
+      const val: Object = obj[fields[i]]
+      if (val === undefined || val === null) {
+        continue
+      }
+      if (typeof val === 'number') {
+        return val as number
+      }
+      if (typeof val === 'string') {
+        const num: number = Number(val)
+        if (!isNaN(num) && num >= 0) {
+          return num
+        }
+      }
+    }
+    const items: Object | undefined = obj['items']
+    if (Array.isArray(items) && items.length > 0) {
+      const last: Record<string, Object> = (items as Object[])[items.length - 1] as Record<string, Object>
+      if (last) {
+        return this.extractSpeed(last, fields)
+      }
+    }
+    const slots: Object | undefined = obj['slots']
+    if (Array.isArray(slots) && slots.length > 0) {
+      const last: Record<string, Object> = (slots as Object[])[slots.length - 1] as Record<string, Object>
+      if (last) {
+        return this.extractSpeed(last, fields)
+      }
+    }
+    return 0
   }
 
   async fetchMountPoints(): Promise<MountPoint[]> {

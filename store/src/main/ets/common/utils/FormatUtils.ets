@@ -13,12 +13,14 @@ export class FormatUtils {
   }
 
   static formatUptime(seconds: number): string {
-    if (seconds < 60) return `${seconds}s`
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
+    if (seconds < 60) return `${seconds}秒`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}分 ${seconds % 60}秒`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}时 ${Math.floor((seconds % 3600) / 60)}分`
     const days = Math.floor(seconds / 86400)
     const hours = Math.floor((seconds % 86400) / 3600)
-    return `${days}d ${hours}h`
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+    return `${days}天 ${hours}时 ${minutes}分 ${secs}秒`
   }
 
   static formatPercent(value: number): string {

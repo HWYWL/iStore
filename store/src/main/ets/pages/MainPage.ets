@@ -92,7 +92,8 @@ struct DashboardTab {
   emptyWan(): WanStatus {
     return {
       interface: '', uptime: 0, ipAddress: '0.0.0.0',
-      gateway: '', dns: [], rxRate: 0, txRate: 0, onlineTime: ''
+      netmask: '', gateway: '', dns: [], rxRate: 0, txRate: 0, onlineTime: '',
+      proto: '', macAddr: ''
     }
   }
 
@@ -349,14 +350,37 @@ struct DashboardTab {
                   .fontSize(10)
                   .fontColor(this.theme.textTertiary)
                   .margin({ bottom: 4 })
-                Text(this.systemInfo.cpuTemp > 0 ? this.systemInfo.cpuTemp.toFixed(1) : '--')
-                  .fontSize(16)
-                  .fontColor(this.getTempColor(this.systemInfo.cpuTemp))
-                  .fontWeight(FontWeight.Bold)
-                  .margin({ bottom: 2 })
-                Text('°C')
-                  .fontSize(11)
-                  .fontColor(this.theme.textTertiary)
+                Row() {
+                  Text(this.systemInfo.cpuTemp > 0 ? this.systemInfo.cpuTemp.toFixed(1) : '--')
+                    .fontSize(16)
+                    .fontColor(this.getTempColor(this.systemInfo.cpuTemp))
+                    .fontWeight(FontWeight.Bold)
+                  Text('°C')
+                    .fontSize(11)
+                    .fontColor(this.theme.textTertiary)
+                    .margin({ left: 2 })
+                }
+                .margin({ bottom: 6 })
+
+                Stack() {
+                  Row()
+                    .width('100%')
+                    .height(4)
+                    .borderRadius(2)
+                    .backgroundColor('rgba(255,255,255,0.1)')
+                  Row()
+                    .width(`${this.systemInfo.cpuTemp > 0 ? Math.min(100, (this.systemInfo.cpuTemp / 100) * 100) : 0}%`)
+                    .height(4)
+                    .borderRadius(2)
+                    .linearGradient({
+                      angle: 90,
+                      colors: [
+                        [this.getTempColor(this.systemInfo.cpuTemp), 0],
+                        [this.getTempColor(this.systemInfo.cpuTemp) + '44', 1]
+                      ]
+                    })
+                }
+                .width('100%')
               }
               .width('30%')
               .padding(12)
@@ -402,6 +426,7 @@ struct DashboardTab {
               this.infoRow('本地时间', this.systemInfo.localTime
                 ? this.formatLocalTime(this.systemInfo.localTime)
                 : '--')
+              this.infoRow('运行时间', this.systemInfo.uptime > 0 ? FormatUtils.formatUptime(this.systemInfo.uptime) : '--')
             }
             .width('100%')
             .padding(14)
@@ -1051,7 +1076,8 @@ struct NetworkTab {
   emptyWan(): WanStatus {
     return {
       interface: '', uptime: 0, ipAddress: '0.0.0.0',
-      gateway: '', dns: [], rxRate: 0, txRate: 0, onlineTime: ''
+      netmask: '', gateway: '', dns: [], rxRate: 0, txRate: 0, onlineTime: '',
+      proto: '', macAddr: ''
     }
   }
 
@@ -1131,9 +1157,9 @@ struct NetworkTab {
               .border({ width: 0.5, color: this.theme.borderGlass })
             }
 
-            // WAN 状态卡片
+            // LAN 网络状态卡片
             Column() {
-              Text('WAN 外网连接')
+              Text('🏠 LAN 网络状态')
                 .fontSize(14)
                 .fontColor(this.theme.textPrimary)
                 .fontWeight(FontWeight.Medium)
@@ -1145,6 +1171,13 @@ struct NetworkTab {
                   .fontColor(this.theme.primary)
                   .fontWeight(FontWeight.Bold)
                   .fontFamily('monospace')
+                if (this.wanStatus.netmask) {
+                  Text(`/${this.wanStatus.netmask}`)
+                    .fontSize(14)
+                    .fontColor(this.theme.textSecondary)
+                    .fontFamily('monospace')
+                    .margin({ left: 2 })
+                }
                 Blank()
                 Column() {
                   Text(`⇩ ${FormatUtils.formatSpeed(this.wanStatus.rxRate)}`)
@@ -1159,9 +1192,18 @@ struct NetworkTab {
               .width('100%')
               .margin({ bottom: 12 })
 
+              if (this.wanStatus.proto) {
+                this.netLine('协议', this.wanStatus.proto.toUpperCase())
+              }
+              if (this.wanStatus.macAddr) {
+                this.netLine('MAC', this.wanStatus.macAddr)
+              }
               this.netLine('网关', this.wanStatus.gateway || '--')
               this.netLine('DNS', this.wanStatus.dns.length > 0 ? this.wanStatus.dns.join(', ') : '--')
               this.netLine('接口', this.wanStatus.interface || '--')
+              if (this.wanStatus.uptime > 0) {
+                this.netLine('运行时长', FormatUtils.formatUptime(this.wanStatus.uptime))
+              }
             }
             .width('100%')
             .padding(14)

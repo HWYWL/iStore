@@ -53,10 +53,16 @@ export class ApiClient {
       return false
     }
 
-    const loginResult: Record<string, Object> | null = await this.ubusLogin()
-    if (!loginResult) {
-      this.lastError = '登录失败，请检查用户名和密码'
-      return false
+    const luciOk: boolean = await this.luciFormLogin()
+    if (luciOk) {
+      this.sessionId = '00000000000000000000000000000000'
+      hilog.info(DOMAIN, TAG, 'LuCI form login OK')
+    } else {
+      hilog.warn(DOMAIN, TAG, 'LuCI form login failed, trying UBUS fallback')
+      if (!await this.ubusLogin()) {
+        this.lastError = '登录失败，请检查用户名和密码'
+        return false
+      }
     }
 
     if (!await this.verifyLogin()) {
@@ -65,7 +71,12 @@ export class ApiClient {
     }
 
     this.connected = true
+    hilog.info(DOMAIN, TAG, 'Connected successfully')
     return true
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl
   }
 
   private async probe(): Promise<boolean> {
@@ -85,7 +96,58 @@ export class ApiClient {
     }
   }
 
-  private async ubusLogin(): Promise<Record<string, Object> | null> {
+  private async luciFormLogin(): Promise<boolean> {
+    const formBody: string =
+      `luci_username=${encodeURIComponent(this.username)}&luci_password=${encodeURIComponent(this.password)}`
+    const url: string = `${this.baseUrl}/cgi-bin/luci/`
+    const req = http.createHttp()
+    try {
+      const r = await req.request(url, {
+        method: http.RequestMethod.POST,
+        header: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+          'Accept': '*/*'
+        },
+        extraData: formBody,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 5000,
+        readTimeout: 10000
+      })
+      let setCookie: string = ''
+      const keys = Object.keys(r.header)
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i]
+        if (key.toLowerCase() === 'set-cookie') {
+          const cookieValue = String(r.header[key])
+          if (cookieValue.toLowerCase().includes('sysauth')) {
+            setCookie = cookieValue
+            break
+          }
+          if (!setCookie) {
+            setCookie = cookieValue
+          }
+        }
+      }
+      req.destroy()
+      if (setCookie) {
+        const sysauthMatch: RegExpMatchArray | null = setCookie.match(/sysauth[^;]*/)
+        if (sysauthMatch && sysauthMatch[0]) {
+          this.authCookie = sysauthMatch[0]
+          hilog.info(DOMAIN, TAG, 'LuCI form login OK, cookie: ' + this.authCookie.substring(0, 20) + '...')
+          hilog.info(DOMAIN, TAG, 'authCookie set successfully: ' + this.authCookie)
+          return true
+        }
+      }
+      hilog.warn(DOMAIN, TAG, 'LuCI form login: no sysauth cookie found')
+      hilog.warn(DOMAIN, TAG, 'setCookie header value: ' + setCookie)
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'LuCI form login err: ' + String(e))
+      req.destroy()
+    }
+    return false
+  }
+
+  private async ubusLogin(): Promise<boolean> {
     const loginObj: Record<string, Object> = {}
     loginObj['username'] = this.username
     loginObj['password'] = this.password
@@ -96,36 +158,34 @@ export class ApiClient {
       params: ['00000000000000000000000000000000', 'session', 'login', loginObj]
     })
     try {
-      const result = await this.rpcPost('/ubus', body)
-      if (!result || typeof result !== 'object') {
-        return null
+      const resp: Record<string, Object> | null = await this.rpcPost('/ubus', body)
+      if (!resp || typeof resp !== 'object') {
+        return false
       }
-      const resArr = result['result'] as Object[] | undefined
+      const resArr = resp['result'] as Object[] | undefined
       if (!resArr || !Array.isArray(resArr) || resArr.length < 2) {
-        return null
+        return false
       }
       const code = Number(resArr[0])
       if (code !== 0) {
-        return null
+        return false
       }
       const data = resArr[1] as Record<string, Object>
       if (!data) {
-        return null
+        return false
       }
       const sid = data['ubus_rpc_session'] as string | undefined
       if (!sid) {
-        return null
+        return false
       }
       this.sessionId = sid
-      const timeoutVal = data['timeout'] as number | undefined
-      const timeout = timeoutVal || 300
       this.authCookie = `sysauth=${sid}`
-      hilog.info(DOMAIN, TAG, `ubus login OK, session: ${sid.substring(0, 12)}...`)
-      return data
+      hilog.info(DOMAIN, TAG, `UBUS login OK, session: ${sid.substring(0, 12)}...`)
+      return true
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'ubusLogin err')
-      return null
     }
+    return false
   }
 
   private async verifyLogin(): Promise<boolean> {
@@ -141,12 +201,10 @@ export class ApiClient {
 
   private async rpcPost(path: string, body: string): Promise<Record<string, Object> | null> {
     const url: string = `${this.baseUrl}${path}`
-
     const hdr: Record<string, string> = { 'Content-Type': 'application/json' }
     if (this.authCookie) {
       hdr['Cookie'] = this.authCookie
     }
-
     const req = http.createHttp()
     try {
       const r = await req.request(url, {
@@ -158,7 +216,6 @@ export class ApiClient {
         readTimeout: 5000
       })
       req.destroy()
-
       const respBody: string = r.result as string || ''
       if (r.responseCode >= 200 && r.responseCode < 400 && respBody.length > 5) {
         return JSON.parse(respBody) as Record<string, Object>
@@ -176,18 +233,15 @@ export class ApiClient {
       method: 'call',
       params: [this.sessionId, namespace, procedure, params || {}]
     })
-
     try {
-      const resp: Record<string, Object> | null = await this.rpcPost('/ubus/', body)
+      const resp: Record<string, Object> | null = await this.rpcPost('/cgi-bin/luci/admin/ubus/', body)
       if (!resp || typeof resp !== 'object') {
         return []
       }
-
       const result: Object | undefined = resp['result']
       if (result === undefined || result === null) {
         return []
       }
-
       if (Array.isArray(result)) {
         if (result.length >= 2 && typeof result[0] === 'number' && result[0] === 0) {
           const payload: Record<string, Object> = result[1] as Record<string, Object>
@@ -201,7 +255,6 @@ export class ApiClient {
           return []
         }
       }
-
       return []
     } catch (e) {
       hilog.error(DOMAIN, TAG, `ubus ${namespace}.${procedure} err`)
@@ -217,15 +270,15 @@ export class ApiClient {
     return {}
   }
 
-  async getSystemBoard(): Promise<Record<string, Object>> {
+  getSystemBoard(): Promise<Record<string, Object>> {
     return this.callUbusFirst('system', 'board', {})
   }
 
-  async getSystemInfo(): Promise<Record<string, Object>> {
+  getSystemInfo(): Promise<Record<string, Object>> {
     return this.callUbusFirst('system', 'info', {})
   }
 
-  async getLuciNetworkDevices(): Promise<Record<string, Object>> {
+  getLuciNetworkDevices(): Promise<Record<string, Object>> {
     return this.callUbusFirst('luci-rpc', 'getNetworkDevices', {})
   }
 
@@ -260,15 +313,32 @@ export class ApiClient {
     const paths: string[] = [
       '/sys/class/thermal/thermal_zone0/temp',
       '/sys/class/thermal/thermal_zone1/temp',
+      '/sys/class/thermal/thermal_zone2/temp',
       '/sys/class/hwmon/hwmon0/temp1_input',
-      '/sys/class/hwmon/hwmon1/temp1_input'
+      '/sys/class/hwmon/hwmon1/temp1_input',
+      '/sys/class/hwmon/hwmon2/temp1_input',
+      '/sys/devices/virtual/thermal/thermal_zone0/temp',
+      '/sys/devices/platform/coretemp.0/hwmon/hwmon0/temp1_input',
+      '/proc/acpi/thermal_zone/THM0/temperature',
+      '/proc/acpi/thermal_zone/THRM/temperature'
     ]
     for (let i = 0; i < paths.length; i++) {
       try {
         const raw: string = await this.readFile(paths[i])
-        const val: number = parseInt(raw.trim(), 10)
-        if (!isNaN(val) && val > 0) {
-          return val > 200 ? val / 1000 : val
+        if (!raw || raw.length === 0) {
+          continue
+        }
+        const trimmed = raw.trim()
+        let match = trimmed.match(/(\d+)/)
+        if (match && match[1]) {
+          const val: number = parseInt(match[1], 10)
+          if (!isNaN(val) && val > 0) {
+            return val > 200 ? val / 1000 : val
+          }
+        }
+        const floatVal: number = parseFloat(trimmed)
+        if (!isNaN(floatVal) && floatVal > 0) {
+          return floatVal > 200 ? floatVal / 1000 : floatVal
         }
       } catch (e) {
       }
@@ -276,31 +346,31 @@ export class ApiClient {
     return 0
   }
 
-  async getCPUUsage(): Promise<Record<string, Object>> {
+  getCPUUsage(): Promise<Record<string, Object>> {
     return this.callUbusFirst('luci', 'getCPUUsage', {})
   }
 
-  async getOnlineUsers(): Promise<Record<string, Object>> {
+  getOnlineUsers(): Promise<Record<string, Object>> {
     return this.callUbusFirst('luci', 'getOnlineUsers', {})
   }
 
-  async getTempInfo(): Promise<Record<string, Object>> {
+  getTempInfo(): Promise<Record<string, Object>> {
     return this.callUbusFirst('luci', 'getTempInfo', {})
   }
 
-  async getMountPoints(): Promise<Record<string, Object>[]> {
+  getMountPoints(): Promise<Record<string, Object>[]> {
     return this.callUbus('luci', 'getMountPoints', {})
   }
 
-  async getRealtimeStats(params: Record<string, Object>): Promise<Record<string, Object>[]> {
+  getRealtimeStats(params: Record<string, Object>): Promise<Record<string, Object>[]> {
     return this.callUbus('luci', 'getRealtimeStats', params)
   }
 
-  async getProcessList(): Promise<Record<string, Object>> {
+  getProcessList(): Promise<Record<string, Object>> {
     return this.callUbusFirst('luci', 'getProcessList', {})
   }
 
-  async getWirelessDevices(): Promise<Record<string, Object>> {
+  getWirelessDevices(): Promise<Record<string, Object>> {
     return this.callUbusFirst('luci-rpc', 'getWirelessDevices', {})
   }
 
@@ -308,8 +378,7 @@ export class ApiClient {
     const execObj: Record<string, Object> = {}
     execObj['command'] = command
     execObj['params'] = params || []
-    const execParams: Record<string, Object> = execObj
-    const arr = await this.callUbus('file', 'exec', execParams)
+    const arr = await this.callUbus('file', 'exec', execObj)
     if (arr.length > 0) {
       const container = arr[0] as Record<string, Object>
       if (container) {
@@ -331,21 +400,25 @@ export class ApiClient {
     return arr.length > 0
   }
 
-  async networkInterfaceDump(): Promise<Record<string, Object>> {
+  networkInterfaceDump(): Promise<Record<string, Object>> {
     return this.callUbusFirst('network.interface', 'dump', {})
   }
 
-  async networkDeviceStatus(): Promise<Record<string, Object>> {
+  networkDeviceStatus(): Promise<Record<string, Object>> {
     return this.callUbusFirst('network.device', 'status', {})
   }
 
-  async iwinfoAssoclist(ifname: string): Promise<Record<string, Object>> {
+  getLanStatus(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('network.interface.lan', 'status', {})
+  }
+
+  iwinfoAssoclist(ifname: string): Promise<Record<string, Object>> {
     const iwinfoParams: Record<string, Object> = {}
     iwinfoParams['device'] = ifname
     return this.callUbusFirst('iwinfo', 'assoclist', iwinfoParams)
   }
 
-  async rcList(): Promise<Record<string, Object>> {
+  rcList(): Promise<Record<string, Object>> {
     return this.callUbusFirst('rc', 'list', {})
   }
 
@@ -356,11 +429,11 @@ export class ApiClient {
     return arr.length > 0
   }
 
-  async getOafStatus(): Promise<Record<string, Object>> {
+  getOafStatus(): Promise<Record<string, Object>> {
     return this.callUbusFirst('appfilter', 'get_oaf_status', {})
   }
 
-  async getAppFilterBase(): Promise<Record<string, Object>> {
+  getAppFilterBase(): Promise<Record<string, Object>> {
     return this.callUbusFirst('appfilter', 'get_app_filter_base', {})
   }
 
@@ -369,11 +442,11 @@ export class ApiClient {
     return arr.length > 0
   }
 
-  async getAppFilterClassList(): Promise<Record<string, Object>[]> {
+  getAppFilterClassList(): Promise<Record<string, Object>[]> {
     return this.callUbus('appfilter', 'class_list', {})
   }
 
-  async getAppFilter(): Promise<Record<string, Object>> {
+  getAppFilter(): Promise<Record<string, Object>> {
     return this.callUbusFirst('appfilter', 'get_app_filter', {})
   }
 
@@ -382,7 +455,7 @@ export class ApiClient {
     return arr.length > 0
   }
 
-  async getAppFilterTime(): Promise<Record<string, Object>> {
+  getAppFilterTime(): Promise<Record<string, Object>> {
     return this.callUbusFirst('appfilter', 'get_app_filter_time', {})
   }
 
@@ -391,7 +464,7 @@ export class ApiClient {
     return arr.length > 0
   }
 
-  async getAppFilterUser(): Promise<Record<string, Object>> {
+  getAppFilterUser(): Promise<Record<string, Object>> {
     return this.callUbusFirst('appfilter', 'get_app_filter_user', {})
   }
 
@@ -410,7 +483,7 @@ export class ApiClient {
     return arr.length > 0
   }
 
-  async getAppFilterAdv(): Promise<Record<string, Object>> {
+  getAppFilterAdv(): Promise<Record<string, Object>> {
     return this.callUbusFirst('appfilter', 'get_app_filter_adv', {})
   }
 
@@ -419,25 +492,193 @@ export class ApiClient {
     return arr.length > 0
   }
 
-  async getAllOafUsers(): Promise<Record<string, Object>[]> {
+  getAllOafUsers(): Promise<Record<string, Object>[]> {
     const oafParams: Record<string, Object> = {}
     oafParams['flag'] = 3
     return this.callUbus('appfilter', 'get_all_users', oafParams)
   }
 
-  async devVisitTime(mac: string): Promise<Record<string, Object>[]> {
+  devVisitTime(mac: string): Promise<Record<string, Object>[]> {
     const devVisitTimeParams: Record<string, Object> = {}
     devVisitTimeParams['mac'] = mac
     return this.callUbus('appfilter', 'dev_visit_time', devVisitTimeParams)
   }
 
-  async devVisitList(mac: string): Promise<Record<string, Object>[]> {
+  devVisitList(mac: string): Promise<Record<string, Object>[]> {
     const devVisitListParams: Record<string, Object> = {}
     devVisitListParams['mac'] = mac
     return this.callUbus('appfilter', 'dev_visit_list', devVisitListParams)
   }
 
-  getBaseUrl(): string {
-    return this.baseUrl
+  private async httpGet(path: string): Promise<Record<string, Object>> {
+    const url: string = `${this.baseUrl}${path}`
+    const hdr: Record<string, string> = {}
+    if (this.authCookie) {
+      hdr['Cookie'] = this.authCookie
+    }
+    const req = http.createHttp()
+    try {
+      const r = await req.request(url, {
+        method: http.RequestMethod.GET,
+        header: hdr,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 5000,
+        readTimeout: 10000
+      })
+      req.destroy()
+      if (r.result && (r.result as string).length > 5) {
+        try {
+          return JSON.parse(r.result as string) as Record<string, Object>
+        } catch (parseErr) {
+          hilog.warn(DOMAIN, TAG, `HTTP GET ${path} parse error: ${parseErr}`)
+        }
+      }
+    } catch (e) {
+      req.destroy()
+      hilog.warn(DOMAIN, TAG, `HTTP GET ${path} err: ${e}`)
+    }
+    throw new Error(`HTTP GET ${path} failed`)
+  }
+
+  private parseIstoreResult(raw: Record<string, Object>): Record<string, Object> {
+    const result: Object | undefined = raw['result']
+    if (result !== undefined && result !== null) {
+      return result as Record<string, Object>
+    }
+    const data: Object | undefined = raw['data']
+    if (data !== undefined && data !== null) {
+      return data as Record<string, Object>
+    }
+    return raw
+  }
+
+  async getIstoreSystemStatus(): Promise<Record<string, Object>> {
+    try {
+      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/system/status/')
+      return this.parseIstoreResult(raw)
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'getIstoreSystemStatus err, fallback to ubus')
+    }
+    const result: Record<string, Object> = {}
+    const info: Record<string, Object> = await this.callUbusFirst('system', 'info', {})
+    if (info) {
+      result['uptime'] = Number(info['uptime']) || 0
+      result['localtime'] = info['localtime'] || ''
+      const loadArr: Object | undefined = info['load']
+      if (Array.isArray(loadArr)) {
+        result['cpuUsage'] = Math.min(100, Math.max(0, (Number((loadArr as Object[])[0]) / 65536) * 100))
+      } else {
+        result['cpuUsage'] = 0
+      }
+      const mem: Object | undefined = info['memory']
+      if (mem && typeof mem === 'object') {
+        result['memTotal'] = String((mem as Record<string, Object>)['total'] || '')
+        result['memAvailable'] = String((mem as Record<string, Object>)['free'] || '')
+        result['memAvailablePercentage'] = 0
+      }
+    }
+    result['cpuTemperature'] = -1
+    return result
+  }
+
+  async getIstoreCPUTemperature(): Promise<number> {
+    try {
+      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/system/status/')
+      const result: Record<string, Object> = this.parseIstoreResult(raw)
+      hilog.info(DOMAIN, TAG, `getIstoreCPUTemperature: result keys: ${Object.keys(result).join(', ')}`)
+      
+      const val: Object = result['cpuTemperature']
+      if (val !== undefined && val !== null) {
+        const temp: number = Number(val)
+        hilog.info(DOMAIN, TAG, `getIstoreCPUTemperature: cpuTemperature=${val}, parsed=${temp}`)
+        if (!isNaN(temp) && temp >= 0) {
+          return temp
+        }
+      } else {
+        hilog.warn(DOMAIN, TAG, 'getIstoreCPUTemperature: cpuTemperature is undefined or null')
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, `getIstoreCPUTemperature err: ${e}, fallback to file read`)
+    }
+    const fileTemp = await this.getCPUTemp()
+    hilog.info(DOMAIN, TAG, `getIstoreCPUTemperature: file temp fallback result=${fileTemp}`)
+    return fileTemp
+  }
+
+  async getIstoreNetworkStatus(): Promise<Record<string, Object>> {
+    try {
+      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/u/network/status/')
+      return this.parseIstoreResult(raw)
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'getIstoreNetworkStatus err, fallback to ubus')
+    }
+    const lanStatus: Record<string, Object> = await this.callUbusFirst('network.interface.lan', 'status', {})
+    const result: Record<string, Object> = {}
+    result['proto'] = ''
+    result['ipv4addr'] = ''
+    result['ipv4mask'] = 24
+    result['gateway'] = ''
+    result['dnsList'] = []
+    result['interface'] = ''
+    if (lanStatus) {
+      result['proto'] = lanStatus['proto'] || ''
+      const ipv4Arr: Object | undefined = lanStatus['ipv4_address']
+      if (Array.isArray(ipv4Arr) && (ipv4Arr as Object[]).length > 0) {
+        const addr: Record<string, Object> = (ipv4Arr as Object[])[0] as Record<string, Object>
+        result['ipv4addr'] = addr['address'] || ''
+        result['ipv4mask'] = Number(addr['mask']) || 24
+      }
+      result['gateway'] = lanStatus['ipv4_gateway'] || ''
+      const dnsArr: Object | undefined = lanStatus['dns_server']
+      if (Array.isArray(dnsArr)) {
+        const arr: Object[] = dnsArr as Object[]
+        const dns: string[] = []
+        if (arr.length > 0) dns.push(String(arr[0]))
+        if (arr.length > 1) dns.push(String(arr[1]))
+        result['dnsList'] = dns
+      }
+      result['interface'] = lanStatus['device'] || lanStatus['l3_device'] || ''
+    }
+    return result
+  }
+
+  async getIstoreSystemVersion(): Promise<Record<string, Object>> {
+    try {
+      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/u/system/version/')
+      return this.parseIstoreResult(raw)
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'getIstoreSystemVersion err, fallback to ubus')
+    }
+    const board: Record<string, Object> = await this.callUbusFirst('system', 'board', {})
+    const result: Record<string, Object> = {}
+    result['model'] = ''
+    result['arch'] = ''
+    result['target'] = ''
+    result['version'] = ''
+    result['kernel'] = ''
+    if (board) {
+      result['hostname'] = board['hostname'] || ''
+      result['model'] = board['system'] || ''
+      result['arch'] = board['model'] || ''
+      result['kernel'] = board['kernel'] || ''
+      const release: Object | undefined = board['release']
+      if (release && typeof release === 'object') {
+        const rel: Record<string, Object> = release as Record<string, Object>
+        result['arch'] = rel['model'] || board['model'] || ''
+        result['target'] = rel['target'] || ''
+        result['version'] = rel['description'] || rel['version'] || ''
+      }
+    }
+    return result
+  }
+
+  async getIstoreNetworkStatistics(): Promise<Record<string, Object>> {
+    try {
+      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/u/network/statistics/')
+      return this.parseIstoreResult(raw)
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'getIstoreNetworkStatistics err')
+    }
+    return {}
   }
 }
