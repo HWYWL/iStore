@@ -29,9 +29,9 @@
         "name": "StoreAbility",
         "srcEntry": "./ets/storeability/StoreAbility.ets",
         "description": "$string:StoreAbility_desc",
-        "icon": "$media:layered_image",
+        "icon": "$media:logo",
         "label": "$string:StoreAbility_label",
-        "startWindowIcon": "$media:startIcon",
+        "startWindowIcon": "$media:logo",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         "skills": [

@@ -245,7 +245,7 @@ struct LoginPage {
         .width('100%')
 
         Column() {
-          Image($r('app.media.device_icon'))
+          Image($r('app.media.logo'))
             .width(80).height(80).borderRadius(20)
             .objectFit(ImageFit.Cover)
             .margin({ top: 24 })
@@ -271,7 +271,7 @@ struct LoginPage {
                 Column() {
                   Row() {
                     Stack() {
-                      Image($r('app.media.device_icon'))
+                      Image($r('app.media.logo'))
                         .width(40).height(40).borderRadius(10)
                         .objectFit(ImageFit.Cover)
                         .opacity(this.connectingId === device.id ? 0.4 : 1)

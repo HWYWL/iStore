@@ -45,10 +45,16 @@ struct DashboardTab {
         return
       }
       const api = new ApiService()
-      this.systemInfo = await api.fetchSystemInfo()
-      this.wanStatus = await api.fetchWanStatus()
-      this.mountPoints = await api.fetchMountPoints()
-      this.conntrack = await api.fetchConntrack()
+      const results = await Promise.all([
+        api.fetchSystemInfo(),
+        api.fetchWanStatus(),
+        api.fetchMountPoints(),
+        api.fetchConntrack()
+      ])
+      this.systemInfo = results[0]
+      this.wanStatus = results[1]
+      this.mountPoints = results[2]
+      this.conntrack = results[3]
       this.isOnline = true
     } catch (dashErr) {
       this.errorText = '加载数据失败'
@@ -63,10 +69,16 @@ struct DashboardTab {
         return
       }
       const api = new ApiService()
-      this.systemInfo = await api.fetchSystemInfo()
-      this.wanStatus = await api.fetchWanStatus()
-      this.mountPoints = await api.fetchMountPoints()
-      this.conntrack = await api.fetchConntrack()
+      const results = await Promise.all([
+        api.fetchSystemInfo(),
+        api.fetchWanStatus(),
+        api.fetchMountPoints(),
+        api.fetchConntrack()
+      ])
+      this.systemInfo = results[0]
+      this.wanStatus = results[1]
+      this.mountPoints = results[2]
+      this.conntrack = results[3]
       this.isOnline = true
     } catch (refErr) {
       // Silent fail on refresh
