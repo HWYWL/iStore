@@ -15,6 +15,7 @@
     "pages/system/RebootPage",
     "pages/system/FactoryResetPage",
     "pages/other/AboutPage",
-    "pages/other/HelpPage"
+    "pages/other/HelpPage",
+    "pages/apps/WebViewPage"
   ]
 }
