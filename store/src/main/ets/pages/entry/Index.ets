@@ -4,7 +4,7 @@ import { router } from '@kit.ArkUI'
 @Component
 struct Index {
   aboutToAppear(): void {
-    router.replaceUrl({ url: 'pages/LoginPage' })
+    router.replaceUrl({ url: 'pages/entry/LoginPage' })
   }
 
   build() {

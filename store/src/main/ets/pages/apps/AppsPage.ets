@@ -1,5 +1,5 @@
-import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
-import { AppState } from '../common/store/AppState'
+import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+import { AppState } from '../../common/store/AppState'
 import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -15,12 +15,12 @@ struct AppsPage {
   @State isDark: boolean = true
   @State theme: ThemePalette = DARK_THEME
   private tools: ToolEntry[] = [
-    { emoji: '👨‍👩‍👧', name: '家长控制', route: 'pages/ParentalControlPage' },
-    { emoji: '🗺', name: '路由表', route: 'pages/RouteTablePage' },
-    { emoji: '⚙️', name: '系统进程', route: 'pages/ProcessListPage' },
-    { emoji: '🚀', name: '启动项', route: 'pages/StartupPage' },
-    { emoji: '🔄', name: '重启', route: 'pages/RebootPage' },
-    { emoji: '🔙', name: '恢复出厂', route: 'pages/FactoryResetPage' }
+    { emoji: '👨‍👩‍👧', name: '家长控制', route: 'pages/parental/ParentalControlPage' },
+    { emoji: '🗺', name: '路由表', route: 'pages/network/RouteTablePage' },
+    { emoji: '⚙️', name: '系统进程', route: 'pages/process/ProcessListPage' },
+    { emoji: '🚀', name: '启动项', route: 'pages/process/StartupPage' },
+    { emoji: '🔄', name: '重启', route: 'pages/system/RebootPage' },
+    { emoji: '🔙', name: '恢复出厂', route: 'pages/system/FactoryResetPage' }
   ]
 
   aboutToAppear(): void {

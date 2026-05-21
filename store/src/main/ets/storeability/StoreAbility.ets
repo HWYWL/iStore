@@ -35,7 +35,7 @@ export default class StoreAbility extends UIAbility {
       hilog.error(DOMAIN, 'StoreAbility', 'Failed to set full-screen layout: %{public}s', JSON.stringify(err))
     })
 
-    windowStage.loadContent('pages/LoginPage', (err) => {
+    windowStage.loadContent('pages/entry/LoginPage', (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'StoreAbility', 'Failed to load content: %{public}s', JSON.stringify(err))
         return

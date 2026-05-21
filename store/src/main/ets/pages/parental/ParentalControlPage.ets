@@ -1,7 +1,7 @@
-import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
-import { AppState } from '../common/store/AppState'
-import { ApiService } from '../api/ApiService'
-import { OafStatus } from '../models/Models'
+import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+import { AppState } from '../../common/store/AppState'
+import { ApiService } from '../../api/ApiService'
+import { OafStatus } from '../../models/Models'
 import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -271,9 +271,9 @@ struct ParentalControlPage {
   @Builder
   SettingsTab() {
     Column() {
-      this.settingsItem('⚙️ 基础设置', '启用/禁用应用过滤、日志和工作模式', 'pages/ParentalBasicPage')
-      this.settingsItem('📋 应用过滤规则', '管理应用分类、过滤规则和黑白名单', 'pages/ParentalFilterPage')
-      this.settingsItem('🔧 高级设置', 'OAF 引擎高级配置选项', 'pages/ParentalAdvancedPage')
+      this.settingsItem('⚙️ 基础设置', '启用/禁用应用过滤、日志和工作模式', 'pages/parental/ParentalBasicPage')
+      this.settingsItem('📋 应用过滤规则', '管理应用分类、过滤规则和黑白名单', 'pages/parental/ParentalFilterPage')
+      this.settingsItem('🔧 高级设置', 'OAF 引擎高级配置选项', 'pages/parental/ParentalAdvancedPage')
     }
     .width('100%')
   }

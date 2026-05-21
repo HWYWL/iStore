@@ -1,20 +1,20 @@
 {
   "src": [
-    "pages/LoginPage",
-    "pages/MainPage",
-    "pages/StatisticsPage",
-    "pages/ClientDetailPage",
-    "pages/AppsPage",
-    "pages/ParentalControlPage",
-    "pages/ParentalBasicPage",
-    "pages/ParentalFilterPage",
-    "pages/ParentalAdvancedPage",
-    "pages/RouteTablePage",
-    "pages/ProcessListPage",
-    "pages/StartupPage",
-    "pages/RebootPage",
-    "pages/FactoryResetPage",
-    "pages/AboutPage",
-    "pages/HelpPage"
+    "pages/entry/LoginPage",
+    "pages/dashboard/MainPage",
+    "pages/traffic/StatisticsPage",
+    "pages/devices/ClientDetailPage",
+    "pages/apps/AppsPage",
+    "pages/parental/ParentalControlPage",
+    "pages/parental/ParentalBasicPage",
+    "pages/parental/ParentalFilterPage",
+    "pages/parental/ParentalAdvancedPage",
+    "pages/network/RouteTablePage",
+    "pages/process/ProcessListPage",
+    "pages/process/StartupPage",
+    "pages/system/RebootPage",
+    "pages/system/FactoryResetPage",
+    "pages/other/AboutPage",
+    "pages/other/HelpPage"
   ]
 }

@@ -1,8 +1,8 @@
-import { AppState } from '../common/store/AppState'
-import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
-import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../models/Models'
-import { FormatUtils } from '../common/utils/FormatUtils'
-import { ApiService } from '../api/ApiService'
+import { AppState } from '../../common/store/AppState'
+import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
+import { FormatUtils } from '../../common/utils/FormatUtils'
+import { ApiService } from '../../api/ApiService'
 import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -936,7 +936,7 @@ struct DeviceTab {
               .onClick(() => {
                 try {
                   router.pushUrl({
-                    url: 'pages/ClientDetailPage',
+                    url: 'pages/devices/ClientDetailPage',
                     params: { mac: device.mac, hostname: device.hostname }
                   })
                 } catch (e) {
@@ -1038,7 +1038,7 @@ struct DeviceTab {
             .onClick(() => {
               try {
                 router.pushUrl({
-                  url: 'pages/ClientDetailPage',
+                  url: 'pages/devices/ClientDetailPage',
                   params: { mac: client.mac, hostname: client.hostname || client.mac }
                 })
               } catch (e) {
@@ -1546,7 +1546,7 @@ struct MainPage {
           .justifyContent(FlexAlign.Center)
           .onClick(() => {
             try {
-              router.pushUrl({ url: 'pages/StatisticsPage' })
+              router.pushUrl({ url: 'pages/traffic/StatisticsPage' })
             } catch (e) {
               hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
             }
@@ -1572,7 +1572,7 @@ struct MainPage {
           .justifyContent(FlexAlign.Center)
           .onClick(() => {
             try {
-              router.pushUrl({ url: 'pages/AppsPage' })
+              router.pushUrl({ url: 'pages/apps/AppsPage' })
             } catch (e) {
               hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
             }

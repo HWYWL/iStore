@@ -1,7 +1,7 @@
-import { AppState } from '../common/store/AppState'
-import { SavedDevice } from '../common/store/DeviceStore'
-import { ConnectionConfig } from '../models/Models'
-import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
+import { AppState } from '../../common/store/AppState'
+import { SavedDevice } from '../../common/store/DeviceStore'
+import { ConnectionConfig } from '../../models/Models'
+import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { router } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -43,7 +43,7 @@ struct LoginPage {
     // 如果已有活跃连接，直接进入主页面
     if (this.appState.getActiveDeviceId()) {
       try {
-        router.replaceUrl({ url: 'pages/MainPage' })
+        router.replaceUrl({ url: 'pages/dashboard/MainPage' })
       } catch (e) {
         hilog.error(0x0001, 'LoginPage', `replaceUrl failed: ${e}`)
       }
@@ -176,7 +176,7 @@ struct LoginPage {
         this.isConnecting = false
         this.connectingId = ''
         try {
-          router.pushUrl({ url: 'pages/MainPage' })
+          router.pushUrl({ url: 'pages/dashboard/MainPage' })
         } catch (e) {
           hilog.error(0x0001, 'LoginPage', `pushUrl failed: ${e}`)
         }

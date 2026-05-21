@@ -1,8 +1,8 @@
-import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
-import { AppState } from '../common/store/AppState'
-import { ApiService } from '../api/ApiService'
-import { ProcessInfo } from '../models/Models'
-import { FormatUtils } from '../common/utils/FormatUtils'
+import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+import { AppState } from '../../common/store/AppState'
+import { ApiService } from '../../api/ApiService'
+import { ProcessInfo } from '../../models/Models'
+import { FormatUtils } from '../../common/utils/FormatUtils'
 import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 

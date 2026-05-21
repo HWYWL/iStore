@@ -1,8 +1,8 @@
-import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
-import { AppState } from '../common/store/AppState'
-import { ApiService } from '../api/ApiService'
-import { FormatUtils } from '../common/utils/FormatUtils'
-import { RealtimeBandwidth, RealtimeLoad, NetworkInterface } from '../models/Models'
+import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+import { AppState } from '../../common/store/AppState'
+import { ApiService } from '../../api/ApiService'
+import { FormatUtils } from '../../common/utils/FormatUtils'
+import { RealtimeBandwidth, RealtimeLoad, NetworkInterface } from '../../models/Models'
 import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 

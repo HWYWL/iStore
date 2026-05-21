@@ -1,5 +1,5 @@
-import { ThemePalette, DARK_THEME } from '../common/theme/ThemeColors'
-import { AppState } from '../common/store/AppState'
+import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+import { AppState } from '../../common/store/AppState'
 import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
