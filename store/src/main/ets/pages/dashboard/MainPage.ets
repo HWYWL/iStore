@@ -1526,32 +1526,6 @@ struct MainPage {
             this.currentTab = 2
           })
 
-          // 统计
-          Column() {
-            Text('📈')
-              .fontSize(18)
-              .opacity(0.4)
-            Text('统计')
-              .fontSize(11)
-              .fontColor(this.theme.textTertiary)
-              .margin({ top: 2 })
-            Circle()
-              .width(4)
-              .height(4)
-              .fill('transparent')
-              .margin({ top: 4 })
-          }
-          .flexGrow(1)
-          .height(60)
-          .justifyContent(FlexAlign.Center)
-          .onClick(() => {
-            try {
-              router.pushUrl({ url: 'pages/traffic/StatisticsPage' })
-            } catch (e) {
-              hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
-            }
-          })
-
           // 应用
           Column() {
             Text('🛠')

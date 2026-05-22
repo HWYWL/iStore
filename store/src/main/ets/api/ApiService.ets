@@ -12,9 +12,6 @@ import {
   RouteEntry,
   WirelessClient,
   WirelessDevice,
-  RealtimeBandwidth,
-  RealtimeDataPoint,
-  RealtimeLoad,
   OafStatus,
   AppFilterBase,
   AppClass,
@@ -823,71 +820,6 @@ export class ApiService {
       hilog.error(DOMAIN, TAG, 'fetchWirelessDevices err')
     }
     return []
-  }
-
-  async fetchRealtimeBandwidth(iface: string): Promise<RealtimeBandwidth> {
-    try {
-      const rtStatsParams: Record<string, Object> = {}
-      rtStatsParams['mode'] = 'interface'
-      rtStatsParams['device'] = iface
-      const raw: Record<string, Object>[] = await this.client.getRealtimeStats(rtStatsParams)
-      const results = raw.length > 0 ? raw[0] : null
-      const arr = results ? (results['result'] as (number[])[] | undefined) : undefined
-      const rx: RealtimeDataPoint[] = []
-      const tx: RealtimeDataPoint[] = []
-      if (arr && Array.isArray(arr) && arr.length > 0) {
-        for (let i = 0; i < arr.length; i++) {
-          const row = arr[i]
-          if (row && row.length >= 5) {
-            const ts = row[0]
-            let rxRate = 0
-            let txRate = 0
-            if (i > 0) {
-              const prev = arr[i - 1]
-              const dt = ts - prev[0]
-              if (dt > 0) {
-                rxRate = Math.max(0, Math.floor((row[1] - prev[1]) / dt))
-                txRate = Math.max(0, Math.floor((row[3] - prev[3]) / dt))
-              }
-            }
-            rx.push({ time: new Date(ts * 1000).toISOString(), value: rxRate })
-            tx.push({ time: new Date(ts * 1000).toISOString(), value: txRate })
-          }
-        }
-      }
-      return { interface: iface, rx: rx, tx: tx }
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchRealtimeBandwidth err')
-    }
-    return { interface: iface, rx: [], tx: [] }
-  }
-
-  async fetchRealtimeLoad(): Promise<RealtimeLoad> {
-    try {
-      const loadParams: Record<string, Object> = {}
-      loadParams['mode'] = 'load'
-      const raw: Record<string, Object>[] = await this.client.getRealtimeStats(loadParams)
-      const results = raw.length > 0 ? raw[0] : null
-      const arr = results ? (results['result'] as (number[])[] | undefined) : undefined
-      const load1: RealtimeDataPoint[] = []
-      const load5: RealtimeDataPoint[] = []
-      const load15: RealtimeDataPoint[] = []
-      if (arr && Array.isArray(arr)) {
-        for (let i = 0; i < arr.length; i++) {
-          const row = arr[i]
-          if (row && row.length >= 4) {
-            const ts = row[0]
-            load1.push({ time: new Date(ts * 1000).toISOString(), value: row[1] / 100 })
-            load5.push({ time: new Date(ts * 1000).toISOString(), value: row[2] / 100 })
-            load15.push({ time: new Date(ts * 1000).toISOString(), value: row[3] / 100 })
-          }
-        }
-      }
-      return { load1: load1, load5: load5, load15: load15 }
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchRealtimeLoad err')
-    }
-    return { load1: [], load5: [], load15: [] }
   }
 
   async fetchOafStatus(): Promise<OafStatus> {

@@ -2,7 +2,6 @@
   "src": [
     "pages/entry/LoginPage",
     "pages/dashboard/MainPage",
-    "pages/traffic/StatisticsPage",
     "pages/devices/ClientDetailPage",
     "pages/apps/AppsPage",
     "pages/parental/ParentalControlPage",

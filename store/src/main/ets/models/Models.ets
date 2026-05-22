@@ -208,23 +208,6 @@ export interface WirelessDevice {
   protocol: string
 }
 
-export interface RealtimeBandwidth {
-  interface: string
-  rx: RealtimeDataPoint[]
-  tx: RealtimeDataPoint[]
-}
-
-export interface RealtimeLoad {
-  load1: RealtimeDataPoint[]
-  load5: RealtimeDataPoint[]
-  load15: RealtimeDataPoint[]
-}
-
-export interface RealtimeDataPoint {
-  time: string
-  value: number
-}
-
 export interface OafStatus {
   pluginVersion: string
   engineVersion: string

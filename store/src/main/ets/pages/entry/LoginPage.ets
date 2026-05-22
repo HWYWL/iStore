@@ -183,8 +183,14 @@ struct LoginPage {
       } else {
         this.isConnecting = false
         this.connectingId = ''
-        this.errorMessage = '连接失败，请检查地址和凭据'
-        setTimeout(() => { this.errorMessage = '' }, 4000)
+        // 显示 ApiClient 中的详细错误信息
+        const lastErr: string = this.appState.getLastError()
+        if (lastErr) {
+          this.errorMessage = lastErr
+        } else {
+          this.errorMessage = '连接失败，请检查地址和凭据'
+        }
+        setTimeout(() => { this.errorMessage = '' }, 5000)
       }
     } catch (netErr) {
       if (timedOut) return

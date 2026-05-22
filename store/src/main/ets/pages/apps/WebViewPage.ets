@@ -53,8 +53,9 @@ struct WebViewPage {
   }
 
   /**
-   * 通过 JS 注入自动登录 OpenWRT（标准 LuCI / iStoreOS）
+   * 通过 JS 注入自动登录 OpenWRT（标准 LuCI / iStoreOS / QWRT）
    * 轮询等待登录表单渲染完成后填入账号密码并提交
+   * 兼容不同发行版的表单结构和字段命名
    */
   private tryAutoLogin(): void {
     if (this.autoLoginDone) {
@@ -100,12 +101,15 @@ struct WebViewPage {
       'input[name="username"]',
       'input[name="user"]',
       'input[name="login"]',
+      'input[name="cbi_user"]',
+      'input[name="cbi_username"]',
       'input[placeholder*="用户"]',
       'input[placeholder*="账号"]',
       'input[placeholder*="帐号"]',
       'input[placeholder*="用户名"]',
       'input[placeholder*="Username"]',
       'input[placeholder*="User"]',
+      'input[placeholder*="user"]',
       'input[autocomplete="username"]',
       'input[type="text"]:not([style*="display:none"]):not(.cbi-input-inline)'
     ];
@@ -153,10 +157,14 @@ struct WebViewPage {
       'button:contains("登录")',
       'button:contains("Login")',
       'button:contains("登 录")',
+      'button:contains("Sign in")',
+      'button:contains("登入")',
       '.el-button--primary',
       '.ant-btn-primary',
       'button[class*="login"]',
-      'button[class*="submit"]'
+      'button[class*="submit"]',
+      'input[class*="login"]',
+      'input[class*="submit"]'
     ];
     for (var i = 0; i < btnSelectors.length; i++) {
       var btn = document.querySelector(btnSelectors[i]);

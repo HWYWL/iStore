@@ -49,10 +49,11 @@ export class ApiClient {
     this.sessionId = ''
 
     if (!await this.probe()) {
-      this.lastError = '无法连接到设备'
+      this.lastError = '无法连接到设备，请检查地址和端口'
       return false
     }
 
+    // 先尝试 LuCI 表单登录（兼容 iStoreOS / QWRT / 标准 OpenWrt）
     const luciOk: boolean = await this.luciFormLogin()
     if (luciOk) {
       this.sessionId = '00000000000000000000000000000000'
@@ -63,11 +64,25 @@ export class ApiClient {
         this.lastError = '登录失败，请检查用户名和密码'
         return false
       }
+      hilog.info(DOMAIN, TAG, 'UBUS login OK')
     }
 
     if (!await this.verifyLogin()) {
-      this.lastError = '会话验证失败'
-      return false
+      // 如果 cookie 已设置但验证失败，尝试用 ubus 方式再登录一次
+      if (luciOk && this.authCookie) {
+        hilog.warn(DOMAIN, TAG, 'Cookie-based verify failed, trying UBUS as fallback')
+        if (!await this.ubusLogin()) {
+          this.lastError = '会话验证失败，请确认设备支持 OpenWrt/LuCI'
+          return false
+        }
+        if (!await this.verifyLogin()) {
+          this.lastError = '会话验证失败，请确认设备支持 OpenWrt/LuCI'
+          return false
+        }
+      } else {
+        this.lastError = '会话验证失败，请确认设备支持 OpenWrt/LuCI'
+        return false
+      }
     }
 
     this.connected = true
@@ -80,70 +95,120 @@ export class ApiClient {
   }
 
   private async probe(): Promise<boolean> {
-    const req = http.createHttp()
-    try {
-      const r = await req.request(`${this.baseUrl}/`, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 3000,
-        readTimeout: 3000
-      })
-      req.destroy()
-      return r.responseCode >= 200 && r.responseCode < 500
-    } catch (e) {
-      req.destroy()
-      return false
+    // 尝试多个路径探测设备可达性
+    const probePaths: string[] = [
+      '/',
+      '/cgi-bin/luci/',
+      '/cgi-bin/luci/admin/'
+    ]
+    for (const path of probePaths) {
+      const req = http.createHttp()
+      try {
+        const r = await req.request(`${this.baseUrl}${path}`, {
+          method: http.RequestMethod.GET,
+          expectDataType: http.HttpDataType.STRING,
+          connectTimeout: 3000,
+          readTimeout: 3000
+        })
+        req.destroy()
+        if (r.responseCode >= 200 && r.responseCode < 500) {
+          return true
+        }
+      } catch (e) {
+        req.destroy()
+      }
     }
+    return false
   }
 
   private async luciFormLogin(): Promise<boolean> {
-    const formBody: string =
-      `luci_username=${encodeURIComponent(this.username)}&luci_password=${encodeURIComponent(this.password)}`
-    const url: string = `${this.baseUrl}/cgi-bin/luci/`
-    const req = http.createHttp()
-    try {
-      const r = await req.request(url, {
-        method: http.RequestMethod.POST,
-        header: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-          'Accept': '*/*'
-        },
-        extraData: formBody,
-        expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 5000,
-        readTimeout: 10000
-      })
-      let setCookie: string = ''
-      const keys = Object.keys(r.header)
-      for (let i = 0; i < keys.length; i++) {
-        const key = keys[i]
-        if (key.toLowerCase() === 'set-cookie') {
-          const cookieValue = String(r.header[key])
-          if (cookieValue.toLowerCase().includes('sysauth')) {
-            setCookie = cookieValue
-            break
+    // 尝试多种登录路径和表单字段组合，兼容不同 OpenWrt 发行版（iStoreOS / QWRT / LEDE 等）
+    const loginPaths: string[] = [
+      '/cgi-bin/luci/',
+      '/cgi-bin/luci/admin/'
+    ]
+    const formBodies: string[] = [
+      `luci_username=${encodeURIComponent(this.username)}&luci_password=${encodeURIComponent(this.password)}`,
+      `username=${encodeURIComponent(this.username)}&password=${encodeURIComponent(this.password)}`
+    ]
+
+    for (const path of loginPaths) {
+      for (const formBody of formBodies) {
+        const url: string = `${this.baseUrl}${path}`
+        const req = http.createHttp()
+        try {
+          const r = await req.request(url, {
+            method: http.RequestMethod.POST,
+            header: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+              'Accept': '*/*'
+            },
+            extraData: formBody,
+            expectDataType: http.HttpDataType.STRING,
+            connectTimeout: 5000,
+            readTimeout: 10000
+          })
+
+          // 方式1: 从 cookies 属性中查找 sysauth（HarmonyOS API 8+ 提供）
+          if (r.cookies && Array.isArray(r.cookies)) {
+            const cookiesArr: string[] = r.cookies as string[]
+            for (let ci = 0; ci < cookiesArr.length; ci++) {
+              const ckStr: string = String(cookiesArr[ci])
+              if (ckStr.toLowerCase().includes('sysauth')) {
+                const m: RegExpMatchArray | null = ckStr.match(/sysauth[^;]*/)
+                if (m && m[0]) {
+                  this.authCookie = m[0]
+                  req.destroy()
+                  hilog.info(DOMAIN, TAG, `LuCI form login OK via cookies (${path}), cookie: ` +
+                    this.authCookie.substring(0, 20) + '...')
+                  return true
+                }
+              }
+            }
           }
-          if (!setCookie) {
-            setCookie = cookieValue
+
+          // 方式2: 从 Set-Cookie 响应头中查找
+          let setCookie: string = ''
+          const keys = Object.keys(r.header)
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i]
+            const keyLower = key.toLowerCase()
+            if (keyLower === 'set-cookie') {
+              const cookieValue = String(r.header[key])
+              if (cookieValue.toLowerCase().includes('sysauth')) {
+                setCookie = cookieValue
+                break
+              }
+              if (!setCookie) {
+                setCookie = cookieValue
+              }
+            }
           }
+
+          req.destroy()
+
+          if (setCookie) {
+            const sysauthMatch: RegExpMatchArray | null = setCookie.match(/sysauth[^;]*/)
+            if (sysauthMatch && sysauthMatch[0]) {
+              this.authCookie = sysauthMatch[0]
+              hilog.info(DOMAIN, TAG, `LuCI form login OK (${path}), cookie: ` +
+                this.authCookie.substring(0, 20) + '...')
+              return true
+            }
+          }
+
+          // 记录调试信息
+          if (r.responseCode >= 200 && r.responseCode < 300) {
+            hilog.info(DOMAIN, TAG,
+              `LuCI form login: ${path} returned ${r.responseCode}, but no sysauth cookie found`)
+          }
+        } catch (e) {
+          req.destroy()
+          hilog.info(DOMAIN, TAG, `LuCI form login ${path} try err: ${String(e)}`)
         }
       }
-      req.destroy()
-      if (setCookie) {
-        const sysauthMatch: RegExpMatchArray | null = setCookie.match(/sysauth[^;]*/)
-        if (sysauthMatch && sysauthMatch[0]) {
-          this.authCookie = sysauthMatch[0]
-          hilog.info(DOMAIN, TAG, 'LuCI form login OK, cookie: ' + this.authCookie.substring(0, 20) + '...')
-          hilog.info(DOMAIN, TAG, 'authCookie set successfully: ' + this.authCookie)
-          return true
-        }
-      }
-      hilog.warn(DOMAIN, TAG, 'LuCI form login: no sysauth cookie found')
-      hilog.warn(DOMAIN, TAG, 'setCookie header value: ' + setCookie)
-    } catch (e) {
-      hilog.warn(DOMAIN, TAG, 'LuCI form login err: ' + String(e))
-      req.destroy()
     }
+    hilog.warn(DOMAIN, TAG, 'LuCI form login: no sysauth cookie found on all paths')
     return false
   }
 
@@ -157,43 +222,112 @@ export class ApiClient {
       method: 'call',
       params: ['00000000000000000000000000000000', 'session', 'login', loginObj]
     })
-    try {
-      const resp: Record<string, Object> | null = await this.rpcPost('/ubus', body)
-      if (!resp || typeof resp !== 'object') {
-        return false
+    // 尝试多个 ubus 端点路径
+    const ubusPaths: string[] = [
+      '/ubus',
+      '/cgi-bin/luci/admin/ubus/'
+    ]
+    for (const path of ubusPaths) {
+      try {
+        const resp: Record<string, Object> | null = await this.rpcPost(path, body)
+        if (!resp || typeof resp !== 'object') {
+          continue
+        }
+        const resArr = resp['result'] as Object[] | undefined
+        if (!resArr || !Array.isArray(resArr) || resArr.length < 2) {
+          continue
+        }
+        const code = Number(resArr[0])
+        if (code !== 0) {
+          continue
+        }
+        const data = resArr[1] as Record<string, Object>
+        if (!data) {
+          continue
+        }
+        const sid = data['ubus_rpc_session'] as string | undefined
+        if (!sid) {
+          continue
+        }
+        this.sessionId = sid
+        this.authCookie = `sysauth=${sid}`
+        hilog.info(DOMAIN, TAG, `UBUS login OK (${path}), session: ${sid.substring(0, 12)}...`)
+        return true
+      } catch (e) {
+        hilog.info(DOMAIN, TAG, `ubusLogin ${path} err: ${String(e)}`)
       }
-      const resArr = resp['result'] as Object[] | undefined
-      if (!resArr || !Array.isArray(resArr) || resArr.length < 2) {
-        return false
-      }
-      const code = Number(resArr[0])
-      if (code !== 0) {
-        return false
-      }
-      const data = resArr[1] as Record<string, Object>
-      if (!data) {
-        return false
-      }
-      const sid = data['ubus_rpc_session'] as string | undefined
-      if (!sid) {
-        return false
-      }
-      this.sessionId = sid
-      this.authCookie = `sysauth=${sid}`
-      hilog.info(DOMAIN, TAG, `UBUS login OK, session: ${sid.substring(0, 12)}...`)
-      return true
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'ubusLogin err')
     }
+    hilog.error(DOMAIN, TAG, 'ubusLogin all paths failed')
     return false
   }
 
   private async verifyLogin(): Promise<boolean> {
-    const board = await this.getSystemBoard()
-    if (board && typeof board === 'object') {
-      const hostname = board['hostname']
-      if (hostname) {
+    // 方式1: 通过 ubus system.board 验证（标准 OpenWrt / iStoreOS）
+    try {
+      const board = await this.getSystemBoard()
+      if (board && typeof board === 'object') {
+        const hostname = board['hostname']
+        if (hostname) {
+          hilog.info(DOMAIN, TAG, 'verifyLogin OK via ubus system.board')
+          return true
+        }
+      }
+    } catch (e) {
+      hilog.info(DOMAIN, TAG, `verifyLogin ubus failed: ${String(e)}, trying fallback`)
+    }
+
+    // 方式2: 通过 HTTP GET 已验证页面确认 cookie 有效（兼容 QWRT 等无 ubus 代理的系统）
+    try {
+      const ok: boolean = await this.verifyByHttpGet()
+      if (ok) {
+        hilog.info(DOMAIN, TAG, 'verifyLogin OK via HTTP GET')
         return true
+      }
+    } catch (e) {
+      hilog.info(DOMAIN, TAG, `verifyLogin HTTP fallback failed: ${String(e)}`)
+    }
+
+    return false
+  }
+
+  /**
+   * 通过 HTTP GET 请求已验证页面来确认登录状态
+   * 尝试多个常见的管理页面路径
+   */
+  private async verifyByHttpGet(): Promise<boolean> {
+    const verifyPaths: string[] = [
+      '/cgi-bin/luci/admin/status/overview',
+      '/cgi-bin/luci/admin/',
+      '/cgi-bin/luci/'
+    ]
+    for (const path of verifyPaths) {
+      const req = http.createHttp()
+      try {
+        const hdr: Record<string, string> = {}
+        if (this.authCookie) {
+          hdr['Cookie'] = this.authCookie
+        }
+        const r = await req.request(`${this.baseUrl}${path}`, {
+          method: http.RequestMethod.GET,
+          header: hdr,
+          expectDataType: http.HttpDataType.STRING,
+          connectTimeout: 5000,
+          readTimeout: 5000
+        })
+        req.destroy()
+        // 如果返回 200 且内容不为空（说明登录成功可访问），或者有新的 Set-Cookie 确认会话有效
+        if (r.responseCode === 200 && r.result && String(r.result).length > 100) {
+          return true
+        }
+        if (r.responseCode >= 200 && r.responseCode < 400) {
+          // 检查是否被重定向到登录页（无 cookie 时通常会被重定向）
+          const body: string = String(r.result || '')
+          if (!body.includes('luci_username') && !body.includes('login')) {
+            return true
+          }
+        }
+      } catch (e) {
+        req.destroy()
       }
     }
     return false
