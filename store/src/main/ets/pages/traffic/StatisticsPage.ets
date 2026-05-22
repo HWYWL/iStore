@@ -105,9 +105,28 @@ struct BandwidthTab {
       const api = new ApiService()
       this.interfaces = await api.fetchNetworkInterfaces()
       if (this.interfaces.length > 0) {
-        this.selectedIface = this.interfaces[0].name
+        // 优先选 br-lan（与首页一致），否则选第一个非 lo 的接口
         this.selectedIndex = 0
+        this.selectedIface = this.interfaces[0].name
+        for (let i = 0; i < this.interfaces.length; i++) {
+          if (this.interfaces[i].name === 'br-lan') {
+            this.selectedIface = 'br-lan'
+            this.selectedIndex = i
+            break
+          }
+        }
+        if (this.selectedIface === 'lo' && this.interfaces.length > 1) {
+          // 避免选回环接口
+          for (let i = 0; i < this.interfaces.length; i++) {
+            if (this.interfaces[i].name !== 'lo') {
+              this.selectedIface = this.interfaces[i].name
+              this.selectedIndex = i
+              break
+            }
+          }
+        }
       }
+      hilog.info(0x0001, 'StatisticsPage', `Selected iface: ${this.selectedIface}`)
       await this.fetchBandwidth()
     } catch (e) {
       this.errorText = '加载接口列表失败'
@@ -129,6 +148,8 @@ struct BandwidthTab {
       if (result.tx.length > 0) {
         txVal = result.tx[result.tx.length - 1].value
       }
+
+      hilog.info(0x0001, 'StatisticsPage', `BW ${this.selectedIface}: rx=${rxVal} tx=${txVal} dataLen=${result.rx.length}`)
 
       const rxHistory = pushSliding(this.bw.rxHistory, rxVal)
       const txHistory = pushSliding(this.bw.txHistory, txVal)
@@ -256,7 +277,7 @@ struct BandwidthTab {
               .width('100%')
               .margin({ bottom: 8 })
 
-              LineChart({ series: [this.bw.rxHistory, this.bw.txHistory], colors: ['#00E676', '#448AFF'], bgColor: this.theme.bgDark, gridColor: this.theme.borderGlass, drawTrigger: this.drawTrigger })
+              LineChart({ series: [this.bw.rxHistory, this.bw.txHistory], colors: ['#00E676', '#448AFF'], currentLabels: [FormatUtils.formatSpeed(this.bw.currentRx), FormatUtils.formatSpeed(this.bw.currentTx)], bgColor: this.theme.bgDark, gridColor: this.theme.borderGlass, drawTrigger: this.drawTrigger })
             }
             .width('100%')
             .padding(14)
@@ -442,7 +463,7 @@ struct LoadTab {
               .width('100%')
               .margin({ bottom: 8 })
 
-              LineChart({ series: [this.load.load1History, this.load.load5History, this.load.load15History], colors: ['#FF5252', '#FF9800', '#FFD740'], bgColor: this.theme.bgDark, gridColor: this.theme.borderGlass, drawTrigger: this.drawTrigger })
+              LineChart({ series: [this.load.load1History, this.load.load5History, this.load.load15History], colors: ['#FF5252', '#FF9800', '#FFD740'], currentLabels: [this.load.current1.toFixed(2), this.load.current5.toFixed(2), this.load.current15.toFixed(2)], bgColor: this.theme.bgDark, gridColor: this.theme.borderGlass, drawTrigger: this.drawTrigger })
             }
             .width('100%')
             .padding(14)
@@ -492,18 +513,195 @@ struct LoadTab {
 }
 
 // ============================================================
-// LineChart - 折线图（Canvas 绘制）+ 柱状降级
+// LineChart - 双曲线图（Canvas 绘制）+ 当前速率标记
 // ============================================================
 @Component
 struct LineChart {
   @Prop series: number[][] = []
   @Prop colors: string[] = []
+  @Prop currentLabels: string[] = []
   @Prop bgColor: string = '#0A0E27'
   @Prop gridColor: string = 'rgba(255,255,255,0.06)'
   @Prop drawTrigger: number = 0
+  private settings: RenderingContextSettings = new RenderingContextSettings(true)
+  private context: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.settings)
+  private readonly CHART_H: number = 160
+  private readonly PAD_L: number = 4
+  private readonly PAD_R: number = 64
+  private readonly PAD_T: number = 8
+  private readonly PAD_B: number = 22
+  private canvasWidth: number = 360
+
+  build() {
+    Canvas(this.context)
+      .width('100%')
+      .height(180)
+      .onReady(() => {
+        this.drawChart()
+      })
+  }
+
+  aboutToAppear(): void {
+    // 近似宽度，首次渲染使用
+    this.canvasWidth = 360
+  }
+
+  onDidBuild(): void {
+    this.drawChart()
+  }
+
+  private drawChart(): void {
+    const ctx = this.context
+    const w = ctx.width || this.canvasWidth
+    const h = this.CHART_H
+    const plotW = w - this.PAD_L - this.PAD_R
+    const plotH = h - this.PAD_T - this.PAD_B
+
+    // 清空
+    ctx.clearRect(0, 0, w, h)
+
+    // 背景
+    ctx.fillStyle = this.bgColor
+    ctx.fillRect(0, 0, w, h)
+
+    if (this.series.length === 0 || this.series[0].length === 0) {
+      return
+    }
+
+    const globalMax = this.getGlobalMax()
+    const dataLen = this.series[0].length
+
+    // ---- 网格线 ----
+    const gridLines = 5
+    ctx.strokeStyle = this.gridColor
+    ctx.lineWidth = 0.5
+    for (let i = 0; i <= gridLines; i++) {
+      const y = this.PAD_T + (plotH / gridLines) * i
+      ctx.beginPath()
+      ctx.moveTo(this.PAD_L, y)
+      ctx.lineTo(w - this.PAD_R, y)
+      ctx.stroke()
+    }
+
+    // ---- Y 轴刻度 ----
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'
+    ctx.font = '9px sans-serif'
+    ctx.textAlign = 'right'
+    for (let i = 0; i <= gridLines; i++) {
+      const y = this.PAD_T + (plotH / gridLines) * i
+      const labelVal = globalMax > 0
+        ? this.formatYLabel(globalMax * (1 - i / gridLines))
+        : '0'
+      ctx.fillText(labelVal, w - this.PAD_R + 58, y + 3)
+    }
+
+    // ---- 曲线 ----
+    for (let s = 0; s < this.series.length; s++) {
+      const data = this.series[s]
+      if (data.length < 2) continue
+
+      ctx.strokeStyle = this.colors[s]
+      ctx.lineWidth = 2
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.beginPath()
+
+      for (let i = 0; i < data.length; i++) {
+        const x = this.PAD_L + (plotW / (dataLen - 1)) * i
+        const val = data[i]
+        const pct = globalMax > 0 ? val / globalMax : 0
+        const y = this.PAD_T + plotH * (1 - pct)
+
+        if (i === 0) {
+          ctx.moveTo(x, y)
+        } else {
+          // 使用贝塞尔曲线平滑
+          const prevVal = data[i - 1]
+          const prevPct = globalMax > 0 ? prevVal / globalMax : 0
+          const prevX = this.PAD_L + (plotW / (dataLen - 1)) * (i - 1)
+          const prevY = this.PAD_T + plotH * (1 - prevPct)
+          const cpX = (prevX + x) / 2
+          ctx.bezierCurveTo(cpX, prevY, cpX, y, x, y)
+        }
+      }
+      ctx.stroke()
+
+      // ---- 末端标记点 ----
+      const lastIdx = data.length - 1
+      const lastVal = data[lastIdx]
+      const lastPct = globalMax > 0 ? lastVal / globalMax : 0
+      const markX = this.PAD_L + (plotW / (dataLen - 1)) * lastIdx
+      const markY = this.PAD_T + plotH * (1 - lastPct)
+
+      // 外圈光晕
+      ctx.beginPath()
+      ctx.arc(markX, markY, 6, 0, Math.PI * 2)
+      ctx.fillStyle = this.colors[s] + '30'
+      ctx.fill()
+
+      // 实心标记点
+      ctx.beginPath()
+      ctx.arc(markX, markY, 3.5, 0, Math.PI * 2)
+      ctx.fillStyle = this.colors[s]
+      ctx.fill()
+      ctx.strokeStyle = '#FFFFFF'
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      // ---- 当前值标签 ----
+      if (s < this.currentLabels.length && this.currentLabels[s]) {
+        const label = this.currentLabels[s]
+        ctx.font = '10px monospace'
+        ctx.fillStyle = this.colors[s]
+        ctx.textAlign = 'left'
+        // 标签放在标记点右侧
+        const labelX = markX + 8
+        const labelY = markY + 4
+        // 边框背景
+        const textWidth = ctx.measureText(label).width
+        const bgX = labelX - 2
+        const bgY = labelY - 11
+        const bgW = textWidth + 6
+        const bgH = 16
+        ctx.fillStyle = this.bgColor
+        ctx.strokeStyle = this.colors[s] + '60'
+        ctx.lineWidth = 0.5
+        this.drawRoundRect(ctx, bgX, bgY, bgW, bgH, 4)
+        ctx.fill()
+        ctx.stroke()
+        // 文字
+        ctx.fillStyle = this.colors[s]
+        ctx.fillText(label, labelX, labelY)
+      }
+    }
+
+    // ---- X 轴时间标签 ----
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'
+    ctx.font = '9px sans-serif'
+    ctx.textAlign = 'center'
+    const timeLabels = ['60s', '45s', '30s', '15s', '0s']
+    for (let i = 0; i < timeLabels.length; i++) {
+      const x = this.PAD_L + (plotW / (timeLabels.length - 1)) * i
+      ctx.fillText(timeLabels[i], x, h - 4)
+    }
+  }
+
+  private drawRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+    ctx.beginPath()
+    ctx.moveTo(x + r, y)
+    ctx.lineTo(x + w - r, y)
+    ctx.arcTo(x + w, y, x + w, y + r, r)
+    ctx.lineTo(x + w, y + h - r)
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+    ctx.lineTo(x + r, y + h)
+    ctx.arcTo(x, y + h, x, y + h - r, r)
+    ctx.lineTo(x, y + r)
+    ctx.arcTo(x, y, x + r, y, r)
+    ctx.closePath()
+  }
 
   private getGlobalMax(): number {
-    let m = 1
+    let m = 0.001
     for (let i = 0; i < this.series.length; i++) {
       for (let j = 0; j < this.series[i].length; j++) {
         if (this.series[i][j] > m) m = this.series[i][j]
@@ -512,88 +710,11 @@ struct LineChart {
     return m
   }
 
-  private getTimeLabels(): string[] {
-    return ['60s', '45s', '30s', '15s', '0s']
-  }
-
-  build() {
-    Stack() {
-      // 网格线
-      Column() {
-        ForEach(['', '', '', '', ''], (_: string, idx: number) => {
-          Divider()
-            .strokeWidth(0.3)
-            .color(this.gridColor)
-            .margin({ top: idx === 0 ? 0 : 6, bottom: 6 })
-        }, (_: string, idx: number) => idx.toString())
-      }
-      .width('100%')
-      .height(160)
-
-      // 数据条形图，用细柱模拟折线趋势
-      if (this.series.length > 0 && this.series[0].length > 0) {
-        Row() {
-          ForEach(this.series[0], (_: number, idx: number) => {
-            Column() {
-              Blank()
-              Row() {
-                // Series 0
-                Column()
-                  .width(this.series.length > 2 ? 1 : 2)
-                  .height(this.getBarHeight(this.series[0][idx], this.getGlobalMax()))
-                  .borderRadius(1)
-                  .backgroundColor(this.colors[0])
-                // Series 1
-                if (this.series.length > 1) {
-                  Column().width(1)
-                  Column()
-                    .width(this.series.length > 2 ? 1 : 2)
-                    .height(this.getBarHeight(this.series[1][idx], this.getGlobalMax()))
-                    .borderRadius(1)
-                    .backgroundColor(this.colors[1])
-                }
-                // Series 2
-                if (this.series.length > 2) {
-                  Column().width(1)
-                  Column()
-                    .width(1)
-                    .height(this.getBarHeight(this.series[2][idx], this.getGlobalMax()))
-                    .borderRadius(1)
-                    .backgroundColor(this.colors[2])
-                }
-              }
-              .justifyContent(FlexAlign.End)
-            }
-            .width(`${100 / this.series[0].length}%`)
-            .height(160)
-            .justifyContent(FlexAlign.End)
-          }, (__: number, idx: number) => idx.toString())
-        }
-        .width('100%')
-        .height(160)
-      }
-
-      // 时间标签
-      Row() {
-        ForEach(this.getTimeLabels(), (label: string, idx: number) => {
-          Text(label)
-            .fontSize(9)
-            .fontColor('rgba(255,255,255,0.25)')
-            .width('20%')
-            .textAlign(idx === 4 ? TextAlign.End : idx === 0 ? TextAlign.Start : TextAlign.Center)
-        }, (label: string, idx: number) => idx.toString())
-      }
-      .width('100%')
-      .position({ bottom: 0 })
-      .padding({ left: 4, right: 4 })
-    }
-    .width('100%')
-    .height(180)
-  }
-
-  private getBarHeight(value: number, max: number): string {
-    const pct = max > 0 ? Math.max(0.5, (value / max) * 100) : 0
-    return `${pct}%`
+  private formatYLabel(val: number): string {
+    if (val >= 1048576) return (val / 1048576).toFixed(1) + 'M'
+    if (val >= 1024) return (val / 1024).toFixed(0) + 'K'
+    if (val >= 1) return val.toFixed(0)
+    return val.toFixed(2)
   }
 }
 
