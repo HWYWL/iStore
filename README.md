@@ -1,6 +1,6 @@
 # iStore
 
-iStore 是一款基于 **HarmonyOS 6.1.0** 开发的路由器管理应用，支持管理 **iStoreOS** 和 **QWRT(开发中) **路由器设备。
+iStore 是一款基于 **HarmonyOS 6.1.0** 开发的路由器管理应用，支持管理 OpenWrt 系列路由器设备。
 
 ## 功能特性
 
@@ -84,7 +84,7 @@ store/src/main/ets/
 
 | 模块         | 文件                                                                                        | 功能                            |
 | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------- |
-| **API客户端** | [ApiClient.ets](file:///e:/code/iStore/store/src/main/ets/api/ApiClient.ets)              | 底层HTTP/UBUS通信，支持iStoreOS和QWRT |
+| **API客户端** | [ApiClient.ets](file:///e:/code/iStore/store/src/main/ets/api/ApiClient.ets)              | 底层 HTTP/UBUS JSON-RPC 通信 |
 | **API服务**  | [ApiService.ets](file:///e:/code/iStore/store/src/main/ets/api/ApiService.ets)            | 业务API封装，数据转换                  |
 | **状态管理**   | [AppState.ets](file:///e:/code/iStore/store/src/main/ets/common/store/AppState.ets)       | 全局状态管理（单例）                    |
 | **主题系统**   | [ThemeColors.ets](file:///e:/code/iStore/store/src/main/ets/common/theme/ThemeColors.ets) | 深色/浅色主题配置                     |
@@ -92,17 +92,18 @@ store/src/main/ets/
 
 ### 网络通信
 
-应用支持与多种路由器固件通信：
+应用通过统一的方式与路由器通信：
 
-1. **iStoreOS** - 使用专有 API `/cgi-bin/luci/istore/...`
-2. **QWRT/OpenWrt** - 使用标准 LuCI API `/cgi-bin/luci/?status=1`
-3. **UBUS RPC** - OpenWRT 统一总线协议（降级方案）
+所有 API 请求均通过 **POST `/ubus` JSON-RPC 2.0** 协议完成，不再区分固件类型。
+
+登录流程：
+1. 使用初始会话 ID `00000000000000000000000000000000` 调用 `session.login`
+2. 获取 `ubus_rpc_session` 后用于后续所有 API 调用
 
 ## 支持的设备
 
-- **iStoreOS** - 完全支持
-- **QWRT** - 支持（自动检测并使用兼容API）
-- **OpenWrt** - 支持（通过UBUS降级）
+- **OpenWrt** - 完全支持（通过 UBUS RPC）
+- **iStoreOS** - 完全支持（基于 OpenWrt）
 
 ## 开发环境
 

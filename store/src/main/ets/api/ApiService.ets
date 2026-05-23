@@ -56,78 +56,24 @@ export class ApiService {
 
   async fetchSystemInfo(): Promise<SystemInfo> {
     try {
-      let hostname: string = 'iStoreOS'
-      let systemDesc: string = ''
-      let kernel: string = ''
-      let cpuModel: string = ''
-      let boardName: string = ''
-      let fw: string = ''
-      let distribution: string = ''
-      let rversion: string = ''
-      let rrevision: string = ''
-      let rtarget: string = ''
+      // 通过 UBUS system.board 获取设备基础信息
+      const board: Record<string, Object> = await this.client.getSystemBoard()
+      const hostname: string = this.s(board, 'hostname', 'OpenWrt')
+      const systemDesc: string = this.s(board, 'system', '')
+      const kernel: string = this.s(board, 'kernel', '')
+      const cpuModel: string = this.s(board, 'system', '') || this.s(board, 'model', '')
+      const boardName: string = this.s(board, 'board_name', '')
 
-      try {
-        const istoreVer: Record<string, Object> = await this.client.getIstoreSystemVersion()
-        if (istoreVer && typeof istoreVer === 'object') {
-          hostname = this.s(istoreVer, 'hostname', '') ||
-            this.s(istoreVer, 'Hostname', '') || 'iStoreOS'
-          systemDesc = this.s(istoreVer, 'model', '')
-          cpuModel = this.s(istoreVer, 'arch', '') ||
-            this.s(istoreVer, 'cpuModel', '')
-          boardName = this.s(istoreVer, 'target', '') ||
-            this.s(istoreVer, 'boardName', '')
-          fw = this.s(istoreVer, 'firmwareVersion', '') ||
-            this.s(istoreVer, 'version', '') ||
-            this.s(istoreVer, 'firmware', '')
-          rversion = this.s(istoreVer, 'version', '')
-          rtarget = this.s(istoreVer, 'target', '')
-          kernel = this.s(istoreVer, 'kernelVersion', '') ||
-            this.s(istoreVer, 'kernel', '')
-        }
-      } catch (e) {
-        hilog.warn(DOMAIN, TAG, 'istore version API failed, trying ubus board')
-      }
+      const release: Record<string, Object> | undefined = board['release'] as Record<string, Object> | undefined
+      const distribution: string = release ? this.s(release, 'distribution', '') : ''
+      const rversion: string = release ? this.s(release, 'version', '') : ''
+      const rrevision: string = release ? this.s(release, 'revision', '') : ''
+      const rtarget: string = release ? this.s(release, 'target', '') : ''
+      const fw: string = release
+        ? (this.s(release, 'description', '') || rversion)
+        : ''
 
-      if (!kernel || !cpuModel || !boardName) {
-        const board: Record<string, Object> = await this.client.getSystemBoard()
-        if (board && typeof board === 'object') {
-          if (!hostname || hostname === 'iStoreOS') {
-            hostname = this.s(board, 'hostname', 'iStoreOS')
-          }
-          if (!systemDesc) {
-            systemDesc = this.s(board, 'system', '')
-          }
-          if (!cpuModel) {
-            cpuModel = this.s(board, 'system', '') || this.s(board, 'model', '')
-          }
-          if (!boardName) {
-            boardName = this.s(board, 'board_name', '')
-          }
-          if (!kernel) {
-            kernel = this.s(board, 'kernel', '')
-          }
-          const release: Record<string, Object> | undefined = board['release'] as Record<string, Object> | undefined
-          if (release) {
-            if (!distribution) {
-              distribution = this.s(release, 'distribution', '')
-            }
-            if (!rversion) {
-              rversion = this.s(release, 'version', '')
-            }
-            if (!rrevision) {
-              rrevision = this.s(release, 'revision', '')
-            }
-            if (!rtarget) {
-              rtarget = this.s(release, 'target', '')
-            }
-            if (!fw) {
-              fw = this.s(release, 'description', '') || rversion
-            }
-          }
-        }
-      }
-
+      // 通过 UBUS system.info 获取运行状态
       let uptime: number = 0
       let localTime: string = ''
       let cpuUsage: number = 0
@@ -138,79 +84,42 @@ export class ApiService {
       let memAvailable: number = 0
 
       try {
-        const istoreSys: Record<string, Object> = await this.client.getIstoreSystemStatus()
-        if (istoreSys && typeof istoreSys === 'object') {
-          cpuUsage = this.n(istoreSys, 'cpuUsage', -1)
-          if (cpuUsage < 0) {
-            cpuUsage = 0
+        const info: Record<string, Object> = await this.client.getSystemInfo()
+        if (info && typeof info === 'object') {
+          uptime = this.n(info, 'uptime', 0)
+          const lt: number = this.n(info, 'localtime', 0)
+          if (lt > 0) {
+            localTime = new Date(lt * 1000).toISOString()
           }
-          uptime = this.n(istoreSys, 'uptime', 0)
-          const ltStr: string = this.s(istoreSys, 'localtime', '')
-          if (ltStr) {
-            localTime = new Date(ltStr).toISOString()
-          }
-          const memTotalStr: string = this.s(istoreSys, 'memTotal', '')
-          if (memTotalStr) {
-            const parsed: number = parseFloat(memTotalStr)
-            if (!isNaN(parsed)) {
-              if (memTotalStr.includes('GiB') || memTotalStr.includes('GB')) {
-                memTotal = parsed * 1073741824
-              } else if (memTotalStr.includes('MiB') || memTotalStr.includes('MB')) {
-                memTotal = parsed * 1048576
-              } else if (memTotalStr.includes('KiB') || memTotalStr.includes('KB')) {
-                memTotal = parsed * 1024
-              } else {
-                memTotal = Math.floor(parsed)
+
+          // 从 load 数组计算 CPU 使用率
+          const loadRaw: Object | undefined = info['load']
+          if (Array.isArray(loadRaw)) {
+            const loadArr: Object[] = loadRaw as Object[]
+            if (loadArr.length > 0) {
+              const firstVal: number = Number(loadArr[0])
+              if (!isNaN(firstVal)) {
+                cpuUsage = Math.min(100, Math.max(0, (firstVal / 65536) * 100))
               }
             }
           }
-          const memAvailStr: string = this.s(istoreSys, 'memAvailable', '')
-          if (memAvailStr) {
-            const parsed: number = parseFloat(memAvailStr)
-            if (!isNaN(parsed)) {
-              if (memAvailStr.includes('GiB') || memAvailStr.includes('GB')) {
-                memAvailable = parsed * 1073741824
-              } else if (memAvailStr.includes('MiB') || memAvailStr.includes('MB')) {
-                memAvailable = parsed * 1048576
-              } else if (memAvailStr.includes('KiB') || memAvailStr.includes('KB')) {
-                memAvailable = parsed * 1024
-              } else {
-                memAvailable = Math.floor(parsed)
-              }
-            }
+
+          // 内存信息
+          const memory: Record<string, Object> | undefined = info['memory'] as Record<string, Object> | undefined
+          if (memory) {
+            memTotal = this.n(memory, 'total', 0)
+            memFree = this.n(memory, 'free', 0)
+            memBuffered = this.n(memory, 'buffered', 0)
+            memShared = this.n(memory, 'shared', 0)
+            memAvailable = this.n(memory, 'available', 0)
           }
         }
       } catch (e) {
-        hilog.warn(DOMAIN, TAG, 'istore system status API failed')
+        hilog.warn(DOMAIN, TAG, 'getSystemInfo failed')
       }
 
-      if (uptime === 0 && cpuUsage === 0) {
-        const info: Record<string, Object> = await this.client.getSystemInfo()
-        if (info && typeof info === 'object') {
-          uptime = uptime || this.n(info, 'uptime', 0)
-          const lt: number = this.n(info, 'localtime', 0)
-          if (lt > 0 && !localTime) {
-            localTime = new Date(lt * 1000).toISOString()
-          }
-          const loadArr: Record<string, Object> | undefined = info['load'] as Record<string, Object> | undefined
-          if (loadArr && Array.isArray(loadArr) && loadArr.length > 0) {
-            const rawLoad: number = this.n(loadArr, '0', 0)
-            cpuUsage = Math.min(100, Math.max(0, (rawLoad / 65536) * 100))
-          }
-          if (memTotal === 0) {
-            const memory: Record<string, Object> | undefined = info['memory'] as Record<string, Object> | undefined
-            if (memory) {
-              memTotal = this.n(memory, 'total', 0)
-              memFree = this.n(memory, 'free', 0)
-              memBuffered = this.n(memory, 'buffered', 0)
-              memShared = this.n(memory, 'shared', 0)
-              memAvailable = this.n(memory, 'available', 0)
-            }
-          }
-        }
-      }
-
-      const cpuTemp: number = await this.fetchIstoreCPUTemp()
+      // CPU 温度（UBUS + 文件读取降级）
+      const cpuTemp: number = await this.fetchCPUTemp()
 
       if (!localTime) {
         localTime = new Date().toISOString()
@@ -222,7 +131,7 @@ export class ApiService {
 
       return {
         hostname: hostname,
-        model: systemDesc || 'iStoreOS',
+        model: systemDesc || 'OpenWrt',
         kernel: kernel,
         firmwareVersion: fw,
         localTime: localTime,
@@ -250,48 +159,107 @@ export class ApiService {
 
   async fetchWanStatus(): Promise<WanStatus> {
     try {
+      // 通过 network.interface.dump 获取所有接口状态（文档指定接口）
+      const ifDump: Record<string, Object> = await this.client.networkInterfaceDump()
+      const ifList: Record<string, Object>[] = ifDump['interface'] as Record<string, Object>[] || []
+
+      let wanIf: Record<string, Object> | null = null
+      let lanIf: Record<string, Object> | null = null
+
+      // 遍历找到 WAN 和 LAN 接口
+      for (let i = 0; i < ifList.length; i++) {
+        const iface: Record<string, Object> = ifList[i]
+        const ifName: string = this.s(iface, 'interface', '')
+        const proto: string = this.s(iface, 'proto', '')
+        const device: string = this.s(iface, 'device', '')
+
+        // WAN 判断：接口名为 wan / wan6 / wwan，或协议为 pppoe/dhcp/static（不是 lan）
+        if (ifName === 'wan' || ifName === 'wan6' || ifName === 'wwan' ||
+            proto === 'pppoe' || (proto === 'dhcp' && ifName !== 'lan') ||
+            (proto === 'static' && ifName !== 'lan' && !device.includes('br-lan'))) {
+          wanIf = iface
+        }
+
+        // LAN 判断
+        if (ifName === 'lan' || device === 'br-lan' || (device.includes('br-') && !wanIf)) {
+          lanIf = iface
+        }
+      }
+
+      // WAN 数据解析
       let ipAddress: string = '0.0.0.0'
       let netmask: string = ''
       let gateway: string = ''
-      let dnsList: string[] = []
+      const dnsList: string[] = []
       let proto: string = ''
       let macAddr: string = ''
-      let lanUptime: number = 0
-      const ifname: string = 'br-lan'
+      let ifUptime: number = 0
+      let ifname: string = 'wan'
 
-      try {
-        const istoreNet: Record<string, Object> = await this.client.getIstoreNetworkStatus()
-        if (istoreNet && typeof istoreNet === 'object') {
-          proto = this.s(istoreNet, 'proto', '')
-          ipAddress = this.s(istoreNet, 'ipv4addr', '')
-          netmask = `${this.n(istoreNet, 'ipv4mask', 24)}`
-          gateway = this.s(istoreNet, 'gateway', '')
-          lanUptime = this.n(istoreNet, 'uptimeStamp', 0)
-          const rawDns: Object = istoreNet['dnsList']
-          if (Array.isArray(rawDns)) {
-            const arr: Object[] = rawDns as Object[]
-            if (arr.length > 0) {
-              dnsList.push(String(arr[0]))
-            }
-            if (arr.length > 1) {
-              dnsList.push(String(arr[1]))
+      if (wanIf) {
+        ifname = this.s(wanIf, 'interface', 'wan')
+        proto = this.s(wanIf, 'proto', '')
+
+        const ipv4Arr: Object | undefined = wanIf['ipv4-address']
+        if (Array.isArray(ipv4Arr)) {
+          const arr: Object[] = ipv4Arr as Object[]
+          if (arr.length > 0) {
+            const addr: Record<string, Object> = arr[0] as Record<string, Object>
+            ipAddress = this.s(addr, 'address', '0.0.0.0')
+            const mask: number = this.n(addr, 'mask', 24)
+            netmask = `${mask}`
+          }
+        }
+
+        const routeArr: Object | undefined = wanIf['route']
+        if (Array.isArray(routeArr)) {
+          const arr: Object[] = routeArr as Object[]
+          for (let i = 0; i < arr.length; i++) {
+            const r: Record<string, Object> = arr[i] as Record<string, Object>
+            if (this.s(r, 'target', '') === '0.0.0.0' && this.s(r, 'mask', '') === '0') {
+              gateway = this.s(r, 'nexthop', '')
+              break
             }
           }
         }
-      } catch (e) {
-        hilog.warn(DOMAIN, TAG, 'getIstoreNetworkStatus failed, fallback')
+
+        const dnsRaw: Object | undefined = wanIf['dns-server']
+        if (Array.isArray(dnsRaw)) {
+          for (const d of dnsRaw as Object[]) {
+            dnsList.push(String(d))
+          }
+        }
+
+        ifUptime = this.n(wanIf, 'uptime', 0)
       }
 
+      // 备选：LAN 作为 fallback（如果没找到 WAN）
+      if (!wanIf && lanIf) {
+        ifname = this.s(lanIf, 'interface', 'lan')
+        proto = this.s(lanIf, 'proto', '')
+        const ipv4Arr: Object | undefined = lanIf['ipv4-address']
+        if (Array.isArray(ipv4Arr)) {
+          const arr: Object[] = ipv4Arr as Object[]
+          if (arr.length > 0) {
+            const addr: Record<string, Object> = arr[0] as Record<string, Object>
+            ipAddress = this.s(addr, 'address', '0.0.0.0')
+          }
+        }
+        ifUptime = this.n(lanIf, 'uptime', 0)
+      }
+
+      // 通过 realtime stats 获取流量速率
       let rxRate: number = 0
       let txRate: number = 0
-
       try {
         const rtStatsParams: Record<string, Object> = {}
         rtStatsParams['mode'] = 'interface'
         rtStatsParams['device'] = 'br-lan'
         const raw: Record<string, Object>[] = await this.client.getRealtimeStats(rtStatsParams)
-        const results = raw.length > 0 ? raw[0] : null
-        const arr = results ? (results['result'] as (number[])[] | undefined) : undefined
+        const results: Record<string, Object> | null = raw.length > 0 ? raw[0] : null
+        const arr: (number[])[] | undefined = results
+          ? (results['result'] as (number[])[] | undefined)
+          : undefined
         if (arr && Array.isArray(arr) && arr.length >= 2) {
           const last: number[] = arr[arr.length - 1]
           const prev: number[] = arr[arr.length - 2]
@@ -307,18 +275,6 @@ export class ApiService {
         hilog.warn(DOMAIN, TAG, 'getRealtimeStats failed for wan status')
       }
 
-      if (rxRate === 0 && txRate === 0) {
-        try {
-          const netStats: Record<string, Object> = await this.client.getIstoreNetworkStatistics()
-          if (netStats && typeof netStats === 'object') {
-            rxRate = this.extractSpeed(netStats, ['downloadSpeed', 'downSpeed', 'rxSpeed', 'rx', 'down'])
-            txRate = this.extractSpeed(netStats, ['uploadSpeed', 'upSpeed', 'txSpeed', 'tx', 'up'])
-          }
-        } catch (e) {
-          hilog.warn(DOMAIN, TAG, 'getIstoreNetworkStatistics failed for wan status')
-        }
-      }
-
       this.historyBuffer.push({
         timestamp: new Date().toISOString(),
         rx: rxRate,
@@ -330,7 +286,7 @@ export class ApiService {
 
       return {
         interface: ifname,
-        uptime: lanUptime,
+        uptime: ifUptime,
         ipAddress: ipAddress,
         netmask: netmask,
         gateway: gateway,
@@ -342,50 +298,95 @@ export class ApiService {
         macAddr: macAddr
       }
     } catch (e) {
-      hilog.error(DOMAIN, TAG, `fetchWanStatus err`)
+      hilog.error(DOMAIN, TAG, `fetchWanStatus err: ${String(e)}`)
     }
     return this.emptyWanStatus()
   }
 
+  /**
+   * 获取网络接口状态（文档指定接口：network.interface.dump + network.device.status）
+   */
   async fetchNetworkInterfaces(): Promise<NetworkInterface[]> {
     try {
-      const ndResult: Record<string, Object> = await this.client.getLuciNetworkDevices()
-      if (!ndResult || typeof ndResult !== 'object') {
-        return []
-      }
+      // 并行获取接口信息和设备状态
+      const dumpResults: [Record<string, Object>, Record<string, Object>] =
+        await Promise.all([
+          this.client.networkInterfaceDump(),
+          this.client.networkDeviceStatus()
+        ])
+      const ifDump: Record<string, Object> = dumpResults[0]
+      const devStatus: Record<string, Object> = dumpResults[1]
 
-      const devKeys: string[] = Object.keys(ndResult)
+      const ifList: Record<string, Object>[] = ifDump['interface'] as Record<string, Object>[] || []
       const list: NetworkInterface[] = []
 
-      for (let i = 0; i < devKeys.length; i++) {
-        const devName: string = devKeys[i]
-        const devData: Record<string, Object> = ndResult[devName] as Record<string, Object>
-        if (!devData || typeof devData !== 'object') {
+      for (let i = 0; i < ifList.length; i++) {
+        const iface: Record<string, Object> = ifList[i]
+        const ifName: string = this.s(iface, 'interface', '')
+        if (!ifName) {
           continue
         }
 
-        const stats: Record<string, Object> | undefined = devData['stats'] as Record<string, Object> | undefined
-        const ipArr: Record<string, Object>[] | undefined = devData['ipaddrs'] as Record<string, Object>[] | undefined
+        const proto: string = this.s(iface, 'proto', '')
+        const device: string = this.s(iface, 'device', '')
+        const up: boolean = this.b(iface, 'up', false)
+
+        // 从 ipv4-address 提取 IP
+        const ipv4Arr: Object | undefined = iface['ipv4-address']
         let ip: string = ''
-        if (ipArr && Array.isArray(ipArr) && ipArr.length > 0) {
-          ip = this.s(ipArr[0], 'address', '')
+        let netmask: string = ''
+        if (Array.isArray(ipv4Arr) && (ipv4Arr as Object[]).length > 0) {
+          const addr: Record<string, Object> = (ipv4Arr as Object[])[0] as Record<string, Object>
+          ip = this.s(addr, 'address', '')
+          const mask: number = this.n(addr, 'mask', 0)
+          netmask = mask > 0 ? `${mask}` : ''
         }
 
-        const isBridge: boolean = this.b(devData, 'bridge', false)
-        const mtu: number = this.n(devData, 'mtu', 1500)
-        const up: boolean = this.b(devData, 'up', false)
+        // 从 route 提取网关
+        let gateway: string = ''
+        const routeArr: Object | undefined = iface['route']
+        if (Array.isArray(routeArr)) {
+          for (const r of routeArr as Object[]) {
+            const route: Record<string, Object> = r as Record<string, Object>
+            if (this.s(route, 'target', '') === '0.0.0.0') {
+              gateway = this.s(route, 'nexthop', '')
+              break
+            }
+          }
+        }
+
+        // 从 network.device.status 获取设备级别信息
+        const devData: Record<string, Object> | undefined =
+          devStatus[device] as Record<string, Object> | undefined
+        let mac: string = ''
+        let mtu: number = 1500
+        let rxBytes: number = 0
+        let txBytes: number = 0
+        if (devData && typeof devData === 'object') {
+          mac = this.s(devData, 'macaddr', '')
+          mtu = this.n(devData, 'mtu', 1500)
+          const stats: Record<string, Object> | undefined =
+            devData['statistics'] as Record<string, Object> | undefined
+          if (stats) {
+            rxBytes = this.n(stats, 'rx_bytes', 0)
+            txBytes = this.n(stats, 'tx_bytes', 0)
+          }
+        }
+
+        // 接口类型推断
+        const type: 'wan' | 'lan' | 'wifi' | 'vpn' = this.inferNetType(ifName, proto, device)
 
         list.push({
-          name: devName,
-          type: isBridge ? 'lan' : this.inferType(devName),
+          name: ifName,
+          type: type,
           ipAddress: ip,
-          netmask: '',
-          gateway: '',
-          macAddress: this.s(devData, 'mac', ''),
+          netmask: netmask,
+          gateway: gateway,
+          macAddress: mac,
           mtu: mtu,
           status: up ? 'up' : 'down',
-          rxBytes: stats ? this.n(stats, 'rx_bytes', 0) : 0,
-          txBytes: stats ? this.n(stats, 'tx_bytes', 0) : 0,
+          rxBytes: rxBytes,
+          txBytes: txBytes,
           rxRate: 0,
           txRate: 0
         })
@@ -393,7 +394,7 @@ export class ApiService {
 
       return list
     } catch (e) {
-      hilog.error(DOMAIN, TAG, `fetchNetworkInterfaces err`)
+      hilog.error(DOMAIN, TAG, `fetchNetworkInterfaces err: ${String(e)}`)
     }
     return []
   }
@@ -440,35 +441,9 @@ export class ApiService {
     return []
   }
 
-  private async fetchIstoreCPUTemp(): Promise<number> {
-    let temp: number = await this.client.getIstoreCPUTemperature()
-    if (temp > 0 && temp < 150) {
-      return temp
-    }
-    try {
-      const tempInfo: Record<string, Object> = await this.client.getTempInfo()
-      const raw: string = this.s(tempInfo, 'tempinfo', '')
-      if (raw) {
-        const match: RegExpMatchArray | null = raw.match(/CPU:\s*([\d.]+)/i)
-        if (match && match[1]) {
-          const parsed = parseFloat(match[1])
-          if (parsed > 0 && parsed < 150) {
-            return parsed
-          }
-        }
-        const numMatch: RegExpMatchArray | null = raw.match(/([\d.]+)/)
-        if (numMatch && numMatch[1]) {
-          const parsed = parseFloat(numMatch[1])
-          if (parsed > 0 && parsed < 150) {
-            return parsed
-          }
-        }
-      }
-    } catch (e) {
-      hilog.warn(DOMAIN, TAG, 'getTempInfo failed')
-    }
-    const fileTemp = await this.client.getCPUTemp()
-    return fileTemp > 0 && fileTemp < 150 ? fileTemp : 0
+  /** 获取 CPU 温度：UBUS luci.getTempInfo → 文件读取降级 */
+  private async fetchCPUTemp(): Promise<number> {
+    return await this.client.getCPUTemp()
   }
 
   private emptySystemInfo(): SystemInfo {
@@ -488,15 +463,21 @@ export class ApiService {
     }
   }
 
-  private inferType(name: string): 'wan' | 'lan' | 'wifi' | 'vpn' {
-    const n: string = name.toLowerCase()
-    if (n.includes('wan') || n.includes('pppoe') || (n.startsWith('eth') && !n.includes('br'))) {
+  private inferNetType(ifName: string, proto: string, device: string): 'wan' | 'lan' | 'wifi' | 'vpn' {
+    const n: string = ifName.toLowerCase()
+    // WAN 接口
+    if (n.startsWith('wan') || n.startsWith('wwan') || proto === 'pppoe' ||
+        (n.startsWith('eth') && !device.includes('br-'))) {
       return 'wan'
     }
-    if (n.includes('wlan') || n.includes('ra') || n.includes('radio')) {
+    // WiFi 接口
+    if (n.includes('wlan') || n.includes('ra') || n.includes('radio') ||
+        device.includes('wlan') || device.includes('ra')) {
       return 'wifi'
     }
-    if (n.includes('tun') || n.includes('wg') || n.includes('pptp') || n.includes('vpn')) {
+    // VPN/隧道
+    if (n.includes('tun') || n.includes('wg') || n.includes('pptp') ||
+        n.includes('vpn') || n.includes('ipsec') || n.includes('tailscale')) {
       return 'vpn'
     }
     return 'lan'
@@ -534,39 +515,6 @@ export class ApiService {
       return def
     }
     return Boolean(v)
-  }
-
-  private extractSpeed(obj: Record<string, Object>, fields: string[]): number {
-    for (let i = 0; i < fields.length; i++) {
-      const val: Object = obj[fields[i]]
-      if (val === undefined || val === null) {
-        continue
-      }
-      if (typeof val === 'number') {
-        return val as number
-      }
-      if (typeof val === 'string') {
-        const num: number = Number(val)
-        if (!isNaN(num) && num >= 0) {
-          return num
-        }
-      }
-    }
-    const items: Object | undefined = obj['items']
-    if (Array.isArray(items) && items.length > 0) {
-      const last: Record<string, Object> = (items as Object[])[items.length - 1] as Record<string, Object>
-      if (last) {
-        return this.extractSpeed(last, fields)
-      }
-    }
-    const slots: Object | undefined = obj['slots']
-    if (Array.isArray(slots) && slots.length > 0) {
-      const last: Record<string, Object> = (slots as Object[])[slots.length - 1] as Record<string, Object>
-      if (last) {
-        return this.extractSpeed(last, fields)
-      }
-    }
-    return 0
   }
 
   async fetchMountPoints(): Promise<MountPoint[]> {

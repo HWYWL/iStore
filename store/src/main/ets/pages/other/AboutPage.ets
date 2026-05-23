@@ -112,7 +112,7 @@ struct AboutPage {
             .border({ width: 0.5, color: this.theme.borderGlass })
 
             Column() {
-              Text('iStore 是一款鸿蒙原生 OpenWrt/iStoreOS 路由器管理客户端，支持设备监控、网络管理、终端查看、应用控制等功能。')
+              Text('iStore 是一款鸿蒙原生 OpenWrt 路由器管理客户端，支持设备监控、网络管理、终端查看、应用控制等功能。')
                 .fontSize(12)
                 .fontColor(this.theme.textSecondary)
                 .lineHeight(20)

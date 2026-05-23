@@ -20,6 +20,7 @@ struct DashboardTab {
   @State isOnline: boolean = false
   @State mountPoints: MountPoint[] = []
   @State conntrack: ConntrackInfo = { current: 0, max: 0, percent: 0 }
+  @State networkInterfaces: NetworkInterface[] = []
   private timerId: number = -1
 
   aboutToAppear(): void {
@@ -50,12 +51,14 @@ struct DashboardTab {
         api.fetchSystemInfo(),
         api.fetchWanStatus(),
         api.fetchMountPoints(),
-        api.fetchConntrack()
+        api.fetchConntrack(),
+        api.fetchNetworkInterfaces()
       ])
       this.systemInfo = results[0]
       this.wanStatus = results[1]
       this.mountPoints = results[2]
       this.conntrack = results[3]
+      this.networkInterfaces = results[4]
       this.isOnline = true
     } catch (dashErr) {
       this.errorText = '加载数据失败'
@@ -158,12 +161,34 @@ struct DashboardTab {
     return '#FF5252'
   }
 
+  getTypeColor(type: string): string {
+    if (type === 'wan') {
+      return '#FF6E40'
+    }
+    if (type === 'lan') {
+      return '#448AFF'
+    }
+    if (type === 'wifi') {
+      return '#00E676'
+    }
+    return this.theme.textTertiary
+  }
+
+  getLanInterface(): NetworkInterface | null {
+    for (let i = 0; i < this.networkInterfaces.length; i++) {
+      if (this.networkInterfaces[i].type === 'lan') {
+        return this.networkInterfaces[i]
+      }
+    }
+    return null
+  }
+
   build() {
     Column() {
       // 顶部：设备名 + 在线状态 + 更新时间
       Row() {
         Column() {
-          Text(this.systemInfo.hostname || 'iStoreOS')
+          Text(this.systemInfo.hostname || 'OpenWrt')
             .fontSize(20)
             .fontColor(this.theme.textPrimary)
             .fontWeight(FontWeight.Bold)
@@ -449,108 +474,31 @@ struct DashboardTab {
             .backdropBlur(20)
             .border({ width: 0.5, color: this.theme.borderGlass })
 
-            // ============ 网络 + 连接追踪 并排卡片 ============
-            Row() {
-              Column() {
-                Text('🌐 网络')
-                  .fontSize(13)
-                  .fontColor(this.theme.textPrimary)
-                  .fontWeight(FontWeight.Medium)
-                  .margin({ bottom: 10 })
-                  .width('100%')
+            // ============ 网络接口卡片（仅 LAN） ============
+            Column() {
+              Text('🌐 局域网')
+                .fontSize(14)
+                .fontColor(this.theme.textPrimary)
+                .fontWeight(FontWeight.Medium)
+                .margin({ bottom: 12 })
 
-                Text(this.wanStatus.ipAddress)
-                  .fontSize(18)
-                  .fontColor(this.theme.primary)
-                  .fontWeight(FontWeight.Bold)
-                  .fontFamily('monospace')
-
-                Text(`运行 ${FormatUtils.formatUptime(this.systemInfo.uptime)}`)
-                  .fontSize(11)
-                  .fontColor(this.theme.textTertiary)
-                  .margin({ top: 6 })
-              }
-              .width('48%')
-              .padding(12)
-              .borderRadius(14)
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
-              .alignItems(HorizontalAlign.Start)
-
-              Column() {
-                Text('🔗 连接追踪')
-                  .fontSize(13)
-                  .fontColor(this.theme.textPrimary)
-                  .fontWeight(FontWeight.Medium)
-                  .margin({ bottom: 10 })
-                  .width('100%')
-
-                Row() {
-                  Column() {
-                    Text('活跃')
-                      .fontSize(10)
-                      .fontColor(this.theme.textTertiary)
-                      .margin({ bottom: 2 })
-                    Text(this.conntrack.max > 0 ? `${this.conntrack.current}` : '--')
-                      .fontSize(16)
-                      .fontColor(this.theme.info)
-                      .fontWeight(FontWeight.Bold)
-                      .fontFamily('monospace')
-                  }
-                  .alignItems(HorizontalAlign.Start)
-
-                  Blank()
-
-                  Column() {
-                    Text('最大')
-                      .fontSize(10)
-                      .fontColor(this.theme.textTertiary)
-                      .margin({ bottom: 2 })
-                    Text(this.conntrack.max > 0 ? `${this.conntrack.max}` : '--')
-                      .fontSize(16)
-                      .fontColor(this.theme.textPrimary)
-                      .fontWeight(FontWeight.Bold)
-                      .fontFamily('monospace')
-                  }
-                  .alignItems(HorizontalAlign.End)
+              if (this.getLanInterface() === null) {
+                this.infoRow('IP 地址', this.wanStatus.ipAddress || '--')
+                this.infoRow('网关', this.wanStatus.gateway || '--')
+                if (this.wanStatus.dns.length > 0) {
+                  this.infoRow('DNS', this.wanStatus.dns.join(', '))
                 }
-                .width('100%')
-
-                if (this.conntrack.max > 0) {
-                  Stack() {
-                    Row()
-                      .width('100%')
-                      .height(3)
-                      .borderRadius(2)
-                      .backgroundColor('rgba(255,255,255,0.1)')
-                    Row()
-                      .width(`${Math.max(0, Math.min(100, this.conntrack.percent))}%`)
-                      .height(3)
-                      .borderRadius(2)
-                      .linearGradient({
-                        angle: 90,
-                        colors: [
-                          [this.theme.info, 0],
-                          [this.theme.info + '44', 1]
-                        ]
-                      })
-                  }
-                  .width('100%')
-                  .margin({ top: 8 })
-                }
+              } else {
+                this.NetInterfaceRow(this.getLanInterface()!)
               }
-              .width('48%')
-              .padding(12)
-              .borderRadius(14)
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
-              .alignItems(HorizontalAlign.Start)
             }
             .width('100%')
-            .justifyContent(FlexAlign.SpaceBetween)
+            .padding(14)
+            .borderRadius(14)
             .margin({ top: 10 })
+            .backgroundColor(this.theme.bgCard)
+            .backdropBlur(20)
+            .border({ width: 0.5, color: this.theme.borderGlass })
 
             // ============ 磁盘使用卡片 ============
             Column() {
@@ -639,6 +587,70 @@ struct DashboardTab {
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder NetInterfaceRow(iface: NetworkInterface) {
+    Row() {
+      Circle()
+        .width(8)
+        .height(8)
+        .fill(iface.status === 'up' ? this.theme.success : this.theme.textTertiary)
+        .margin({ right: 6 })
+      Text(iface.ipAddress || '0.0.0.0')
+        .fontSize(18)
+        .fontColor(this.theme.primary)
+        .fontWeight(FontWeight.Bold)
+        .fontFamily('monospace')
+    }
+    .width('100%')
+    .margin({ bottom: 8 })
+
+    if (iface.macAddress) {
+      Row() {
+        Text('MAC  ')
+          .fontSize(10)
+          .fontColor(this.theme.textTertiary)
+        Text(iface.macAddress)
+          .fontSize(11)
+          .fontColor(this.theme.textSecondary)
+          .fontFamily('monospace')
+      }
+      .width('100%')
+      .margin({ top: 2 })
+    }
+
+    if (iface.gateway || iface.mtu > 0) {
+      Row() {
+        if (iface.gateway) {
+          Text(`网关 ${iface.gateway}`)
+            .fontSize(10)
+            .fontColor(this.theme.textTertiary)
+        }
+        if (iface.gateway && iface.mtu > 0) {
+          Text('  ·  ')
+            .fontSize(10)
+            .fontColor(this.theme.textTertiary)
+        }
+        Text(`MTU ${iface.mtu}`)
+          .fontSize(10)
+          .fontColor(this.theme.textTertiary)
+      }
+      .width('100%')
+      .margin({ top: 2 })
+    }
+
+    if (iface.rxBytes > 0 || iface.txBytes > 0) {
+      Row() {
+        Text(`↓ ${FormatUtils.formatBytes(iface.rxBytes)}`)
+          .fontSize(10)
+          .fontColor('#00E676')
+        Text(`  ↑ ${FormatUtils.formatBytes(iface.txBytes)}`)
+          .fontSize(10)
+          .fontColor('#448AFF')
+      }
+      .width('100%')
+      .margin({ top: 4 })
+    }
   }
 
   @Builder infoRow(label: string, value: string) {

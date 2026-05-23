@@ -21,7 +21,7 @@ struct HelpPage {
     },
     {
       question: '支持哪些设备？',
-      answer: '支持所有运行 OpenWrt 或 iStoreOS 系统的路由器设备。'
+      answer: '支持所有运行 OpenWrt 系统的路由器设备（含 iStoreOS 等衍生版本）。'
     },
     {
       question: '如何切换深色/浅色模式？',

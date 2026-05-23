@@ -5,15 +5,74 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 const TAG = 'iStoreApi'
 const DOMAIN = 0x0001
 
+// ==================== 常量 ====================
+
+/** 初始会话ID，用于 UBUS login 调用 */
+const UBUS_INITIAL_SID: string = '00000000000000000000000000000000'
+
+/** UBUS JSON-RPC 端点候选列表（按优先级降序） */
+const UBUS_PATHS: string[] = [
+  '/ubus',
+  '/cgi-bin/luci/admin/ubus/',
+  '/cgi-bin/luci/ubus/'
+]
+
+/** UBUS 通用错误码 */
+const UBUS_STATUS_OK: number = 0
+const UBUS_STATUS_INVALID_COMMAND: number = 1
+const UBUS_STATUS_INVALID_ARGUMENT: number = 2
+const UBUS_STATUS_METHOD_NOT_FOUND: number = 3
+const UBUS_STATUS_NOT_FOUND: number = 4
+const UBUS_STATUS_NO_DATA: number = 5
+/** 会话超时/无效 — 需重新登录 */
+const UBUS_STATUS_ACCESS_DENIED: number = 6
+const UBUS_STATUS_TIMEOUT: number = 7
+const UBUS_STATUS_NOT_SUPPORTED: number = 8
+const UBUS_STATUS_UNKNOWN_ERROR: number = 9
+const UBUS_STATUS_CONNECTION_FAILED: number = 10
+
+/** 最大自动重登录次数，防止死循环 */
+const MAX_RELOGIN_RETRIES: number = 1
+
+// ==================== 类型定义 ====================
+
+/** UBUS JSON-RPC 原始响应 */
+interface UbusRpcResponse {
+  jsonrpc: string
+  id?: number
+  result?: Object
+  error?: Object
+}
+
+/** UBUS call 结果元组 [code, data] */
+type UbusCallResult = [number, Object]
+
+// ==================== ApiClient 核心实现 ====================
+
+/**
+ * 统一 UBUS API 客户端
+ * 所有路由器通信通过 POST JSON-RPC 2.0 协议完成。
+ *
+ * 关键设计：
+ * - 多路径回退登录（/ubus → /cgi-bin/luci/admin/ubus/ → /cgi-bin/luci/ubus/）
+ * - 错误码 6（会话超时）自动重登录并重试请求
+ * - 重登录期间并发请求排队等待
+ */
 export class ApiClient {
   baseUrl: string = ''
   username: string = ''
   password: string = ''
   connected: boolean = false
   lastError: string = ''
-  private authCookie: string = ''
+
   private sessionId: string = ''
+  private ubusPath: string = ''
   private rpcId: number = 1
+
+  /** 是否正在执行重登录（避免并发重复登录） */
+  private reloginInProgress: boolean = false
+  /** 重登录等待队列 */
+  private reloginWaiters: Array<() => void> = []
 
   private static instance: ApiClient
 
@@ -24,6 +83,8 @@ export class ApiClient {
     return ApiClient.instance
   }
 
+  // ==================== 连接管理 ====================
+
   configure(config: ConnectionConfig): void {
     let host: string = config.host.trim()
     host = host.replace(/^https?:\/\//, '')
@@ -33,9 +94,11 @@ export class ApiClient {
     this.password = config.password
     this.lastError = ''
     this.connected = false
-    this.authCookie = ''
     this.sessionId = ''
+    this.ubusPath = ''
     this.rpcId = 1
+    this.reloginInProgress = false
+    this.reloginWaiters = []
     hilog.info(DOMAIN, TAG, `Configured: ${this.baseUrl}`)
   }
 
@@ -43,50 +106,40 @@ export class ApiClient {
     return this.connected
   }
 
+  /**
+   * 连接设备：依次尝试各 UBUS 路径进行登录，成功则验证会话
+   */
   async connect(): Promise<boolean> {
     this.lastError = ''
     this.connected = false
     this.sessionId = ''
+    this.ubusPath = ''
+    this.reloginInProgress = false
+    this.reloginWaiters = []
 
-    if (!await this.probe()) {
-      this.lastError = '无法连接到设备，请检查地址和端口'
+    // 多路径登录尝试
+    let lastErr: string = ''
+    for (const path of UBUS_PATHS) {
+      if (await this.tryLogin(path)) {
+        hilog.info(DOMAIN, TAG, `UBUS login OK via path: ${path}`)
+        break
+      }
+      lastErr = `UBUS 路径 ${path} 不可用`
+    }
+
+    if (!this.sessionId) {
+      this.lastError = lastErr || '登录失败，请检查用户名和密码'
       return false
     }
 
-    // 先尝试 LuCI 表单登录（兼容 iStoreOS / QWRT / 标准 OpenWrt）
-    const luciOk: boolean = await this.luciFormLogin()
-    if (luciOk) {
-      this.sessionId = '00000000000000000000000000000000'
-      hilog.info(DOMAIN, TAG, 'LuCI form login OK')
-    } else {
-      hilog.warn(DOMAIN, TAG, 'LuCI form login failed, trying UBUS fallback')
-      if (!await this.ubusLogin()) {
-        this.lastError = '登录失败，请检查用户名和密码'
-        return false
-      }
-      hilog.info(DOMAIN, TAG, 'UBUS login OK')
-    }
-
-    if (!await this.verifyLogin()) {
-      // 如果 cookie 已设置但验证失败，尝试用 ubus 方式再登录一次
-      if (luciOk && this.authCookie) {
-        hilog.warn(DOMAIN, TAG, 'Cookie-based verify failed, trying UBUS as fallback')
-        if (!await this.ubusLogin()) {
-          this.lastError = '会话验证失败，请确认设备支持 OpenWrt/LuCI'
-          return false
-        }
-        if (!await this.verifyLogin()) {
-          this.lastError = '会话验证失败，请确认设备支持 OpenWrt/LuCI'
-          return false
-        }
-      } else {
-        this.lastError = '会话验证失败，请确认设备支持 OpenWrt/LuCI'
-        return false
-      }
+    // 验证会话有效性
+    if (!await this.verifySession()) {
+      this.lastError = '会话验证失败，请确认设备支持 OpenWrt UBUS'
+      return false
     }
 
     this.connected = true
-    hilog.info(DOMAIN, TAG, 'Connected successfully')
+    hilog.info(DOMAIN, TAG, `Connected via UBUS (${this.ubusPath})`)
     return true
   }
 
@@ -94,315 +147,297 @@ export class ApiClient {
     return this.baseUrl
   }
 
-  private async probe(): Promise<boolean> {
-    // 尝试多个路径探测设备可达性
-    const probePaths: string[] = [
-      '/',
-      '/cgi-bin/luci/',
-      '/cgi-bin/luci/admin/'
-    ]
-    for (const path of probePaths) {
-      const req = http.createHttp()
-      try {
-        const r = await req.request(`${this.baseUrl}${path}`, {
-          method: http.RequestMethod.GET,
-          expectDataType: http.HttpDataType.STRING,
-          connectTimeout: 3000,
-          readTimeout: 3000
-        })
-        req.destroy()
-        if (r.responseCode >= 200 && r.responseCode < 500) {
-          return true
-        }
-      } catch (e) {
-        req.destroy()
-      }
-    }
-    return false
-  }
+  // ==================== 登录 ====================
 
-  private async luciFormLogin(): Promise<boolean> {
-    // 尝试多种登录路径和表单字段组合，兼容不同 OpenWrt 发行版（iStoreOS / QWRT / LEDE 等）
-    const loginPaths: string[] = [
-      '/cgi-bin/luci/',
-      '/cgi-bin/luci/admin/'
-    ]
-    const formBodies: string[] = [
-      `luci_username=${encodeURIComponent(this.username)}&luci_password=${encodeURIComponent(this.password)}`,
-      `username=${encodeURIComponent(this.username)}&password=${encodeURIComponent(this.password)}`
-    ]
-
-    for (const path of loginPaths) {
-      for (const formBody of formBodies) {
-        const url: string = `${this.baseUrl}${path}`
-        const req = http.createHttp()
-        try {
-          const r = await req.request(url, {
-            method: http.RequestMethod.POST,
-            header: {
-              'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-              'Accept': '*/*'
-            },
-            extraData: formBody,
-            expectDataType: http.HttpDataType.STRING,
-            connectTimeout: 5000,
-            readTimeout: 10000
-          })
-
-          // 方式1: 从 cookies 属性中查找 sysauth（HarmonyOS API 8+ 提供）
-          if (r.cookies && Array.isArray(r.cookies)) {
-            const cookiesArr: string[] = r.cookies as string[]
-            for (let ci = 0; ci < cookiesArr.length; ci++) {
-              const ckStr: string = String(cookiesArr[ci])
-              if (ckStr.toLowerCase().includes('sysauth')) {
-                const m: RegExpMatchArray | null = ckStr.match(/sysauth[^;]*/)
-                if (m && m[0]) {
-                  this.authCookie = m[0]
-                  req.destroy()
-                  hilog.info(DOMAIN, TAG, `LuCI form login OK via cookies (${path}), cookie: ` +
-                    this.authCookie.substring(0, 20) + '...')
-                  return true
-                }
-              }
-            }
-          }
-
-          // 方式2: 从 Set-Cookie 响应头中查找
-          let setCookie: string = ''
-          const keys = Object.keys(r.header)
-          for (let i = 0; i < keys.length; i++) {
-            const key = keys[i]
-            const keyLower = key.toLowerCase()
-            if (keyLower === 'set-cookie') {
-              const cookieValue = String(r.header[key])
-              if (cookieValue.toLowerCase().includes('sysauth')) {
-                setCookie = cookieValue
-                break
-              }
-              if (!setCookie) {
-                setCookie = cookieValue
-              }
-            }
-          }
-
-          req.destroy()
-
-          if (setCookie) {
-            const sysauthMatch: RegExpMatchArray | null = setCookie.match(/sysauth[^;]*/)
-            if (sysauthMatch && sysauthMatch[0]) {
-              this.authCookie = sysauthMatch[0]
-              hilog.info(DOMAIN, TAG, `LuCI form login OK (${path}), cookie: ` +
-                this.authCookie.substring(0, 20) + '...')
-              return true
-            }
-          }
-
-          // 记录调试信息
-          if (r.responseCode >= 200 && r.responseCode < 300) {
-            hilog.info(DOMAIN, TAG,
-              `LuCI form login: ${path} returned ${r.responseCode}, but no sysauth cookie found`)
-          }
-        } catch (e) {
-          req.destroy()
-          hilog.info(DOMAIN, TAG, `LuCI form login ${path} try err: ${String(e)}`)
-        }
-      }
-    }
-    hilog.warn(DOMAIN, TAG, 'LuCI form login: no sysauth cookie found on all paths')
-    return false
-  }
-
-  private async ubusLogin(): Promise<boolean> {
+  /**
+   * 在指定端点尝试 UBUS 会话登录
+   */
+  private async tryLogin(ubusEndpoint: string): Promise<boolean> {
     const loginObj: Record<string, Object> = {}
     loginObj['username'] = this.username
     loginObj['password'] = this.password
-    const body = JSON.stringify({
+
+    const paramsArr: Object[] = [UBUS_INITIAL_SID, 'session', 'login', loginObj]
+
+    const body: string = JSON.stringify({
       jsonrpc: '2.0',
       id: 1,
       method: 'call',
-      params: ['00000000000000000000000000000000', 'session', 'login', loginObj]
+      params: paramsArr
     })
-    // 尝试多个 ubus 端点路径
-    const ubusPaths: string[] = [
-      '/ubus',
-      '/cgi-bin/luci/admin/ubus/'
-    ]
-    for (const path of ubusPaths) {
-      try {
-        const resp: Record<string, Object> | null = await this.rpcPost(path, body)
-        if (!resp || typeof resp !== 'object') {
-          continue
-        }
-        const resArr = resp['result'] as Object[] | undefined
-        if (!resArr || !Array.isArray(resArr) || resArr.length < 2) {
-          continue
-        }
-        const code = Number(resArr[0])
-        if (code !== 0) {
-          continue
-        }
-        const data = resArr[1] as Record<string, Object>
-        if (!data) {
-          continue
-        }
-        const sid = data['ubus_rpc_session'] as string | undefined
-        if (!sid) {
-          continue
-        }
-        this.sessionId = sid
-        this.authCookie = `sysauth=${sid}`
-        hilog.info(DOMAIN, TAG, `UBUS login OK (${path}), session: ${sid.substring(0, 12)}...`)
-        return true
-      } catch (e) {
-        hilog.info(DOMAIN, TAG, `ubusLogin ${path} err: ${String(e)}`)
-      }
-    }
-    hilog.error(DOMAIN, TAG, 'ubusLogin all paths failed')
-    return false
-  }
 
-  private async verifyLogin(): Promise<boolean> {
-    // 方式1: 通过 ubus system.board 验证（标准 OpenWrt / iStoreOS）
     try {
-      const board = await this.getSystemBoard()
-      if (board && typeof board === 'object') {
-        const hostname = board['hostname']
-        if (hostname) {
-          hilog.info(DOMAIN, TAG, 'verifyLogin OK via ubus system.board')
-          return true
-        }
+      const resp: Record<string, Object> | null = await this.rawPost(body, ubusEndpoint)
+      if (!resp || typeof resp !== 'object') {
+        return false
       }
-    } catch (e) {
-      hilog.info(DOMAIN, TAG, `verifyLogin ubus failed: ${String(e)}, trying fallback`)
-    }
 
-    // 方式2: 通过 HTTP GET 已验证页面确认 cookie 有效（兼容 QWRT 等无 ubus 代理的系统）
-    try {
-      const ok: boolean = await this.verifyByHttpGet()
-      if (ok) {
-        hilog.info(DOMAIN, TAG, 'verifyLogin OK via HTTP GET')
-        return true
+      const resArr: Object[] | undefined = resp['result'] as Object[] | undefined
+      if (!resArr || !Array.isArray(resArr) || resArr.length < 2) {
+        return false
       }
-    } catch (e) {
-      hilog.info(DOMAIN, TAG, `verifyLogin HTTP fallback failed: ${String(e)}`)
-    }
 
-    return false
+      const code: number = Number(resArr[0])
+      if (code !== 0) {
+        hilog.error(DOMAIN, TAG, `Login (${ubusEndpoint}): error code ${code}`)
+        return false
+      }
+
+      const data: Record<string, Object> = resArr[1] as Record<string, Object>
+      if (!data) {
+        return false
+      }
+
+      const sid: string | undefined = data['ubus_rpc_session'] as string | undefined
+      if (!sid) {
+        return false
+      }
+
+      this.sessionId = sid
+      this.ubusPath = ubusEndpoint
+      hilog.info(DOMAIN, TAG, `UBUS session: ${sid.substring(0, 12)}...`)
+      return true
+    } catch (e) {
+      return false
+    }
   }
 
   /**
-   * 通过 HTTP GET 请求已验证页面来确认登录状态
-   * 尝试多个常见的管理页面路径
+   * 重登录：仅用于会话过期后的自动恢复
+   * 使用已确认为可用的 ubusPath，跳过路径探测
    */
-  private async verifyByHttpGet(): Promise<boolean> {
-    const verifyPaths: string[] = [
-      '/cgi-bin/luci/admin/status/overview',
-      '/cgi-bin/luci/admin/',
-      '/cgi-bin/luci/'
-    ]
-    for (const path of verifyPaths) {
-      const req = http.createHttp()
-      try {
-        const hdr: Record<string, string> = {}
-        if (this.authCookie) {
-          hdr['Cookie'] = this.authCookie
-        }
-        const r = await req.request(`${this.baseUrl}${path}`, {
-          method: http.RequestMethod.GET,
-          header: hdr,
-          expectDataType: http.HttpDataType.STRING,
-          connectTimeout: 5000,
-          readTimeout: 5000
-        })
-        req.destroy()
-        // 如果返回 200 且内容不为空（说明登录成功可访问），或者有新的 Set-Cookie 确认会话有效
-        if (r.responseCode === 200 && r.result && String(r.result).length > 100) {
-          return true
-        }
-        if (r.responseCode >= 200 && r.responseCode < 400) {
-          // 检查是否被重定向到登录页（无 cookie 时通常会被重定向）
-          const body: string = String(r.result || '')
-          if (!body.includes('luci_username') && !body.includes('login')) {
-            return true
-          }
-        }
-      } catch (e) {
-        req.destroy()
+  private async relogin(): Promise<boolean> {
+    const path: string = this.ubusPath
+    if (!path || !this.username || !this.password) {
+      hilog.error(DOMAIN, TAG, 'relogin: no path or credentials')
+      return false
+    }
+
+    this.sessionId = ''
+    const ok: boolean = await this.tryLogin(path)
+    if (ok) {
+      hilog.info(DOMAIN, TAG, 'Auto re-login OK')
+    } else {
+      this.connected = false
+      this.lastError = '会话过期，重新登录失败'
+      hilog.error(DOMAIN, TAG, 'Auto re-login failed')
+    }
+    return ok
+  }
+
+  /**
+   * 等待重登录完成（供并发请求使用）
+   */
+  private async waitForRelogin(): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      this.reloginWaiters.push(() => {
+        resolve(this.sessionId.length > 0)
+      })
+    })
+  }
+
+  /**
+   * 通知所有等待者重登录已完成
+   */
+  private notifyReloginWaiters(): void {
+    const waiters: Array<() => void> = this.reloginWaiters
+    this.reloginWaiters = []
+    for (const resolve of waiters) {
+      try { resolve() } catch (e) {}
+    }
+  }
+
+  /**
+   * 验证会话 — 调用 system.board
+   */
+  private async verifySession(): Promise<boolean> {
+    try {
+      const board: Record<string, Object> = await this.getSystemBoard()
+      if (board && typeof board === 'object' && board['hostname']) {
+        hilog.info(DOMAIN, TAG, 'Session verified via system.board')
+        return true
       }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `verifySession failed: ${String(e)}`)
     }
     return false
   }
 
-  private async rpcPost(path: string, body: string): Promise<Record<string, Object> | null> {
+  // ==================== 底层通信 ====================
+
+  /**
+   * 发送 HTTP POST 到指定 UBUS 端点，返回解析后的 JSON 对象
+   */
+  private async rawPost(body: string, pathOverride?: string): Promise<Record<string, Object> | null> {
+    const path: string = pathOverride || this.ubusPath
     const url: string = `${this.baseUrl}${path}`
-    const hdr: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (this.authCookie) {
-      hdr['Cookie'] = this.authCookie
-    }
-    const req = http.createHttp()
+    const req: http.HttpRequest = http.createHttp()
+
     try {
-      const r = await req.request(url, {
+      const r: http.HttpResponse = await req.request(url, {
         method: http.RequestMethod.POST,
-        header: hdr,
+        header: { 'Content-Type': 'application/json' },
         extraData: body,
         expectDataType: http.HttpDataType.STRING,
         connectTimeout: 5000,
-        readTimeout: 5000
+        readTimeout: 10000
       })
       req.destroy()
-      const respBody: string = r.result as string || ''
-      if (r.responseCode >= 200 && r.responseCode < 400 && respBody.length > 5) {
+
+      const respBody: string = (r.result as string) || ''
+      if (r.responseCode >= 200 && r.responseCode < 500 && respBody.length > 5) {
         return JSON.parse(respBody) as Record<string, Object>
       }
+      hilog.warn(DOMAIN, TAG, `rawPost: HTTP ${r.responseCode}, body len=${respBody.length}`)
     } catch (e) {
       req.destroy()
+      hilog.error(DOMAIN, TAG, `rawPost exception: ${String(e)}`)
     }
     return null
   }
 
-  async callUbus(namespace: string, procedure: string, params: Record<string, Object>): Promise<Record<string, Object>[]> {
+  /**
+   * 执行一次 UBUS调用，返回 [code, data] 元组
+   * 不做重登录处理，由上层 callUbus / callUbusFirst 统一处理
+   */
+  private async execUbusCall(
+    namespace: string,
+    procedure: string,
+    params: Record<string, Object>
+  ): Promise<[number, Object | null]> {
     const body: string = JSON.stringify({
       jsonrpc: '2.0',
       id: this.rpcId++,
       method: 'call',
       params: [this.sessionId, namespace, procedure, params || {}]
     })
+
     try {
-      const resp: Record<string, Object> | null = await this.rpcPost('/cgi-bin/luci/admin/ubus/', body)
+      const resp: Record<string, Object> | null = await this.rawPost(body)
       if (!resp || typeof resp !== 'object') {
-        return []
+        return [-1, null]
       }
+
       const result: Object | undefined = resp['result']
       if (result === undefined || result === null) {
-        return []
+        return [-1, null]
       }
-      if (Array.isArray(result)) {
-        if (result.length >= 2 && typeof result[0] === 'number' && result[0] === 0) {
-          const payload: Record<string, Object> = result[1] as Record<string, Object>
-          if (payload && typeof payload === 'object') {
-            return [payload]
-          }
-          return []
-        }
-        if (result.length >= 2 && typeof result[0] === 'number' && result[0] !== 0) {
-          hilog.warn(DOMAIN, TAG, `ubus ${namespace}.${procedure} err: ${result[1]}`)
-          return []
-        }
+
+      if (Array.isArray(result) && result.length >= 2) {
+        const code: number = typeof result[0] === 'number' ? result[0] as number : Number(result[0])
+        return [code, result[1]]
+      }
+
+      return [-1, null]
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `ubus ${namespace}.${procedure} exception: ${String(e)}`)
+      return [-1, null]
+    }
+  }
+
+  /**
+   * 带自动重登录的 UBUS 调用
+   * 发生错误码 6（会话超时）时自动重登录并重试一次
+   */
+  private async ubusCallInternal(
+    namespace: string,
+    procedure: string,
+    params: Record<string, Object>
+  ): Promise<[number, Object | null]> {
+    // 首次尝试
+    let result: [number, Object | null] = await this.execUbusCall(namespace, procedure, params)
+    let code: number = result[0]
+    let data: Object | null = result[1]
+
+    if (code !== UBUS_STATUS_ACCESS_DENIED) {
+      return [code, data]
+    }
+
+    // === 会话超时，需要重登录 ===
+
+    // 如果已有其他请求正在重登录，等待其完成
+    if (this.reloginInProgress) {
+      hilog.info(DOMAIN, TAG, `Waiting for in-progress relogin...`)
+      const ok: boolean = await this.waitForRelogin()
+      if (!ok) {
+        return [UBUS_STATUS_ACCESS_DENIED, null]
+      }
+      // 重试
+      result = await this.execUbusCall(namespace, procedure, params)
+      return [result[0], result[1]]
+    }
+
+    // 亲自执行重登录
+    this.reloginInProgress = true
+    try {
+      const ok: boolean = await this.relogin()
+      this.reloginInProgress = false
+      this.notifyReloginWaiters()
+
+      if (!ok) {
+        return [UBUS_STATUS_ACCESS_DENIED, null]
+      }
+      // 重试
+      result = await this.execUbusCall(namespace, procedure, params)
+      return [result[0], result[1]]
+    } catch (e) {
+      this.reloginInProgress = false
+      this.notifyReloginWaiters()
+      return [UBUS_STATUS_ACCESS_DENIED, null]
+    }
+  }
+
+  // ==================== 公开 UBUS 调用接口 ====================
+
+  /**
+   * 调用 UBUS 方法，返回结果数组
+   * 自动处理错误码 6（会话超时 → 重登录 → 重试）
+   */
+  async callUbus(
+    namespace: string,
+    procedure: string,
+    params: Record<string, Object>
+  ): Promise<Record<string, Object>[]> {
+    const result: [number, Object | null] = await this.ubusCallInternal(namespace, procedure, params)
+    const code: number = result[0]
+    const data: Object | null = result[1]
+
+    if (code === UBUS_STATUS_OK) {
+      if (data && typeof data === 'object') {
+        return [data as Record<string, Object>]
       }
       return []
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, `ubus ${namespace}.${procedure} err`)
     }
+
+    if (code === UBUS_STATUS_ACCESS_DENIED) {
+      this.lastError = `会话过期，请重新连接`
+      hilog.error(DOMAIN, TAG, `ubus ${namespace}.${procedure}: session expired after relogin`)
+      return []
+    }
+
+    // 其他错误码
+    const errMsg: string = UbusErrorMessages.get(String(code)) ||
+      `错误码 ${code}`
+    hilog.warn(DOMAIN, TAG, `ubus ${namespace}.${procedure}: ${errMsg}`)
     return []
   }
 
-  async callUbusFirst(namespace: string, procedure: string, params: Record<string, Object>): Promise<Record<string, Object>> {
+  /**
+   * callUbus 的便捷封装，直接返回第一个结果对象
+   */
+  async callUbusFirst(
+    namespace: string,
+    procedure: string,
+    params: Record<string, Object>
+  ): Promise<Record<string, Object>> {
     const arr: Record<string, Object>[] = await this.callUbus(namespace, procedure, params)
     if (arr.length > 0 && typeof arr[0] === 'object' && arr[0] !== null) {
       return arr[0] as Record<string, Object>
     }
     return {}
   }
+
+  // ==================== system ====================
 
   getSystemBoard(): Promise<Record<string, Object>> {
     return this.callUbusFirst('system', 'board', {})
@@ -411,6 +446,13 @@ export class ApiClient {
   getSystemInfo(): Promise<Record<string, Object>> {
     return this.callUbusFirst('system', 'info', {})
   }
+
+  async systemReboot(): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('system', 'reboot', {})
+    return arr.length > 0
+  }
+
+  // ==================== luci / luci-rpc ====================
 
   getLuciNetworkDevices(): Promise<Record<string, Object>> {
     return this.callUbusFirst('luci-rpc', 'getNetworkDevices', {})
@@ -426,6 +468,50 @@ export class ApiClient {
     }
     return {}
   }
+
+  getWirelessDevices(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci-rpc', 'getWirelessDevices', {})
+  }
+
+  getMountPoints(): Promise<Record<string, Object>[]> {
+    return this.callUbus('luci', 'getMountPoints', {})
+  }
+
+  getRealtimeStats(params: Record<string, Object>): Promise<Record<string, Object>[]> {
+    return this.callUbus('luci', 'getRealtimeStats', params)
+  }
+
+  getProcessList(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci', 'getProcessList', {})
+  }
+
+  getTempInfo(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci', 'getTempInfo', {})
+  }
+
+  getCPUUsage(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci', 'getCPUUsage', {})
+  }
+
+  getOnlineUsers(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('luci', 'getOnlineUsers', {})
+  }
+
+  // ==================== network ====================
+
+  networkInterfaceDump(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('network.interface', 'dump', {})
+  }
+
+  networkDeviceStatus(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('network.device', 'status', {})
+  }
+
+  getLanStatus(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('network.interface.lan', 'status', {})
+  }
+
+  // ==================== file ====================
 
   async readFile(filepath: string): Promise<string> {
     const readParams: Record<string, Object> = {}
@@ -443,8 +529,56 @@ export class ApiClient {
     return ''
   }
 
+  async execCommand(command: string, params?: string[]): Promise<string> {
+    const execObj: Record<string, Object> = {}
+    execObj['command'] = command
+    execObj['params'] = params || []
+    const arr: Record<string, Object>[] = await this.callUbus('file', 'exec', execObj)
+    if (arr.length > 0) {
+      const container: Record<string, Object> = arr[0] as Record<string, Object>
+      if (container) {
+        const codeVal: Object | undefined = container['code']
+        const code: number = codeVal !== undefined ? Number(codeVal) : -1
+        if (code === 0) {
+          const stdout: string | undefined = container['stdout'] as string | undefined
+          if (stdout) {
+            return stdout
+          }
+        }
+      }
+    }
+    return ''
+  }
+
+  // ==================== 温度 ====================
+
   async getCPUTemp(): Promise<number> {
-    const paths: string[] = [
+    // 先尝试 UBUS luci.getTempInfo
+    try {
+      const tempInfo: Record<string, Object> = await this.getTempInfo()
+      const raw: string = this.extractStr(tempInfo, 'tempinfo', '')
+      if (raw) {
+        const match: RegExpMatchArray | null = raw.match(/CPU:\s*([\d.]+)/i)
+        if (match && match[1]) {
+          const parsed: number = parseFloat(match[1])
+          if (parsed > 0 && parsed < 150) {
+            return parsed
+          }
+        }
+        const numMatch: RegExpMatchArray | null = raw.match(/([\d.]+)/)
+        if (numMatch && numMatch[1]) {
+          const parsed: number = parseFloat(numMatch[1])
+          if (parsed > 0 && parsed < 150) {
+            return parsed
+          }
+        }
+      }
+    } catch (e) {
+      // 继续尝试文件读取
+    }
+
+    // 降级到文件读取
+    const thermalPaths: string[] = [
       '/sys/class/thermal/thermal_zone0/temp',
       '/sys/class/thermal/thermal_zone1/temp',
       '/sys/class/thermal/thermal_zone2/temp',
@@ -456,14 +590,15 @@ export class ApiClient {
       '/proc/acpi/thermal_zone/THM0/temperature',
       '/proc/acpi/thermal_zone/THRM/temperature'
     ]
-    for (let i = 0; i < paths.length; i++) {
+
+    for (let i = 0; i < thermalPaths.length; i++) {
       try {
-        const raw: string = await this.readFile(paths[i])
+        const raw: string = await this.readFile(thermalPaths[i])
         if (!raw || raw.length === 0) {
           continue
         }
-        const trimmed = raw.trim()
-        const match = trimmed.match(/(\d+)/)
+        const trimmed: string = raw.trim()
+        const match: RegExpMatchArray | null = trimmed.match(/(\d+)/)
         if (match && match[1]) {
           const val: number = parseInt(match[1], 10)
           if (!isNaN(val) && val > 0) {
@@ -475,85 +610,18 @@ export class ApiClient {
           return floatVal > 200 ? floatVal / 1000 : floatVal
         }
       } catch (e) {
+        // 继续下一个路径
       }
     }
     return 0
   }
 
-  getCPUUsage(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('luci', 'getCPUUsage', {})
-  }
-
-  getOnlineUsers(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('luci', 'getOnlineUsers', {})
-  }
-
-  getTempInfo(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('luci', 'getTempInfo', {})
-  }
-
-  getMountPoints(): Promise<Record<string, Object>[]> {
-    return this.callUbus('luci', 'getMountPoints', {})
-  }
-
-  getRealtimeStats(params: Record<string, Object>): Promise<Record<string, Object>[]> {
-    return this.callUbus('luci', 'getRealtimeStats', params)
-  }
-
-  getProcessList(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('luci', 'getProcessList', {})
-  }
-
-  getWirelessDevices(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('luci-rpc', 'getWirelessDevices', {})
-  }
-
-  async execCommand(command: string, params?: string[]): Promise<string> {
-    const execObj: Record<string, Object> = {}
-    execObj['command'] = command
-    execObj['params'] = params || []
-    const arr = await this.callUbus('file', 'exec', execObj)
-    if (arr.length > 0) {
-      const container = arr[0] as Record<string, Object>
-      if (container) {
-        const codeVal = container['code']
-        const code: number = codeVal !== undefined ? Number(codeVal) : -1
-        if (code === 0) {
-          const stdout = container['stdout'] as string | undefined
-          if (stdout) {
-            return stdout
-          }
-        }
-      }
-    }
-    return ''
-  }
-
-  async systemReboot(): Promise<boolean> {
-    const arr: Record<string, Object>[] = await this.callUbus('system', 'reboot', {})
-    return arr.length > 0
-  }
-
-  networkInterfaceDump(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('network.interface', 'dump', {})
-  }
-
-  networkDeviceStatus(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('network.device', 'status', {})
-  }
-
-  getLanStatus(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('network.interface.lan', 'status', {})
-  }
+  // ==================== wireless ====================
 
   iwinfoAssoclist(ifname: string): Promise<Record<string, Object>> {
     const iwinfoParams: Record<string, Object> = {}
     iwinfoParams['device'] = ifname
     return this.callUbusFirst('iwinfo', 'assoclist', iwinfoParams)
-  }
-
-  rcList(): Promise<Record<string, Object>> {
-    return this.callUbusFirst('rc', 'list', {})
   }
 
   async hostapdDelClient(ifname: string, mac: string): Promise<boolean> {
@@ -562,6 +630,14 @@ export class ApiClient {
     const arr: Record<string, Object>[] = await this.callUbus('hostapd.' + ifname, 'del_client', delParams)
     return arr.length > 0
   }
+
+  // ==================== rc ====================
+
+  rcList(): Promise<Record<string, Object>> {
+    return this.callUbusFirst('rc', 'list', {})
+  }
+
+  // ==================== appfilter ====================
 
   getOafStatus(): Promise<Record<string, Object>> {
     return this.callUbusFirst('appfilter', 'get_oaf_status', {})
@@ -612,8 +688,8 @@ export class ApiClient {
     return arr.length > 0
   }
 
-  async delAppFilterUser(user: Record<string, Object>): Promise<boolean> {
-    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'del_app_filter_user', user)
+  async delAppFilterUser(params: Record<string, Object>): Promise<boolean> {
+    const arr: Record<string, Object>[] = await this.callUbus('appfilter', 'del_app_filter_user', params)
     return arr.length > 0
   }
 
@@ -627,192 +703,46 @@ export class ApiClient {
   }
 
   getAllOafUsers(): Promise<Record<string, Object>[]> {
-    const oafParams: Record<string, Object> = {}
-    oafParams['flag'] = 3
-    return this.callUbus('appfilter', 'get_all_users', oafParams)
+    return this.callUbus('appfilter', 'get_all_oaf_users', {})
   }
 
   devVisitTime(mac: string): Promise<Record<string, Object>[]> {
-    const devVisitTimeParams: Record<string, Object> = {}
-    devVisitTimeParams['mac'] = mac
-    return this.callUbus('appfilter', 'dev_visit_time', devVisitTimeParams)
+    const params: Record<string, Object> = {}
+    params['mac'] = mac
+    return this.callUbus('appfilter', 'dev_visit_time', params)
   }
 
   devVisitList(mac: string): Promise<Record<string, Object>[]> {
-    const devVisitListParams: Record<string, Object> = {}
-    devVisitListParams['mac'] = mac
-    return this.callUbus('appfilter', 'dev_visit_list', devVisitListParams)
+    const params: Record<string, Object> = {}
+    params['mac'] = mac
+    return this.callUbus('appfilter', 'dev_visit_list', params)
   }
 
-  private async httpGet(path: string): Promise<Record<string, Object>> {
-    const url: string = `${this.baseUrl}${path}`
-    const hdr: Record<string, string> = {}
-    if (this.authCookie) {
-      hdr['Cookie'] = this.authCookie
-    }
-    const req = http.createHttp()
-    try {
-      const r = await req.request(url, {
-        method: http.RequestMethod.GET,
-        header: hdr,
-        expectDataType: http.HttpDataType.STRING,
-        connectTimeout: 5000,
-        readTimeout: 10000
-      })
-      req.destroy()
-      if (r.result && (r.result as string).length > 5) {
-        try {
-          return JSON.parse(r.result as string) as Record<string, Object>
-        } catch (parseErr) {
-          hilog.warn(DOMAIN, TAG, `HTTP GET ${path} parse error: ${parseErr}`)
-        }
-      }
-    } catch (e) {
-      req.destroy()
-      hilog.warn(DOMAIN, TAG, `HTTP GET ${path} err: ${e}`)
-    }
-    throw new Error(`HTTP GET ${path} failed`)
-  }
+  // ==================== 工具方法 ====================
 
-  private parseIstoreResult(raw: Record<string, Object>): Record<string, Object> {
-    const result: Object | undefined = raw['result']
-    if (result !== undefined && result !== null) {
-      return result as Record<string, Object>
+  private extractStr(obj: Record<string, Object>, key: string, def: string): string {
+    if (!obj || typeof obj !== 'object') {
+      return def
     }
-    const data: Object | undefined = raw['data']
-    if (data !== undefined && data !== null) {
-      return data as Record<string, Object>
+    const v: Object = obj[key]
+    if (v === undefined || v === null) {
+      return def
     }
-    return raw
-  }
-
-  async getIstoreSystemStatus(): Promise<Record<string, Object>> {
-    try {
-      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/system/status/')
-      return this.parseIstoreResult(raw)
-    } catch (e) {
-      hilog.warn(DOMAIN, TAG, 'getIstoreSystemStatus err, fallback to ubus')
-    }
-    const result: Record<string, Object> = {}
-    const info: Record<string, Object> = await this.callUbusFirst('system', 'info', {})
-    if (info) {
-      result['uptime'] = Number(info['uptime']) || 0
-      result['localtime'] = info['localtime'] || ''
-      const loadArr: Object | undefined = info['load']
-      if (Array.isArray(loadArr)) {
-        result['cpuUsage'] = Math.min(100, Math.max(0, (Number((loadArr as Object[])[0]) / 65536) * 100))
-      } else {
-        result['cpuUsage'] = 0
-      }
-      const mem: Object | undefined = info['memory']
-      if (mem && typeof mem === 'object') {
-        result['memTotal'] = String((mem as Record<string, Object>)['total'] || '')
-        result['memAvailable'] = String((mem as Record<string, Object>)['free'] || '')
-        result['memAvailablePercentage'] = 0
-      }
-    }
-    result['cpuTemperature'] = -1
-    return result
-  }
-
-  async getIstoreCPUTemperature(): Promise<number> {
-    try {
-      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/system/status/')
-      const result: Record<string, Object> = this.parseIstoreResult(raw)
-      hilog.info(DOMAIN, TAG, `getIstoreCPUTemperature: result keys: ${Object.keys(result).join(', ')}`)
-      
-      const val: Object = result['cpuTemperature']
-      if (val !== undefined && val !== null) {
-        const temp: number = Number(val)
-        hilog.info(DOMAIN, TAG, `getIstoreCPUTemperature: cpuTemperature=${val}, parsed=${temp}`)
-        if (!isNaN(temp) && temp >= 0) {
-          return temp
-        }
-      } else {
-        hilog.warn(DOMAIN, TAG, 'getIstoreCPUTemperature: cpuTemperature is undefined or null')
-      }
-    } catch (e) {
-      hilog.warn(DOMAIN, TAG, `getIstoreCPUTemperature err: ${e}, fallback to file read`)
-    }
-    const fileTemp = await this.getCPUTemp()
-    hilog.info(DOMAIN, TAG, `getIstoreCPUTemperature: file temp fallback result=${fileTemp}`)
-    return fileTemp
-  }
-
-  async getIstoreNetworkStatus(): Promise<Record<string, Object>> {
-    try {
-      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/u/network/status/')
-      return this.parseIstoreResult(raw)
-    } catch (e) {
-      hilog.warn(DOMAIN, TAG, 'getIstoreNetworkStatus err, fallback to ubus')
-    }
-    const lanStatus: Record<string, Object> = await this.callUbusFirst('network.interface.lan', 'status', {})
-    const result: Record<string, Object> = {}
-    result['proto'] = ''
-    result['ipv4addr'] = ''
-    result['ipv4mask'] = 24
-    result['gateway'] = ''
-    result['dnsList'] = []
-    result['interface'] = ''
-    if (lanStatus) {
-      result['proto'] = lanStatus['proto'] || ''
-      const ipv4Arr: Object | undefined = lanStatus['ipv4_address']
-      if (Array.isArray(ipv4Arr) && (ipv4Arr as Object[]).length > 0) {
-        const addr: Record<string, Object> = (ipv4Arr as Object[])[0] as Record<string, Object>
-        result['ipv4addr'] = addr['address'] || ''
-        result['ipv4mask'] = Number(addr['mask']) || 24
-      }
-      result['gateway'] = lanStatus['ipv4_gateway'] || ''
-      const dnsArr: Object | undefined = lanStatus['dns_server']
-      if (Array.isArray(dnsArr)) {
-        const arr: Object[] = dnsArr as Object[]
-        const dns: string[] = []
-        if (arr.length > 0) dns.push(String(arr[0]))
-        if (arr.length > 1) dns.push(String(arr[1]))
-        result['dnsList'] = dns
-      }
-      result['interface'] = lanStatus['device'] || lanStatus['l3_device'] || ''
-    }
-    return result
-  }
-
-  async getIstoreSystemVersion(): Promise<Record<string, Object>> {
-    try {
-      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/u/system/version/')
-      return this.parseIstoreResult(raw)
-    } catch (e) {
-      hilog.warn(DOMAIN, TAG, 'getIstoreSystemVersion err, fallback to ubus')
-    }
-    const board: Record<string, Object> = await this.callUbusFirst('system', 'board', {})
-    const result: Record<string, Object> = {}
-    result['model'] = ''
-    result['arch'] = ''
-    result['target'] = ''
-    result['version'] = ''
-    result['kernel'] = ''
-    if (board) {
-      result['hostname'] = board['hostname'] || ''
-      result['model'] = board['system'] || ''
-      result['arch'] = board['model'] || ''
-      result['kernel'] = board['kernel'] || ''
-      const release: Object | undefined = board['release']
-      if (release && typeof release === 'object') {
-        const rel: Record<string, Object> = release as Record<string, Object>
-        result['arch'] = rel['model'] || board['model'] || ''
-        result['target'] = rel['target'] || ''
-        result['version'] = rel['description'] || rel['version'] || ''
-      }
-    }
-    return result
-  }
-
-  async getIstoreNetworkStatistics(): Promise<Record<string, Object>> {
-    try {
-      const raw: Record<string, Object> = await this.httpGet('/cgi-bin/luci/istore/u/network/statistics/')
-      return this.parseIstoreResult(raw)
-    } catch (e) {
-      hilog.warn(DOMAIN, TAG, 'getIstoreNetworkStatistics err')
-    }
-    return {}
+    return String(v)
   }
 }
+
+/** UBUS 错误码描述映射（供日志使用） */
+const UbusErrorMessages: Map<string, string> = new Map([
+  ['0', '成功'],
+  ['1', '无效命令'],
+  ['2', '无效参数'],
+  ['3', '方法未找到'],
+  ['4', '对象未找到'],
+  ['5', '无数据'],
+  ['6', '访问被拒绝（会话过期）'],
+  ['7', '超时'],
+  ['8', '不支持'],
+  ['9', '未知错误'],
+  ['10', '连接失败']
+])

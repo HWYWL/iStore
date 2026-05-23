@@ -53,7 +53,7 @@ struct WebViewPage {
   }
 
   /**
-   * 通过 JS 注入自动登录 OpenWRT（标准 LuCI / iStoreOS / QWRT）
+   * 通过 JS 注入自动登录 OpenWRT LuCI Web 管理界面
    * 轮询等待登录表单渲染完成后填入账号密码并提交
    * 兼容不同发行版的表单结构和字段命名
    */

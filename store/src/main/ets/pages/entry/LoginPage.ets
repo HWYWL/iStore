@@ -127,7 +127,7 @@ struct LoginPage {
     const config: ConnectionConfig = { host, port: Number(port) || 80, username, password, useHttps: false }
 
     if (!host) {
-      this.errorMessage = '请输入 iStoreOS 设备地址'
+      this.errorMessage = '请输入设备地址'
       return
     }
 
@@ -269,7 +269,7 @@ struct LoginPage {
             .fontSize(40).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
             .margin({ top: 16 })
 
-          Text('iStoreOS 设备管理')
+          Text('路由器设备管理')
             .fontSize(14).fontColor(this.theme.textSecondary).margin({ top: 4 })
         }
         .alignItems(HorizontalAlign.Center)
