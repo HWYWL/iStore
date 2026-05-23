@@ -14,6 +14,7 @@ struct DashboardTab {
   @Prop theme: ThemePalette
   @State systemInfo: SystemInfo = this.emptySys()
   @State wanStatus: WanStatus = this.emptyWan()
+  @State lanStatus: WanStatus = this.emptyWan()
   @State isLoading: boolean = true
   @State lastUpdate: string = '--:--:--'
   @State errorText: string = ''
@@ -50,15 +51,17 @@ struct DashboardTab {
       const results = await Promise.all([
         api.fetchSystemInfo(),
         api.fetchWanStatus(),
+        api.fetchLanStatus(),
         api.fetchMountPoints(),
         api.fetchConntrack(),
         api.fetchNetworkInterfaces()
       ])
       this.systemInfo = results[0]
       this.wanStatus = results[1]
-      this.mountPoints = results[2]
-      this.conntrack = results[3]
-      this.networkInterfaces = results[4]
+      this.lanStatus = results[2]
+      this.mountPoints = results[3]
+      this.conntrack = results[4]
+      this.networkInterfaces = results[5]
       this.isOnline = true
     } catch (dashErr) {
       this.errorText = '加载数据失败'
@@ -76,13 +79,15 @@ struct DashboardTab {
       const results = await Promise.all([
         api.fetchSystemInfo(),
         api.fetchWanStatus(),
+        api.fetchLanStatus(),
         api.fetchMountPoints(),
         api.fetchConntrack()
       ])
       this.systemInfo = results[0]
       this.wanStatus = results[1]
-      this.mountPoints = results[2]
-      this.conntrack = results[3]
+      this.lanStatus = results[2]
+      this.mountPoints = results[3]
+      this.conntrack = results[4]
       this.isOnline = true
     } catch (refErr) {
       // Silent fail on refresh
@@ -483,10 +488,10 @@ struct DashboardTab {
                 .margin({ bottom: 12 })
 
               if (this.getLanInterface() === null) {
-                this.infoRow('IP 地址', this.wanStatus.ipAddress || '--')
-                this.infoRow('网关', this.wanStatus.gateway || '--')
-                if (this.wanStatus.dns.length > 0) {
-                  this.infoRow('DNS', this.wanStatus.dns.join(', '))
+                this.infoRow('IP 地址', this.lanStatus.ipAddress !== '0.0.0.0' ? this.lanStatus.ipAddress : '--')
+                this.infoRow('网关', this.lanStatus.gateway || '--')
+                if (this.lanStatus.dns.length > 0) {
+                  this.infoRow('DNS', this.lanStatus.dns.join(', '))
                 }
               } else {
                 this.NetInterfaceRow(this.getLanInterface()!)
@@ -1081,6 +1086,7 @@ struct NetworkTab {
   @Prop theme: ThemePalette
   @State interfaces: NetworkInterface[] = []
   @State wanStatus: WanStatus = this.emptyWan()
+  @State lanStatus: WanStatus = this.emptyWan()
   @State isLoading: boolean = true
   @State errorText: string = ''
 
@@ -1099,6 +1105,7 @@ struct NetworkTab {
       }
       const api = new ApiService()
       this.wanStatus = await api.fetchWanStatus()
+      this.lanStatus = await api.fetchLanStatus()
       this.interfaces = await api.fetchNetworkInterfaces()
     } catch (netErr) {
       this.errorText = '加载网络信息失败'
@@ -1199,13 +1206,13 @@ struct NetworkTab {
                 .margin({ bottom: 12 })
 
               Row() {
-                Text(this.wanStatus.ipAddress)
+                Text(this.lanStatus.ipAddress)
                   .fontSize(22)
                   .fontColor(this.theme.primary)
                   .fontWeight(FontWeight.Bold)
                   .fontFamily('monospace')
-                if (this.wanStatus.netmask) {
-                  Text(`/${this.wanStatus.netmask}`)
+                if (this.lanStatus.netmask) {
+                  Text(`/${this.lanStatus.netmask}`)
                     .fontSize(14)
                     .fontColor(this.theme.textSecondary)
                     .fontFamily('monospace')
@@ -1213,10 +1220,10 @@ struct NetworkTab {
                 }
                 Blank()
                 Column() {
-                  Text(`⇩ ${FormatUtils.formatSpeed(this.wanStatus.rxRate)}`)
+                  Text(`⇩ ${FormatUtils.formatSpeed(this.lanStatus.rxRate)}`)
                     .fontSize(13)
                     .fontColor(this.theme.success)
-                  Text(`⇧ ${FormatUtils.formatSpeed(this.wanStatus.txRate)}`)
+                  Text(`⇧ ${FormatUtils.formatSpeed(this.lanStatus.txRate)}`)
                     .fontSize(13)
                     .fontColor(this.theme.secondary)
                     .margin({ top: 4 })
@@ -1225,17 +1232,17 @@ struct NetworkTab {
               .width('100%')
               .margin({ bottom: 12 })
 
-              if (this.wanStatus.proto) {
-                this.netLine('协议', this.wanStatus.proto.toUpperCase())
+              if (this.lanStatus.proto) {
+                              this.netLine('协议', this.lanStatus.proto.toUpperCase())
               }
-              if (this.wanStatus.macAddr) {
-                this.netLine('MAC', this.wanStatus.macAddr)
+              if (this.lanStatus.macAddr) {
+                              this.netLine('MAC', this.lanStatus.macAddr)
               }
-              this.netLine('网关', this.wanStatus.gateway || '--')
-              this.netLine('DNS', this.wanStatus.dns.length > 0 ? this.wanStatus.dns.join(', ') : '--')
-              this.netLine('接口', this.wanStatus.interface || '--')
-              if (this.wanStatus.uptime > 0) {
-                this.netLine('运行时长', FormatUtils.formatUptime(this.wanStatus.uptime))
+                            this.netLine('网关', this.lanStatus.gateway || '--')
+                            this.netLine('DNS', this.lanStatus.dns.length > 0 ? this.lanStatus.dns.join(', ') : '--')
+                            this.netLine('接口', this.lanStatus.interface || '--')
+              if (this.lanStatus.uptime > 0) {
+                              this.netLine('运行时长', FormatUtils.formatUptime(this.lanStatus.uptime))
               }
             }
             .width('100%')

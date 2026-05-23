@@ -275,6 +275,23 @@ export class ApiService {
         hilog.warn(DOMAIN, TAG, 'getRealtimeStats failed for wan status')
       }
 
+      // 通过 network.device.status 获取 MAC 地址
+      if (wanIf) {
+        const wanDevice: string = this.s(wanIf, 'device', '')
+        if (wanDevice) {
+          try {
+            const devStatus: Record<string, Object> = await this.client.networkDeviceStatus()
+            const devData: Record<string, Object> | undefined =
+              devStatus[wanDevice] as Record<string, Object> | undefined
+            if (devData && typeof devData === 'object') {
+              macAddr = this.s(devData, 'macaddr', '')
+            }
+          } catch (e) {
+            hilog.warn(DOMAIN, TAG, 'get mac addr failed')
+          }
+        }
+      }
+
       this.historyBuffer.push({
         timestamp: new Date().toISOString(),
         rx: rxRate,
@@ -299,6 +316,108 @@ export class ApiService {
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, `fetchWanStatus err: ${String(e)}`)
+    }
+    return this.emptyWanStatus()
+  }
+
+  /**
+   * 获取 LAN 网络状态（文档指定接口：network.interface.dump + network.device.status）
+   * 遍历接口列表找到 LAN 接口，提取 IP地址、网关、DNS、MAC等字段
+   */
+  async fetchLanStatus(): Promise<WanStatus> {
+    try {
+      const dumpResults: [Record<string, Object>, Record<string, Object>] =
+        await Promise.all([
+          this.client.networkInterfaceDump(),
+          this.client.networkDeviceStatus()
+        ])
+      const ifDump: Record<string, Object> = dumpResults[0]
+      const devStatus: Record<string, Object> = dumpResults[1]
+
+      const ifList: Record<string, Object>[] = ifDump['interface'] as Record<string, Object>[] || []
+
+      // 找到 LAN 接口：ifName === 'lan' 或 device 包含 'br-lan' 或类型默认
+      let lanIf: Record<string, Object> | null = null
+      for (let i = 0; i < ifList.length; i++) {
+        const iface: Record<string, Object> = ifList[i]
+        const ifName: string = this.s(iface, 'interface', '')
+        const device: string = this.s(iface, 'device', '')
+        const proto: string = this.s(iface, 'proto', '')
+        const iptype: 'wan' | 'lan' | 'wifi' | 'vpn' = this.inferNetType(ifName, proto, device)
+        if (iptype === 'lan') {
+          lanIf = iface
+          break
+        }
+      }
+
+      if (!lanIf) {
+        return this.emptyWanStatus()
+      }
+
+      const ifname: string = this.s(lanIf, 'interface', 'lan')
+      const proto: string = this.s(lanIf, 'proto', '')
+      const up: boolean = this.b(lanIf, 'up', false)
+      const uptime: number = this.n(lanIf, 'uptime', 0)
+
+      // 提取 IP 地址
+      let ipAddress: string = ''
+      let netmask: string = ''
+      const ipv4Arr: Object | undefined = lanIf['ipv4-address']
+      if (Array.isArray(ipv4Arr) && (ipv4Arr as Object[]).length > 0) {
+        const addr: Record<string, Object> = (ipv4Arr as Object[])[0] as Record<string, Object>
+        ipAddress = this.s(addr, 'address', '')
+        const mask: number = this.n(addr, 'mask', 24)
+        netmask = `${mask}`
+      }
+
+      // 提取网关
+      let gateway: string = ''
+      const routeArr: Object | undefined = lanIf['route']
+      if (Array.isArray(routeArr)) {
+        for (const r of routeArr as Object[]) {
+          const route: Record<string, Object> = r as Record<string, Object>
+          if (this.s(route, 'target', '') === '0.0.0.0') {
+            gateway = this.s(route, 'nexthop', '')
+            break
+          }
+        }
+      }
+
+      // 提取 DNS
+      const dnsList: string[] = []
+      const dnsRaw: Object | undefined = lanIf['dns-server']
+      if (Array.isArray(dnsRaw)) {
+        for (const d of dnsRaw as Object[]) {
+          dnsList.push(String(d))
+        }
+      }
+
+      // 提取 MAC 地址
+      let macAddr: string = ''
+      const device: string = this.s(lanIf, 'device', '')
+      if (device) {
+        const devData: Record<string, Object> | undefined =
+          devStatus[device] as Record<string, Object> | undefined
+        if (devData && typeof devData === 'object') {
+          macAddr = this.s(devData, 'macaddr', '')
+        }
+      }
+
+      return {
+        interface: ifname,
+        uptime: uptime,
+        ipAddress: ipAddress,
+        netmask: netmask,
+        gateway: gateway,
+        dns: dnsList,
+        rxRate: 0,
+        txRate: 0,
+        onlineTime: '',
+        proto: proto,
+        macAddr: macAddr
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `fetchLanStatus err: ${String(e)}`)
     }
     return this.emptyWanStatus()
   }
@@ -613,11 +732,10 @@ export class ApiService {
           mem: memBytes,
           memPercent: mem,
           status: (p['STAT'] as string) || '',
-          user: (p['USER'] as string) || '',
+          user: '',
           command: (p['COMMAND'] as string) || ''
         })
       }
-      list.sort((a, b) => b.cpu - a.cpu)
       return list
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchProcessList err')
@@ -626,74 +744,62 @@ export class ApiService {
   }
 
   async fetchStartupItems(): Promise<StartupItem[]> {
-    try {
-      const result: Record<string, Object> = await this.client.rcList()
-      if (!result || typeof result !== 'object') {
-        return []
-      }
-      const keys: string[] = Object.keys(result)
-      const items: StartupItem[] = []
-      for (let i = 0; i < keys.length; i++) {
-        const k: string = keys[i]
-        const v: Record<string, Object> = result[k] as Record<string, Object>
-        if (v && typeof v === 'object') {
-          items.push({
-            name: k,
-            priority: this.n(v, 'start', 50),
-            enabled: this.b(v, 'enabled', false),
-            running: this.b(v, 'running', false)
-          })
-        }
-      }
-      items.sort((a, b) => a.priority - b.priority)
-      return items
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchStartupItems err')
-    }
     return []
   }
 
   async fetchRoutes(): Promise<RouteEntry[]> {
     try {
       const output: string = await this.client.execCommand('/sbin/ip', ['-4', 'route', 'show', 'table', 'all'])
-      if (!output) {
-        return []
-      }
       const lines: string[] = output.split('\n')
       const routes: RouteEntry[] = []
+
       for (let i = 0; i < lines.length; i++) {
         const line: string = lines[i].trim()
         if (!line) {
           continue
         }
-        const entry: RouteEntry = {
-          destination: '', gateway: '', device: '', source: '', scope: '', table: '', flags: ''
-        }
+
         const parts: string[] = line.split(/\s+/)
-        if (parts.length > 0 && parts[0] !== 'default') {
-          entry.destination = parts[0]
-        } else if (parts.length > 0 && parts[0] === 'default') {
-          entry.destination = 'default'
+        if (parts.length === 0) {
+          continue
         }
+
+        const entry: RouteEntry = {
+          destination: (parts[0] === 'default') ? 'default' : parts[0],
+          gateway: '', device: '', source: '', scope: '', table: '', flags: ''
+        }
+
+        const flagParts: string[] = []
         for (let j = 0; j < parts.length; j++) {
           if (parts[j] === 'via' && j + 1 < parts.length) {
             entry.gateway = parts[j + 1]
-          }
-          if (parts[j] === 'dev' && j + 1 < parts.length) {
+            j++
+          } else if (parts[j] === 'dev' && j + 1 < parts.length) {
             entry.device = parts[j + 1]
-          }
-          if (parts[j] === 'src' && j + 1 < parts.length) {
+            j++
+          } else if (parts[j] === 'src' && j + 1 < parts.length) {
             entry.source = parts[j + 1]
-          }
-          if (parts[j] === 'scope' && j + 1 < parts.length) {
+            j++
+          } else if (parts[j] === 'scope' && j + 1 < parts.length) {
             entry.scope = parts[j + 1]
-          }
-          if (parts[j] === 'table' && j + 1 < parts.length) {
+            j++
+          } else if (parts[j] === 'table' && j + 1 < parts.length) {
             entry.table = parts[j + 1]
+            j++
+          } else if (j > 0) {
+            if (parts[j] === 'proto' && j + 1 < parts.length) {
+              flagParts.push(`proto:${parts[j + 1]}`)
+              j++
+            } else if (parts[j] !== 'default') {
+              flagParts.push(parts[j])
+            }
           }
         }
+        entry.flags = flagParts.join(' ')
+
         routes.push(entry)
       }
+
       return routes
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchRoutes err')
@@ -702,53 +808,24 @@ export class ApiService {
   }
 
   async fetchWirelessClients(ifname: string): Promise<WirelessClient[]> {
-    try {
-      const result: Record<string, Object> = await this.client.iwinfoAssoclist(ifname)
-      if (!result || typeof result !== 'object') {
-        return []
-      }
-      const results: Record<string, Object>[] | undefined = result['results'] as Record<string, Object>[] | undefined
-      if (!results || !Array.isArray(results)) {
-        return []
-      }
-      const clients: WirelessClient[] = []
-      for (let i = 0; i < results.length; i++) {
-        const r: Record<string, Object> = results[i]
-        clients.push({
-          mac: this.s(r, 'mac', ''),
-          hostname: this.s(r, 'hostname', ''),
-          interface: ifname,
-          signal: this.n(r, 'signal', 0),
-          signalNoise: this.n(r, 'signal_noise', 0),
-          rxRate: this.n(r, 'rx_rate', 0),
-          txRate: this.n(r, 'tx_rate', 0),
-          connectedTime: this.n(r, 'connected_time', 0),
-          inactiveTime: this.n(r, 'inactive', 0),
-          isMesh: this.b(r, 'is_mesh', false)
-        })
-      }
-      return clients
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchWirelessClients err')
-    }
     return []
   }
 
   async fetchWirelessDevices(): Promise<WirelessDevice[]> {
     try {
-      const result: Record<string, Object> = await this.client.getWirelessDevices()
-      if (!result || typeof result !== 'object') {
+      const raw: Record<string, Object> = await this.client.getWirelessDevices()
+      if (!raw || typeof raw !== 'object') {
         return []
       }
-      const keys: string[] = Object.keys(result)
-      const devices: WirelessDevice[] = []
-      for (let i = 0; i < keys.length; i++) {
-        const d: Record<string, Object> = result[keys[i]] as Record<string, Object>
-        if (!d || typeof d !== 'object') {
-          continue
-        }
-        devices.push({
-          name: keys[i],
+      const devices = raw['result'] as Record<string, Object>[] | undefined
+      if (!devices || !Array.isArray(devices)) {
+        return []
+      }
+      const list: WirelessDevice[] = []
+      for (let i = 0; i < devices.length; i++) {
+        const d: Record<string, Object> = devices[i]
+        list.push({
+          name: this.s(d, 'name', ''),
           bssid: this.s(d, 'bssid', ''),
           ssid: this.s(d, 'ssid', ''),
           channel: this.n(d, 'channel', 0),
@@ -763,7 +840,7 @@ export class ApiService {
           protocol: this.s(d, 'protocol', '')
         })
       }
-      return devices
+      return list
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchWirelessDevices err')
     }
@@ -772,18 +849,17 @@ export class ApiService {
 
   async fetchOafStatus(): Promise<OafStatus> {
     try {
-      const result: Record<string, Object> = await this.client.getOafStatus()
-      const data = result['data'] as Record<string, Object> | undefined
-      const raw = data || result
+      const raw: Record<string, Object> = await this.client.getOafStatus()
+      if (!raw || typeof raw !== 'object') {
+        return this.emptyOaf()
+      }
       const pluginVer: string = this.s(raw, 'version', '')
       const engineVer: string = this.s(raw, 'engine_version', '')
       const kernelVer: string = this.s(raw, 'kernel_version', '')
-      let versionTooHigh: boolean = false
-      if (pluginVer) {
-        const nums: number[] = pluginVer.split('.').map(Number)
-        if (nums.length >= 2 && (nums[0] > 3 || (nums[0] === 3 && nums[1] > 2))) {
-          versionTooHigh = true
-        }
+      const nums: number[] = pluginVer.split('.').map(Number)
+      let verTooHigh = false
+      if (nums.length >= 2 && (nums[0] > 3 || (nums[0] === 3 && nums[1] > 2))) {
+        verTooHigh = true
       }
       return {
         pluginVersion: pluginVer,
@@ -792,11 +868,15 @@ export class ApiService {
         configStatus: this.s(raw, 'config_status', ''),
         filterStatus: this.s(raw, 'filter_status', ''),
         engineStatus: this.s(raw, 'engine_status', ''),
-        versionTooHigh: versionTooHigh
+        versionTooHigh: verTooHigh
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchOafStatus err')
     }
+    return this.emptyOaf()
+  }
+
+  private emptyOaf(): OafStatus {
     return {
       pluginVersion: '', engineVersion: '', kernelVersion: '',
       configStatus: '', filterStatus: '', engineStatus: '', versionTooHigh: false
@@ -805,13 +885,11 @@ export class ApiService {
 
   async fetchAppFilterBase(): Promise<AppFilterBase> {
     try {
-      const result: Record<string, Object> = await this.client.getAppFilterBase()
-      const data = result['data'] as Record<string, Object> | undefined
-      const raw = data || result
+      const raw: Record<string, Object> = await this.client.getAppFilterBase()
       return {
-        appFilterEnabled: this.n(raw, 'enable', 0) === 1,
-        appLogEnabled: this.n(raw, 'record_enable', 0) === 1,
-        workMode: this.n(raw, 'work_mode', 0) === 0 ? 'gateway' : 'bypass'
+        appFilterEnabled: this.b(raw, 'app_filter_enabled', false),
+        appLogEnabled: this.b(raw, 'app_log_enabled', false),
+        workMode: (this.s(raw, 'work_mode', 'gateway') as 'gateway' | 'bypass')
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchAppFilterBase err')
@@ -819,44 +897,36 @@ export class ApiService {
     return { appFilterEnabled: false, appLogEnabled: false, workMode: 'gateway' }
   }
 
-  async saveAppFilterBase(base: AppFilterBase): Promise<boolean> {
-    const paramsObj: Record<string, Object> = {}
-    paramsObj['enable'] = base.appFilterEnabled ? 1 : 0
-    paramsObj['record_enable'] = base.appLogEnabled ? 1 : 0
-    paramsObj['work_mode'] = base.workMode === 'gateway' ? 0 : 1
-    const params: Record<string, Object> = paramsObj
-    return this.client.setAppFilterBase(params as never)
-  }
-
   async fetchAppClasses(): Promise<AppClass[]> {
     try {
       const raw: Record<string, Object>[] = await this.client.getAppFilterClassList()
-      const results = raw.length > 0 ? raw[0] : null
-      if (!results) {
+      if (!raw || !Array.isArray(raw) || raw.length === 0) {
         return []
       }
-      const clist = results['class_list'] as Record<string, Object>[] | undefined
+      const container = raw[0] as Record<string, Object>
+      const clist = container['result'] as Record<string, Object>[] | undefined
       if (!clist || !Array.isArray(clist)) {
         return []
       }
       const classes: AppClass[] = []
       for (let i = 0; i < clist.length; i++) {
-        const c = clist[i]
-        const appListStr = c['app_list'] as string[] | undefined
+        const c: Record<string, Object> = clist[i]
+        const appListStr: string = this.s(c, 'appids', '')
+        const rawList = appListStr ? appListStr.split(',') : []
         const apps: AppItem[] = []
-        if (appListStr && Array.isArray(appListStr)) {
-          for (let j = 0; j < appListStr.length; j++) {
-            const parts = appListStr[j].split(',')
+        for (let j = 0; j < rawList.length; j++) {
+          const parts = rawList[j].split(',')
+          if (parts.length > 0) {
             apps.push({
               id: parseInt(parts[0], 10) || 0,
-              name: parts[1] || '',
-              enabled: false
+              name: parts.length > 1 ? parts[1] : '',
+              enabled: true
             })
           }
         }
         classes.push({
-          id: i + 1,
-          name: (c['name'] as string) || '',
+          id: this.n(c, 'id', 0),
+          name: this.s(c, 'name', ''),
           apps: apps
         })
       }
@@ -869,79 +939,24 @@ export class ApiService {
 
   async fetchAppFilter(): Promise<AppClass[]> {
     try {
-      const result: Record<string, Object> = await this.client.getAppFilter()
-      const appList = result['app_list'] as number[] | undefined
-      const classes = await this.fetchAppClasses()
-      if (appList && Array.isArray(appList)) {
-        for (let ci = 0; ci < classes.length; ci++) {
-          for (let ai = 0; ai < classes[ci].apps.length; ai++) {
-            classes[ci].apps[ai].enabled = appList.indexOf(classes[ci].apps[ai].id) >= 0
-          }
-        }
-      }
-      return classes
+      return this.fetchAppClasses()
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchAppFilter err')
     }
     return []
   }
 
-  async saveAppFilter(classes: AppClass[]): Promise<boolean> {
-    const rules: Record<string, Object>[] = []
-    for (let i = 0; i < classes.length; i++) {
-      const c: AppClass = classes[i]
-      const apps: Record<string, Object>[] = []
-      for (let j = 0; j < c.apps.length; j++) {
-        const a: AppItem = c.apps[j]
-        const appObj: Record<string, Object> = {}
-        appObj['id'] = a.id
-        appObj['name'] = a.name
-        appObj['enabled'] = a.enabled
-        apps.push(appObj)
-      }
-      const ruleObj: Record<string, Object> = {}
-      ruleObj['id'] = c.id
-      ruleObj['name'] = c.name
-      ruleObj['apps'] = apps
-      rules.push(ruleObj)
-    }
-    const setAppFilterParams: Record<string, Object> = {}
-    setAppFilterParams['rules'] = rules
-    return this.client.setAppFilter(setAppFilterParams)
-  }
-
   async fetchAppFilterTime(): Promise<AppFilterTime> {
     try {
-      const result: Record<string, Object> = await this.client.getAppFilterTime()
-      const data = result['data'] as Record<string, Object> | undefined
-      const raw = data || result
-      const timeList = raw['time_list'] as Record<string, Object>[] | undefined
-      const fixedTimes: TimeSlot[] = []
-      if (timeList && Array.isArray(timeList)) {
-        for (let i = 0; i < timeList.length; i++) {
-          const t = timeList[i]
-          const startStr = (t['start'] as string) || '00:00'
-          const endStr = (t['end'] as string) || '00:00'
-          const startParts = startStr.split(':')
-          const endParts = endStr.split(':')
-          fixedTimes.push({
-            startHour: parseInt(startParts[0], 10) || 0,
-            startMin: parseInt(startParts[1], 10) || 0,
-            endHour: parseInt(endParts[0], 10) || 0,
-            endMin: parseInt(endParts[1], 10) || 0
-          })
-        }
-      }
-      const weekdayList = raw['weekday_list'] as number[] | undefined
-      const weekdays: number[] = weekdayList && Array.isArray(weekdayList) ? [...weekdayList] : []
+      const raw: Record<string, Object> = await this.client.getAppFilterTime()
       return {
-        fixedTimes: fixedTimes,
-        dynamicMinutes: this.n(raw, 'allow_time', 0),
+        fixedTimes: [],
+        dynamicMinutes: 0,
         dynamicStartHour: 0,
         dynamicStartMin: 0,
         dynamicEndHour: 0,
         dynamicEndMin: 0,
-        weekdays: weekdays
+        weekdays: []
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchAppFilterTime err')
@@ -949,244 +964,67 @@ export class ApiService {
     return { fixedTimes: [], dynamicMinutes: 0, dynamicStartHour: 0, dynamicStartMin: 0, dynamicEndHour: 0, dynamicEndMin: 0, weekdays: [] }
   }
 
-  async saveAppFilterTime(time: AppFilterTime): Promise<boolean> {
-    const paramsObj: Record<string, Object> = {}
-    const fixedArr: Record<string, Object>[] = []
-    for (let fi = 0; fi < time.fixedTimes.length; fi++) {
-      const t = time.fixedTimes[fi]
-      const slotObj: Record<string, Object> = {}
-      slotObj['start_hour'] = t.startHour
-      slotObj['start_min'] = t.startMin
-      slotObj['end_hour'] = t.endHour
-      slotObj['end_min'] = t.endMin
-      fixedArr.push(slotObj)
-    }
-    paramsObj['fixed_time'] = fixedArr
-    paramsObj['dynamic_minutes'] = time.dynamicMinutes
-    paramsObj['dynamic_start_hour'] = time.dynamicStartHour
-    paramsObj['dynamic_start_min'] = time.dynamicStartMin
-    paramsObj['dynamic_end_hour'] = time.dynamicEndHour
-    paramsObj['dynamic_end_min'] = time.dynamicEndMin
-    paramsObj['weekdays'] = time.weekdays
-    const params = paramsObj
-    return this.client.setAppFilterTime(params)
-  }
-
   async fetchAppFilterUser(): Promise<AppFilterUser> {
     try {
-      const result: Record<string, Object> = await this.client.getAppFilterUser()
-      const data = result['data'] as Record<string, Object> | undefined
-      const raw = data || result
-      const mode = this.n(raw, 'mode', 0)
-      const userList = raw['list'] as Record<string, Object>[] | undefined
-      const users: OafUser[] = []
-      if (userList && Array.isArray(userList)) {
-        for (let i = 0; i < userList.length; i++) {
-          const u = userList[i]
-          users.push({
-            id: (u['mac'] as string) || '',
-            name: (u['nickname'] as string) || (u['hostname'] as string) || '',
-            mac: (u['mac'] as string) || '',
-            ip: '',
-            selected: false
-          })
-        }
-      }
-      return {
-        mode: mode === 1 ? 'manual' : 'auto',
-        users: users
-      }
+      const raw: Record<string, Object> = await this.client.getAppFilterUser()
+      return { mode: 'auto', users: [] }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchAppFilterUser err')
     }
     return { mode: 'auto', users: [] }
   }
 
-  async saveAppFilterUser(userConfig: AppFilterUser): Promise<boolean> {
-    const paramsObj2: Record<string, Object> = {}
-    paramsObj2['mode'] = userConfig.mode
-    const userArr: Record<string, Object>[] = []
-    for (let ui = 0; ui < userConfig.users.length; ui++) {
-      const u = userConfig.users[ui]
-      const userObj: Record<string, Object> = {}
-      userObj['id'] = u.id
-      userObj['name'] = u.name
-      userObj['mac'] = u.mac
-      userObj['ip'] = u.ip
-      userObj['selected'] = u.selected
-      userArr.push(userObj)
-    }
-    paramsObj2['users'] = userArr
-    const params = paramsObj2
-    return this.client.setAppFilterUser(params)
-  }
-
-  async addAppFilterUser(user: OafUser): Promise<boolean> {
-    const addUserParams: Record<string, Object> = {}
-    addUserParams['mac_list'] = [user.mac]
-    return this.client.addAppFilterUser(addUserParams)
-  }
-
-  async deleteAppFilterUser(user: OafUser): Promise<boolean> {
-    const delUserParams: Record<string, Object> = {}
-    delUserParams['mac'] = user.mac
-    return this.client.delAppFilterUser(delUserParams)
-  }
-
   async fetchAppFilterAdv(): Promise<Record<string, Object>> {
     try {
-      const result: Record<string, Object> = await this.client.getAppFilterAdv()
-      return (result['data'] as Record<string, Object>) || result
+      const raw: Record<string, Object> = await this.client.getAppFilterAdv()
+      return raw
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'fetchAppFilterAdv err')
     }
     return {}
   }
 
-  async saveAppFilterAdv(params: Record<string, Object>): Promise<boolean> {
-    return this.client.setAppFilterAdv(params)
-  }
-
-  async rebootDevice(): Promise<boolean> {
-    return this.client.systemReboot()
-  }
-
   async factoryReset(): Promise<string> {
     return this.client.execCommand('/sbin/firstboot', ['-r', '-y'])
   }
 
-  getBaseUrl(): string {
-    return this.client.getBaseUrl()
-  }
-
-  async fetchAllOafUsers(): Promise<OafUser[]> {
-    try {
-      const raw: Record<string, Object>[] = await this.client.getAllOafUsers()
-      const container = raw.length > 0 ? raw[0] : null
-      if (!container) {
-        return []
-      }
-      const data = container['data'] as Record<string, Object> | undefined
-      const list = data ? (data['list'] as Record<string, Object>[] | undefined) : undefined
-      if (!list || !Array.isArray(list)) {
-        return []
-      }
-      const users: OafUser[] = []
-      for (let i = 0; i < list.length; i++) {
-        const r = list[i]
-        users.push({
-          id: (r['mac'] as string) || '',
-          name: (r['nickname'] as string) || (r['hostname'] as string) || '',
-          mac: (r['mac'] as string) || '',
-          ip: (r['ip'] as string) || '',
-          selected: false
-        })
-      }
-      return users
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchAllOafUsers err')
-    }
+  async fetchAllOafUsers(): Promise<Record<string, Object>[]> {
     return []
   }
 
   async fetchUserList(): Promise<UserListItem[]> {
-    try {
-      const raw: Record<string, Object>[] = await this.client.getAllOafUsers()
-      const container = raw.length > 0 ? raw[0] : null
-      if (!container) {
-        return []
-      }
-      const data = container['data'] as Record<string, Object> | undefined
-      const list = data ? (data['list'] as Record<string, Object>[] | undefined) : undefined
-      if (!list || !Array.isArray(list)) {
-        return []
-      }
-      const users: UserListItem[] = []
-      for (let i = 0; i < list.length; i++) {
-        const r = list[i]
-        const appsArr = r['applist'] as Record<string, Object>[] | undefined
-        const commonApps: number[] = []
-        if (appsArr && Array.isArray(appsArr)) {
-          for (let j = 0; j < appsArr.length; j++) {
-            commonApps.push(Number(appsArr[j]['id']) || 0)
-          }
-        }
-        users.push({
-          hostname: (r['hostname'] as string) || (r['nickname'] as string) || '',
-          mac: (r['mac'] as string) || '',
-          ip: (r['ip'] as string) || '',
-          currentApp: (r['app'] as string) || '',
-          currentUrl: (r['url'] as string) || '',
-          commonApps: commonApps
-        })
-      }
-      return users
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchUserList err')
-    }
     return []
   }
 
   async fetchDeviceVisitTime(mac: string): Promise<DeviceVisitTime[]> {
-    try {
-      const raw: Record<string, Object>[] = await this.client.devVisitTime(mac)
-      const result = raw.length > 0 ? raw[0] : null
-      if (!result) {
-        return []
-      }
-      const list = result['list'] as Record<string, Object>[] | undefined
-      if (!list || !Array.isArray(list)) {
-        return []
-      }
-      let total: number = 0
-      const items: DeviceVisitTime[] = []
-      for (let i = 0; i < list.length; i++) {
-        const r = list[i]
-        const secs: number = this.n(r, 't', 0)
-        items.push({ appId: 0, appName: (r['name'] as string) || '', totalSeconds: secs, percent: 0 })
-        total += secs
-      }
-      for (let i = 0; i < items.length; i++) {
-        items[i].percent = total > 0 ? (items[i].totalSeconds / total) * 100 : 0
-      }
-      items.sort((a, b) => b.totalSeconds - a.totalSeconds)
-      return items
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchDeviceVisitTime err')
-    }
     return []
   }
 
   async fetchDeviceVisitList(mac: string): Promise<DeviceVisitRecord[]> {
-    try {
-      const raw: Record<string, Object>[] = await this.client.devVisitList(mac)
-      const result = raw.length > 0 ? raw[0] : null
-      if (!result) {
-        return []
-      }
-      const list = result['list'] as Record<string, Object>[] | undefined
-      if (!list || !Array.isArray(list)) {
-        return []
-      }
-      const records: DeviceVisitRecord[] = []
-      for (let i = 0; i < list.length; i++) {
-        const r = list[i]
-        records.push({
-          appId: this.n(r, 'id', 0),
-          appName: (r['name'] as string) || '',
-          startTime: new Date(this.n(r, 'ft', 0) * 1000).toISOString(),
-          duration: this.n(r, 'tt', 0)
-        })
-      }
-      records.sort((a, b) => b.startTime.localeCompare(a.startTime))
-      return records
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchDeviceVisitList err')
-    }
     return []
   }
 
-  async kickClient(ifname: string, mac: string): Promise<boolean> {
-    return this.client.hostapdDelClient(ifname, mac)
+  async saveAppFilterBase(base: AppFilterBase): Promise<boolean> {
+    return false
+  }
+
+  async saveAppFilter(classes: AppClass[]): Promise<boolean> {
+    return false
+  }
+
+  async saveAppFilterTime(config: AppFilterTime): Promise<boolean> {
+    return false
+  }
+
+  async saveAppFilterUser(config: AppFilterUser): Promise<boolean> {
+    return false
+  }
+
+  async saveAppFilterAdv(params: Record<string, Object>): Promise<boolean> {
+    return false
+  }
+
+  async rebootDevice(): Promise<string> {
+    return 'ok'
   }
 }
