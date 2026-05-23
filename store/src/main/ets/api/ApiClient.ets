@@ -69,6 +69,12 @@ export class ApiClient {
   private ubusPath: string = ''
   private rpcId: number = 1
 
+  /** 登录阶段捕获的具体错误信息（供 connect() 使用） */
+  private loginErrorDetail: string = ''
+
+  /** 已探测可用的 UBUS 命名空间，用于功能降级 */
+  capabilities: Record<string, boolean> = {}
+
   /** 是否正在执行重登录（避免并发重复登录） */
   private reloginInProgress: boolean = false
   /** 重登录等待队列 */
@@ -99,6 +105,7 @@ export class ApiClient {
     this.rpcId = 1
     this.reloginInProgress = false
     this.reloginWaiters = []
+    this.capabilities = {}
     hilog.info(DOMAIN, TAG, `Configured: ${this.baseUrl}`)
   }
 
@@ -116,19 +123,32 @@ export class ApiClient {
     this.ubusPath = ''
     this.reloginInProgress = false
     this.reloginWaiters = []
+    this.loginErrorDetail = ''
 
     // 多路径登录尝试
     let lastErr: string = ''
+    let lastDetailErr: string = ''
     for (const path of UBUS_PATHS) {
       if (await this.tryLogin(path)) {
         hilog.info(DOMAIN, TAG, `UBUS login OK via path: ${path}`)
+        lastDetailErr = ''
         break
       }
-      lastErr = `UBUS 路径 ${path} 不可用`
+      // 区分：UBUS 业务错误 vs 网络不通
+      if (this.loginErrorDetail) {
+        lastDetailErr = this.loginErrorDetail
+      } else {
+        lastErr = `UBUS 路径 ${path} 不可用`
+      }
     }
 
     if (!this.sessionId) {
-      this.lastError = lastErr || '登录失败，请检查用户名和密码'
+      // 优先展示具体的业务错误（如密码错误、权限拒绝），其次才是路径不可达
+      if (lastDetailErr) {
+        this.lastError = lastDetailErr
+      } else {
+        this.lastError = lastErr || '登录失败，请检查用户名和密码'
+      }
       return false
     }
 
@@ -139,6 +159,8 @@ export class ApiClient {
     }
 
     this.connected = true
+    // 探测设备支持的 UBUS 命名空间，用于后续功能降级
+    await this.probeCapabilities()
     hilog.info(DOMAIN, TAG, `Connected via UBUS (${this.ubusPath})`)
     return true
   }
@@ -169,35 +191,44 @@ export class ApiClient {
     try {
       const resp: Record<string, Object> | null = await this.rawPost(body, ubusEndpoint)
       if (!resp || typeof resp !== 'object') {
+        this.loginErrorDetail = `设备 ${this.baseUrl} 无响应，请检查地址和端口`
         return false
       }
 
       const resArr: Object[] | undefined = resp['result'] as Object[] | undefined
       if (!resArr || !Array.isArray(resArr) || resArr.length < 2) {
+        this.loginErrorDetail = `设备响应格式异常，可能不支持 UBUS 协议`
         return false
       }
 
       const code: number = Number(resArr[0])
       if (code !== 0) {
-        hilog.error(DOMAIN, TAG, `Login (${ubusEndpoint}): error code ${code}`)
+        const errMsg: string = LoginErrorMessages.get(String(code)) ||
+          `UBUS 错误码 ${code}`
+        this.loginErrorDetail = errMsg
+        hilog.error(DOMAIN, TAG, `Login (${ubusEndpoint}): ${errMsg}`)
         return false
       }
 
       const data: Record<string, Object> = resArr[1] as Record<string, Object>
       if (!data) {
+        this.loginErrorDetail = '登录响应数据为空，请重试'
         return false
       }
 
       const sid: string | undefined = data['ubus_rpc_session'] as string | undefined
       if (!sid) {
+        this.loginErrorDetail = '未能获取会话令牌，请检查用户名和密码'
         return false
       }
 
       this.sessionId = sid
       this.ubusPath = ubusEndpoint
+      this.loginErrorDetail = ''
       hilog.info(DOMAIN, TAG, `UBUS session: ${sid.substring(0, 12)}...`)
       return true
     } catch (e) {
+      this.loginErrorDetail = `无法连接 ${this.baseUrl}${ubusEndpoint}，请检查网络和地址`
       return false
     }
   }
@@ -248,7 +279,8 @@ export class ApiClient {
   }
 
   /**
-   * 验证会话 — 调用 system.board
+   * 验证会话 — 调用 system.board（标准 OpenWrt），失败则回退到 rc.list
+   * QWRT / ImmortalWrt 等衍生版本可能不授权 system 命名空间，但通常开放 rc.list
    */
   private async verifySession(): Promise<boolean> {
     try {
@@ -258,9 +290,79 @@ export class ApiClient {
         return true
       }
     } catch (e) {
-      hilog.error(DOMAIN, TAG, `verifySession failed: ${String(e)}`)
+      hilog.error(DOMAIN, TAG, `verifySession via system.board: ${String(e)}`)
     }
+
+    // Fallback: rc.list（QWRT / ImmortalWrt 等衍生版本通常开放此权限）
+    try {
+      const rcList: Record<string, Object> = await this.rcList()
+      if (rcList && typeof rcList === 'object' && Object.keys(rcList).length > 0) {
+        hilog.info(DOMAIN, TAG, 'Session verified via rc.list')
+        return true
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `verifySession via rc.list: ${String(e)}`)
+    }
+
     return false
+  }
+
+  /**
+   * 探测设备支持的 UBUS 命名空间，用于后续功能降级
+   * 根据探测结果决定使用哪些 API 路径获取数据
+   */
+  private async probeCapabilities(): Promise<void> {
+    this.capabilities = {}
+
+    // 探测 luci-rpc（用于 DHCP 租约、无线设备等）
+    try {
+      const result: [number, Object | null] =
+        await this.execUbusCall('luci-rpc', 'getDHCPLeases', {})
+      this.capabilities['luci-rpc'] = (result[0] === UBUS_STATUS_OK)
+    } catch (e) {
+      this.capabilities['luci-rpc'] = false
+    }
+
+    // 探测 luci（用于挂载点、进程列表、实时流量等）
+    try {
+      const result: [number, Object | null] =
+        await this.execUbusCall('luci', 'getMountPoints', {})
+      this.capabilities['luci'] = (result[0] === UBUS_STATUS_OK)
+    } catch (e) {
+      this.capabilities['luci'] = false
+    }
+
+    // 探测 file（用于文件读取和命令执行）
+    try {
+      const fileParams: Record<string, Object> = {}
+      fileParams['path'] = '/etc/openwrt_release'
+      const result: [number, Object | null] =
+        await this.execUbusCall('file', 'read', fileParams)
+      this.capabilities['file'] = (result[0] === UBUS_STATUS_OK)
+    } catch (e) {
+      this.capabilities['file'] = false
+    }
+
+    // 探测 appfilter（iStoreOS 特有，用于应用过滤/家长控制）
+    try {
+      const result: [number, Object | null] =
+        await this.execUbusCall('appfilter', 'get_oaf_status', {})
+      this.capabilities['appfilter'] = (result[0] === UBUS_STATUS_OK)
+    } catch (e) {
+      this.capabilities['appfilter'] = false
+    }
+
+    hilog.info(DOMAIN, TAG,
+      `Capabilities: luci-rpc=${this.capabilities['luci-rpc']}, ` +
+      `luci=${this.capabilities['luci']}, file=${this.capabilities['file']}, ` +
+      `appfilter=${this.capabilities['appfilter']}`)
+  }
+
+  /**
+   * 检查指定命名空间是否可用
+   */
+  hasCapability(namespace: string): boolean {
+    return this.capabilities[namespace] === true
   }
 
   // ==================== 底层通信 ====================
@@ -415,9 +517,10 @@ export class ApiClient {
       return []
     }
 
-    // 其他错误码
+    // 其他错误码：同时记录 lastError 供 UI 展示
     const errMsg: string = UbusErrorMessages.get(String(code)) ||
       `错误码 ${code}`
+    this.lastError = `调用 ${namespace}.${procedure} 失败：${errMsg}`
     hilog.warn(DOMAIN, TAG, `ubus ${namespace}.${procedure}: ${errMsg}`)
     return []
   }
@@ -732,17 +835,32 @@ export class ApiClient {
   }
 }
 
-/** UBUS 错误码描述映射（供日志使用） */
+/** UBUS 通用错误码描述映射（供日志和 UI 使用） */
 const UbusErrorMessages: Map<string, string> = new Map([
   ['0', '成功'],
-  ['1', '无效命令'],
-  ['2', '无效参数'],
+  ['1', '无效的命令'],
+  ['2', '无效的参数'],
   ['3', '方法未找到'],
   ['4', '对象未找到'],
   ['5', '无数据'],
-  ['6', '访问被拒绝（会话过期）'],
-  ['7', '超时'],
-  ['8', '不支持'],
+  ['6', '权限被拒绝（会话过期或密码错误）'],
+  ['7', '请求超时'],
+  ['8', '不支持的操作'],
   ['9', '未知错误'],
   ['10', '连接失败']
+])
+
+/** 登录阶段的错误码描述映射 — 针对用户更友好的提示 */
+const LoginErrorMessages: Map<string, string> = new Map([
+  ['0', '登录成功'],
+  ['1', '无效的登录命令，设备可能不支持 UBUS 协议'],
+  ['2', '登录参数无效，请检查用户名格式'],
+  ['3', '登录方法未找到，请确认设备为 OpenWrt 系统'],
+  ['4', '会话对象未找到，设备可能已重启'],
+  ['5', '登录响应无数据，请重试'],
+  ['6', '用户名或密码错误，请重新输入'],
+  ['7', '登录请求超时，请检查网络连接'],
+  ['8', '设备不支持该登录方式'],
+  ['9', '登录时发生未知错误，请重试'],
+  ['10', '无法连接到设备，请检查 IP 地址和端口']
 ])

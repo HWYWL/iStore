@@ -15,6 +15,8 @@ export interface SavedDevice {
   password: string
   useHttps: boolean
   lastConnected: number
+  /** 版本号，每次保存递增，用于驱动 UI 刷新 */
+  version: number
 }
 
 export class DeviceStore {
@@ -51,12 +53,18 @@ export class DeviceStore {
   }
 
   async save(device: SavedDevice): Promise<void> {
-    if (!this.prefs) return
+    if (!this.prefs) {
+      throw new Error('存储未初始化，请重启应用')
+    }
     const list: SavedDevice[] = await this.loadAll()
     const idx: number = list.findIndex((d: SavedDevice) => d.id === device.id)
     if (idx >= 0) {
+      // 保留原有 version 并在其基础上递增
+      const oldVersion: number = (typeof list[idx].version === 'number') ? list[idx].version : 0
+      device.version = oldVersion + 1
       list[idx] = device
     } else {
+      device.version = 0
       list.unshift(device)
     }
     await this.writeList(list)
@@ -75,6 +83,8 @@ export class DeviceStore {
     const idx: number = list.findIndex((d: SavedDevice) => d.id === id)
     if (idx >= 0) {
       list[idx].lastConnected = Date.now()
+      const oldVersion: number = (typeof list[idx].version === 'number') ? list[idx].version : 0
+      list[idx].version = oldVersion + 1
       await this.writeList(list)
     }
   }
@@ -109,7 +119,8 @@ export class DeviceStore {
       username: config.username,
       password: config.password,
       useHttps: config.useHttps,
-      lastConnected: Date.now()
+      lastConnected: Date.now(),
+      version: 0
     }
   }
 }

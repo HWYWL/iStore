@@ -23,6 +23,7 @@ struct LoginPage {
   @State showAddForm: boolean = false
   @State editingId: string = ''
   @State connectingId: string = ''
+  @State formVersion: number = 0  // 递增以强制表单重新渲染
   @State isDark: boolean = true
   @State theme: ThemePalette = DARK_THEME
   private appState: AppState = AppState.getInstance()
@@ -89,7 +90,8 @@ struct LoginPage {
           username: config.username,
           password: config.password,
           useHttps: false,
-          lastConnected: existing ? existing.lastConnected : Date.now()
+          lastConnected: existing ? existing.lastConnected : Date.now(),
+          version: existing ? existing.version : 0
         }
         this.editingId = ''
       } else {
@@ -102,7 +104,8 @@ struct LoginPage {
           username: config.username,
           password: config.password,
           useHttps: false,
-          lastConnected: Date.now()
+          lastConnected: Date.now(),
+          version: 0
         }
       }
 
@@ -158,7 +161,8 @@ struct LoginPage {
           username: config.username,
           password: config.password,
           useHttps: false,
-          lastConnected: Date.now()
+          lastConnected: Date.now(),
+          version: 0
         }
         await this.appState.saveDevice(device)
         savedDevice = device
@@ -213,6 +217,7 @@ struct LoginPage {
     this.label = ''
     this.editingId = ''
     this.errorMessage = ''
+    this.formVersion = 0
   }
 
   fillForm(device: SavedDevice): void {
@@ -222,8 +227,9 @@ struct LoginPage {
     this.password = device.password
     this.label = device.label
     this.editingId = device.id
-    this.showAddForm = true
+    this.formVersion++
     this.errorMessage = ''
+    this.showAddForm = true
   }
 
   async deleteDevice(id: string): Promise<void> {
@@ -328,7 +334,7 @@ struct LoginPage {
                 .width('100%').padding(14).borderRadius(16).margin({ top: 6 })
                 .backgroundColor(this.theme.bgCard).backdropBlur(20)
                 .border({ width: 0.5, color: this.theme.borderGlass })
-              }, (item: SavedDevice): string => item.id)
+              }, (item: SavedDevice): string => `${item.id}_v${item.version}`)
             }
 
             // 添加新设备按钮

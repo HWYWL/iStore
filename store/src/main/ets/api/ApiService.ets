@@ -33,6 +33,8 @@ const DOMAIN = 0x0001
 export class ApiService {
   private client: ApiClient
   private historyBuffer: TrafficHistory[] = []
+  /** 缓存上一轮网络设备统计值，用于计算流量速率 [rxBytes, txBytes, timestamp] */
+  private statsCache: Map<string, number[]> = new Map()
 
   constructor() {
     this.client = ApiClient.getInstance()
@@ -248,7 +250,7 @@ export class ApiService {
         ifUptime = this.n(lanIf, 'uptime', 0)
       }
 
-      // 通过 realtime stats 获取流量速率
+      // 通过 realtime stats 获取流量速率（优先使用 luci.getRealtimeStats）
       let rxRate: number = 0
       let txRate: number = 0
       try {
@@ -273,6 +275,43 @@ export class ApiService {
         }
       } catch (e) {
         hilog.warn(DOMAIN, TAG, 'getRealtimeStats failed for wan status')
+      }
+
+      // 降级：如果 luci.getRealtimeStats 不可用，通过 network.device.status 统计计算速率
+      if (rxRate === 0 && txRate === 0 && wanIf) {
+        try {
+          const wanDevice: string = this.s(wanIf, 'device', '')
+          if (wanDevice) {
+            const devStatus: Record<string, Object> = await this.client.networkDeviceStatus()
+            const devData: Record<string, Object> | undefined =
+              devStatus[wanDevice] as Record<string, Object> | undefined
+            if (devData && typeof devData === 'object') {
+              const stats: Record<string, Object> | undefined =
+                devData['statistics'] as Record<string, Object> | undefined
+              if (stats) {
+                const rxBytes: number = Number(stats['rx_bytes']) || 0
+                const txBytes: number = Number(stats['tx_bytes']) || 0
+                const now: number = Date.now()
+                // 使用缓存的上一轮统计值计算速率
+                const prevKey: string = `stats_${wanDevice}`
+                const prevEntry: number[] | undefined = this.statsCache.get(prevKey)
+                if (prevEntry && prevEntry.length === 3) {
+                  const prevRx: number = prevEntry[0]
+                  const prevTx: number = prevEntry[1]
+                  const prevTime: number = prevEntry[2]
+                  const dtSec: number = (now - prevTime) / 1000
+                  if (dtSec > 0 && rxBytes >= prevRx && txBytes >= prevTx) {
+                    rxRate = Math.max(0, Math.floor((rxBytes - prevRx) / dtSec))
+                    txRate = Math.max(0, Math.floor((txBytes - prevTx) / dtSec))
+                  }
+                }
+                this.statsCache.set(prevKey, [rxBytes, txBytes, now])
+              }
+            }
+          }
+        } catch (e) {
+          hilog.warn(DOMAIN, TAG, 'fallback traffic calc failed')
+        }
       }
 
       // 通过 network.device.status 获取 MAC 地址
@@ -520,23 +559,87 @@ export class ApiService {
 
   async fetchConnectedDevices(): Promise<ConnectedDevice[]> {
     try {
-      const dhcpResult: Record<string, Object> = await this.client.getLuciDHCPLeases()
-      if (!dhcpResult || typeof dhcpResult !== 'object') {
-        return []
+      const client: ApiClient = ApiClient.getInstance()
+
+      // 优先使用 luci-rpc.getDHCPLeases（iStoreOS / 安装了 luci-rpc 的设备）
+      if (client.hasCapability('luci-rpc')) {
+        const dhcpResult: Record<string, Object> = await client.getLuciDHCPLeases()
+        if (dhcpResult && typeof dhcpResult === 'object') {
+          const leases: Record<string, Object>[] | undefined =
+            dhcpResult['dhcp_leases'] as Record<string, Object>[] | undefined
+          if (leases && Array.isArray(leases) && leases.length > 0) {
+            return this.parseDhcpLeases(leases)
+          }
+        }
       }
 
-      const leases: Record<string, Object>[] | undefined = dhcpResult['dhcp_leases'] as Record<string, Object>[] | undefined
-      if (!leases || !Array.isArray(leases) || leases.length === 0) {
-        return []
+      // 降级：尝试通过 file.read 读取 /tmp/dhcp.leases（标准 OpenWrt）
+      if (client.hasCapability('file')) {
+        const leaseRaw: string = await client.readFile('/tmp/dhcp.leases')
+        if (leaseRaw && leaseRaw.trim().length > 0) {
+          return this.parseDhcpLeasesFile(leaseRaw)
+        }
       }
 
-      const devs: ConnectedDevice[] = []
-      for (let i = 0; i < leases.length; i++) {
-        const l: Record<string, Object> = leases[i]
+      // 进一步降级：尝试通过 file.exec 调用 cat
+      if (client.hasCapability('file')) {
+        const leaseRaw: string = await client.execCommand('cat', ['/tmp/dhcp.leases'])
+        if (leaseRaw && leaseRaw.trim().length > 0) {
+          return this.parseDhcpLeasesFile(leaseRaw)
+        }
+      }
+
+      // 最终降级：无可用数据源，返回空
+      hilog.info(DOMAIN, TAG, 'fetchConnectedDevices: no available data source')
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `fetchConnectedDevices err`)
+    }
+    return []
+  }
+
+  /**
+   * 解析 luci-rpc 返回的 DHCP 租约数据
+   */
+  private parseDhcpLeases(leases: Record<string, Object>[]): ConnectedDevice[] {
+    const devs: ConnectedDevice[] = []
+    for (let i = 0; i < leases.length; i++) {
+      const l: Record<string, Object> = leases[i]
+      devs.push({
+        mac: this.s(l, 'macaddr', ''),
+        ip: this.s(l, 'ipaddr', ''),
+        hostname: this.s(l, 'hostname', 'Unknown'),
+        vendor: '',
+        interface: 'lan',
+        onlineTime: '',
+        signalStrength: -1,
+        rxRate: 0,
+        txRate: 0,
+        isOnline: true
+      })
+    }
+    return devs
+  }
+
+  /**
+   * 解析 /tmp/dhcp.leases 文件内容
+   * 格式：timestamp mac ip hostname clientid
+   * 示例：1680000000 00:11:22:33:44:55 192.168.1.100 myphone *
+   */
+  private parseDhcpLeasesFile(raw: string): ConnectedDevice[] {
+    const devs: ConnectedDevice[] = []
+    const lines: string[] = raw.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const line: string = lines[i].trim()
+      if (!line || line.startsWith('#')) {
+        continue
+      }
+      const parts: string[] = line.split(/\s+/)
+      if (parts.length >= 4) {
+        // parts[0]=timestamp, parts[1]=mac, parts[2]=ip, parts[3]=hostname
         devs.push({
-          mac: this.s(l, 'macaddr', ''),
-          ip: this.s(l, 'ipaddr', ''),
-          hostname: this.s(l, 'hostname', 'Unknown'),
+          mac: parts[1] || '',
+          ip: parts[2] || '',
+          hostname: parts[3] !== '*' ? parts[3] : 'Unknown',
           vendor: '',
           interface: 'lan',
           onlineTime: '',
@@ -546,11 +649,8 @@ export class ApiService {
           isOnline: true
         })
       }
-      return devs
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, `fetchConnectedDevices err`)
     }
-    return []
+    return devs
   }
 
   async fetchTrafficHistory(): Promise<TrafficHistory[]> {
@@ -677,8 +777,13 @@ export class ApiService {
 
   async fetchConntrack(): Promise<ConntrackInfo> {
     try {
-      const currentStr: string = await this.client.readFile('/proc/sys/net/netfilter/nf_conntrack_count')
-      const maxStr: string = await this.client.readFile('/proc/sys/net/netfilter/nf_conntrack_max')
+      const client: ApiClient = ApiClient.getInstance()
+      // 只有 file 命名空间可用时才读取 conntrack 信息
+      if (!client.hasCapability('file')) {
+        return { current: 0, max: 0, percent: 0 }
+      }
+      const currentStr: string = await client.readFile('/proc/sys/net/netfilter/nf_conntrack_count')
+      const maxStr: string = await client.readFile('/proc/sys/net/netfilter/nf_conntrack_max')
       const current: number = parseInt(currentStr.trim(), 10)
       const max: number = parseInt(maxStr.trim(), 10)
       if (!isNaN(current) && !isNaN(max) && max > 0) {
