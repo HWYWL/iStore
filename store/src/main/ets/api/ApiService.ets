@@ -30,12 +30,38 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 const TAG = 'ApiService'
 const DOMAIN = 0x0001
 
+/**
+ * API 服务层
+ * 
+ * 负责封装业务逻辑，将 UBUS 原始响应转换为应用所需的数据模型。
+ * 
+ * 核心职责：
+ *  1. 调用 ApiClient 执行 UBUS 请求
+ *  2. 解析原始响应数据
+ *  3. 转换为类型化的数据模型
+ *  4. 实现多级降级策略（不同固件的兼容性处理）
+ *  5. 管理流量历史缓存
+ * 
+ * 数据流转：
+ *  UI → ApiService → ApiClient → UBUS → 路由器
+ *                              ↓
+ *                    ApiClient 返回原始数据
+ *                              ↓
+ *                    ApiService 解析并转换
+ *                              ↓
+ *                    返回类型化数据模型给 UI
+ */
 export class ApiService {
   private client: ApiClient
+  /** 流量历史缓存，保留最近30条记录 */
   private historyBuffer: TrafficHistory[] = []
   /** 缓存上一轮网络设备统计值，用于计算流量速率 [rxBytes, txBytes, timestamp] */
   private statsCache: Map<string, number[]> = new Map()
 
+  /**
+   * 构造函数
+   * 获取 ApiClient 单例实例
+   */
   constructor() {
     this.client = ApiClient.getInstance()
   }
@@ -56,6 +82,45 @@ export class ApiService {
     return this.client.getConnected()
   }
 
+  /**
+   * 获取系统信息
+   * 
+   * 数据来源（优先级从高到低）：
+   *  1. UBUS system.board - 设备基础信息（主机名、型号、内核版本等）
+   *  2. UBUS system.info - 运行状态（运行时间、CPU负载、内存使用等）
+   *  3. UBUS luci.getTempInfo / 文件读取 - CPU温度
+   * 
+   * system.board 返回格式：
+   * {
+   *   "hostname": "OpenWrt",
+   *   "system": "Acer Revo One RL85",
+   *   "kernel": "6.1.xx",
+   *   "board_name": "acer-revo-one-rl85",
+   *   "release": {
+   *     "distribution": "iStoreOS",
+   *     "version": "24.10.5",
+   *     "revision": "2025123110",
+   *     "target": "x86/64",
+   *     "description": "iStoreOS 24.10.5"
+   *   }
+   * }
+   * 
+   * system.info 返回格式：
+   * {
+   *   "uptime": 3600,        // 运行时间（秒）
+   *   "localtime": 1704067200, // 本地时间戳
+   *   "load": [32768, 65536, 98304], // CPU负载（65536 = 100%）
+   *   "memory": {
+   *     "total": 8388608,
+   *     "free": 4194304,
+   *     "buffered": 524288,
+   *     "shared": 1048576,
+   *     "available": 4608000
+   *   }
+   * }
+   * 
+   * @returns SystemInfo 对象，包含所有系统信息
+   */
   async fetchSystemInfo(): Promise<SystemInfo> {
     try {
       // 通过 UBUS system.board 获取设备基础信息
@@ -95,6 +160,7 @@ export class ApiService {
           }
 
           // 从 load 数组计算 CPU 使用率
+          // OpenWrt 的 load 值范围是 0-65536，对应 0%-100%
           const loadRaw: Object | undefined = info['load']
           if (Array.isArray(loadRaw)) {
             const loadArr: Object[] = loadRaw as Object[]
@@ -127,6 +193,8 @@ export class ApiService {
         localTime = new Date().toISOString()
       }
 
+      // 计算实际使用内存
+      // 优先使用 available（更准确），否则用 total - free - buffered - shared*0.5
       const memRealUsed: number = memAvailable > 0
         ? memTotal - memAvailable
         : (memTotal > 0 ? Math.max(0, memTotal - memFree - memBuffered - (memShared > 0 ? memShared * 0.5 : 0)) : 0)
@@ -557,6 +625,39 @@ export class ApiService {
     return []
   }
 
+  /**
+   * 获取已连接设备列表（DHCP 租约）
+   * 
+   * 降级策略（按优先级）：
+   * 
+   * ┌─────────────────────────────────────────────────────────────┐
+   * │  优先级 1: luci-rpc.getDHCPLeases                          │
+   * │  └─ 适用：iStoreOS、安装了 luci-rpc 包的设备                 │
+   * ├─────────────────────────────────────────────────────────────┤
+   * │  优先级 2: file.read /tmp/dhcp.leases                       │
+   * │  └─ 适用：标准 OpenWrt，file 命名空间可用                     │
+   * ├─────────────────────────────────────────────────────────────┤
+   * │  优先级 3: file.exec cat /tmp/dhcp.leases                   │
+   * │  └─ 适用：标准 OpenWrt，file.exec 可用但 file.read 不可用      │
+   * ├─────────────────────────────────────────────────────────────┤
+   * │  最终降级: 返回空数组                                       │
+   * │  └─ 适用：以上都不可用的设备                                  │
+   * └─────────────────────────────────────────────────────────────┘
+   * 
+   * luci-rpc.getDHCPLeases 返回格式：
+   * {
+   *   "dhcp_leases": [
+   *     { "macaddr": "00:11:22:33:44:55", "ipaddr": "192.168.1.100", "hostname": "myphone" },
+   *     ...
+   *   ]
+   * }
+   * 
+   * /tmp/dhcp.leases 文件格式：
+   * timestamp mac ip hostname clientid
+   * 示例：1680000000 00:11:22:33:44:55 192.168.1.100 myphone *
+   * 
+   * @returns ConnectedDevice[] 已连接设备列表
+   */
   async fetchConnectedDevices(): Promise<ConnectedDevice[]> {
     try {
       const client: ApiClient = ApiClient.getInstance()
@@ -682,6 +783,31 @@ export class ApiService {
     }
   }
 
+  /**
+   * 根据接口名称、协议和设备名推断网络接口类型
+   * 
+   * 判断优先级：
+   *  1. WAN 接口 → 2. WiFi 接口 → 3. VPN/隧道 → 4. 默认 LAN
+   * 
+   * WAN 接口判断条件：
+   * - 接口名以 'wan' 或 'wwan' 开头
+   * - 协议为 'pppoe'
+   * - 接口名以 'eth' 开头且设备名不包含 'br-'（通常表示物理端口）
+   * 
+   * WiFi 接口判断条件：
+   * - 接口名包含 'wlan', 'ra', 'radio'
+   * - 设备名包含 'wlan', 'ra'
+   * 
+   * VPN/隧道判断条件：
+   * - 接口名包含 'tun', 'wg' (WireGuard), 'pptp', 'vpn', 'ipsec', 'tailscale'
+   * 
+   * 默认返回 LAN（局域网接口）
+   * 
+   * @param ifName 接口名称（如 eth0, br-lan, wlan0）
+   * @param proto 协议类型（如 dhcp, static, pppoe）
+   * @param device 设备名称（如 br-lan, eth0）
+   * @returns 接口类型：'wan' | 'lan' | 'wifi' | 'vpn'
+   */
   private inferNetType(ifName: string, proto: string, device: string): 'wan' | 'lan' | 'wifi' | 'vpn' {
     const n: string = ifName.toLowerCase()
     // WAN 接口

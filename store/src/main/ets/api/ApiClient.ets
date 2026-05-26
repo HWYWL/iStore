@@ -53,10 +53,38 @@ type UbusCallResult = [number, Object]
  * 统一 UBUS API 客户端
  * 所有路由器通信通过 POST JSON-RPC 2.0 协议完成。
  *
- * 关键设计：
- * - 多路径回退登录（/ubus → /cgi-bin/luci/admin/ubus/ → /cgi-bin/luci/ubus/）
- * - 错误码 6（会话超时）自动重登录并重试请求
- * - 重登录期间并发请求排队等待
+ * 核心设计架构：
+ *
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │                      ApiClient (单例)                          │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │  连接管理层                                                   │
+ * │  ├─ configure()    - 配置连接参数                              │
+ * │  ├─ connect()      - 建立连接（多路径回退）                      │
+ * │  └─ tryLogin()     - 尝试在指定端点登录                         │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │  UBUS协议层                                                   │
+ * │  ├─ execUbusCall() - 执行单次UBUS调用（无重登录）               │
+ * │  ├─ ubusCallInternal() - 带自动重登录的UBUS调用                │
+ * │  ├─ callUbus()    - 公开UBUS调用接口                          │
+ * │  └─ callUbusFirst() - callUbus便捷封装，返回首个结果           │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │  重登录协调层                                                 │
+ * │  ├─ relogin()      - 执行重登录                               │
+ * │  ├─ waitForRelogin() - 等待重登录完成（并发请求排队）            │
+ * │  └─ notifyReloginWaiters() - 通知所有等待者                    │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │  设备能力探测层                                               │
+ * │  ├─ verifySession() - 验证会话有效性                          │
+ * │  └─ probeCapabilities() - 探测支持的UBUS命名空间               │
+ * └─────────────────────────────────────────────────────────────────┘
+ *
+ * 关键设计特性：
+ * 1. 多路径回退登录：依次尝试 /ubus → /cgi-bin/luci/admin/ubus/ → /cgi-bin/luci/ubus/
+ * 2. 错误码6自动恢复：会话超时(UBUS_STATUS_ACCESS_DENIED)时自动重登录并重试
+ * 3. 并发请求排队：重登录期间的请求加入等待队列，避免重复登录
+ * 4. 能力探测：连接成功后探测设备支持的UBUS命名空间，用于功能降级
+ * 5. 兼容适配：支持iStoreOS、QWRT、OpenWrt等多种固件
  */
 export class ApiClient {
   baseUrl: string = ''
@@ -64,22 +92,17 @@ export class ApiClient {
   password: string = ''
   connected: boolean = false
   lastError: string = ''
-
   private sessionId: string = ''
   private ubusPath: string = ''
   private rpcId: number = 1
-
   /** 登录阶段捕获的具体错误信息（供 connect() 使用） */
   private loginErrorDetail: string = ''
-
   /** 已探测可用的 UBUS 命名空间，用于功能降级 */
   capabilities: Record<string, boolean> = {}
-
   /** 是否正在执行重登录（避免并发重复登录） */
   private reloginInProgress: boolean = false
   /** 重登录等待队列 */
   private reloginWaiters: Array<() => void> = []
-
   private static instance: ApiClient
 
   static getInstance(): ApiClient {
@@ -115,6 +138,14 @@ export class ApiClient {
 
   /**
    * 连接设备：依次尝试各 UBUS 路径进行登录，成功则验证会话
+   *
+   * 连接流程：
+   *  1. 重置所有连接状态
+   *  2. 依次尝试 UBUS_PATHS 中的每个端点登录
+   *  3. 登录成功后验证会话有效性
+   *  4. 探测设备支持的 UBUS 命名空间
+   *
+   * @returns true 表示连接成功，false 表示失败（可通过 lastError 获取错误原因）
    */
   async connect(): Promise<boolean> {
     this.lastError = ''
@@ -173,6 +204,25 @@ export class ApiClient {
 
   /**
    * 在指定端点尝试 UBUS 会话登录
+   *
+   * UBUS 登录协议格式：
+   * POST JSON-RPC 2.0 请求：
+   * {
+   *   "jsonrpc": "2.0",
+   *   "id": 1,
+   *   "method": "call",
+   *   "params": ["00000000000000000000000000000000", "session", "login", {"username": "...", "password": "..."}]
+   * }
+   *
+   * 成功响应：
+   * {
+   *   "jsonrpc": "2.0",
+   *   "id": 1,
+   *   "result": [0, {"ubus_rpc_session": "abc123..."}]
+   * }
+   *
+   * @param ubusEndpoint UBUS 端点路径（如 /ubus, /cgi-bin/luci/ubus/）
+   * @returns true 表示登录成功，false 表示失败
    */
   private async tryLogin(ubusEndpoint: string): Promise<boolean> {
     const loginObj: Record<string, Object> = {}
@@ -274,7 +324,10 @@ export class ApiClient {
     const waiters: Array<() => void> = this.reloginWaiters
     this.reloginWaiters = []
     for (const resolve of waiters) {
-      try { resolve() } catch (e) {}
+      try {
+        resolve()
+      } catch (e) {
+      }
     }
   }
 
@@ -354,8 +407,8 @@ export class ApiClient {
 
     hilog.info(DOMAIN, TAG,
       `Capabilities: luci-rpc=${this.capabilities['luci-rpc']}, ` +
-      `luci=${this.capabilities['luci']}, file=${this.capabilities['file']}, ` +
-      `appfilter=${this.capabilities['appfilter']}`)
+        `luci=${this.capabilities['luci']}, file=${this.capabilities['file']}, ` +
+        `appfilter=${this.capabilities['appfilter']}`)
   }
 
   /**
@@ -440,6 +493,44 @@ export class ApiClient {
   /**
    * 带自动重登录的 UBUS 调用
    * 发生错误码 6（会话超时）时自动重登录并重试一次
+   *
+   * 自动重登录流程：
+   *
+   * ┌────────────────────────────────────────────────────────────┐
+   * │                    ubusCallInternal                       │
+   * └────────────────────────────────────────────────────────────┘
+   *                           │
+   *                           ▼
+   *                 执行 execUbusCall()
+   *                           │
+   *                           ▼
+   *                  code !== 6 ? ──Yes──→ 返回 [code, data]
+   *                           │
+   *                          No
+   *                           ▼
+   *                 reloginInProgress ?
+   *                  ┌───────┴───────┐
+   *                 Yes              No
+   *                  ▼                ▼
+   *         waitForRelogin()    设置 reloginInProgress=true
+   *                  │                │
+   *                  │                ▼
+   *                  │         执行 relogin()
+   *                  │                │
+   *                  │                ▼
+   *                  │         notifyReloginWaiters()
+   *                  │                │
+   *                  └───────┬───────┘
+   *                          ▼
+   *                   重试 execUbusCall()
+   *                          │
+   *                          ▼
+   *                   返回 [code, data]
+   *
+   * @param namespace UBUS 命名空间（如 system, luci-rpc, network.interface）
+   * @param procedure UBUS 方法名（如 board, info, getDHCPLeases）
+   * @param params 方法参数对象
+   * @returns [错误码, 数据] 元组，错误码 0 表示成功
    */
   private async ubusCallInternal(
     namespace: string,
