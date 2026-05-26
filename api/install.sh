@@ -68,9 +68,9 @@ generate_token() {
 detect_openwrt() {
     if [ -f /etc/openwrt_release ] || [ -f /etc/os-release ]; then
         local name
-        name=$(grep -oP 'PRETTY_NAME="\K[^"]+' /etc/os-release 2>/dev/null || \
-               grep -oP "DISTRIB_DESCRIPTION='\K[^']+" /etc/openwrt_release 2>/dev/null || \
-               echo "Unknown OpenWrt")
+        name=$(grep -o 'PRETTY_NAME="[^"]*"' /etc/os-release 2>/dev/null | sed 's/PRETTY_NAME="//;s/"$//' | head -1)
+        [ -z "$name" ] && name=$(grep -o "DISTRIB_DESCRIPTION='[^']*'" /etc/openwrt_release 2>/dev/null | sed "s/DISTRIB_DESCRIPTION='//;s/'$//" | head -1)
+        [ -z "$name" ] && name="Unknown OpenWrt"
         log "检测到系统: ${name}"
     else
         warn "未检测到 OpenWrt 特征文件，继续尝试安装..."
@@ -107,13 +107,13 @@ setup_uhttpd_cgi() {
     if [ -z "$uhttpd_section" ]; then
         # 降级：创建标准节点
         uci -q delete uhttpd.main 2>/dev/null || true
-        uci set uhttpd.main='uhttpd'
+        uci set uhttpd.main='uhttpd' 2>/dev/null
         uhttpd_section="uhttpd.main"
     fi
 
     # 用探测到的节点名设置 CGI 前缀
     uci -q set "${uhttpd_section}.cgi_prefix=/cgi-bin" 2>/dev/null
-    uci commit uhttpd
+    uci commit uhttpd 2>/dev/null || true
 
     # 重启 uhttpd（静默，忽略启动脚本不存在的情况）
     if [ -x /etc/init.d/uhttpd ]; then
@@ -142,7 +142,7 @@ install_api_script() {
     # 先检测文件是否可下载
     local http_code
     http_code=$(wget --spider --server-response "${DOWNLOAD_BASE}/${API_FILE}" 2>&1 | \
-                grep -oP 'HTTP/[0-9.]+\s+\K[0-9]+' | head -1 || echo "000")
+                grep -oE 'HTTP/[0-9.]+\s+[0-9]+' | head -1 | awk '{print $2}' || echo "000")
 
     # 实际下载
     $downloader "${DOWNLOAD_BASE}/${API_FILE}" > "${INSTALL_PATH}" 2>/tmp/router-api-download-err.log || {
@@ -179,9 +179,9 @@ setup_token() {
     # 写入 uci 配置（可选，某些精简版可能没有 uci）
     if command -v uci >/dev/null 2>&1; then
         uci -q delete router-api.config 2>/dev/null || true
-        uci set router-api.config='config'
-        uci set router-api.config.auth_enabled='1'
-        uci set router-api.config.auth_token="${token}"
+        uci set router-api.config='config' 2>/dev/null
+        uci set router-api.config.auth_enabled='1' 2>/dev/null
+        uci set router-api.config.auth_token="${token}" 2>/dev/null
         uci commit router-api 2>/dev/null || true
     fi
 
@@ -234,8 +234,8 @@ verify_installation() {
 print_usage() {
     local router_ip
     router_ip=$(uci -q get network.lan.ipaddr 2>/dev/null || \
-                ip addr show br-lan 2>/dev/null | grep -oP 'inet \K[\d.]+' | head -1 || \
-                ip addr show eth0 2>/dev/null | grep -oP 'inet \K[\d.]+' | head -1 || \
+                ip addr show br-lan 2>/dev/null | grep -oE 'inet [0-9.]+' | head -1 | awk '{print $2}' || \
+                ip addr show eth0 2>/dev/null | grep -oE 'inet [0-9.]+' | head -1 | awk '{print $2}' || \
                 echo "路由器IP")
 
     local token
