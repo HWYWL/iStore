@@ -1,7 +1,6 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
-import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
@@ -49,7 +48,7 @@ struct FactoryResetPage {
         this.countdownTimer = -1
         this.isResetting = false
         try {
-          router.back()
+          this.getUIContext().getRouter().back()
         } catch (e) {
           hilog.error(0x0001, 'FactoryResetPage', `router.back failed: ${e}`)
         }
@@ -98,7 +97,7 @@ struct FactoryResetPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              router.back()
+              this.getUIContext().getRouter().back()
             } catch (e) {
               hilog.error(0x0001, 'FactoryResetPage', `router.back failed: ${e}`)
             }
@@ -216,25 +215,17 @@ struct FactoryResetPage {
             .opacity(this.isResetting ? 0.4 : 1)
             .onClick(() => {
               try {
-                AlertDialog.show({
-                  title: '恢复出厂设置',
-                  message: '此操作将清除所有配置并恢复出厂状态，确定要执行吗？',
+                const dialogController: CustomDialogController = new CustomDialogController({
+                  builder: FactoryResetConfirmDialog({
+                    theme: this.theme,
+                    onConfirm: () => this.doFactoryReset()
+                  }),
                   autoCancel: true,
-                  alignment: DialogAlignment.Center,
-                  primaryButton: {
-                    value: '取消',
-                    action: () => {}
-                  },
-                  secondaryButton: {
-                    value: '确定恢复',
-                    fontColor: this.theme.danger,
-                    action: () => {
-                      this.doFactoryReset()
-                    }
-                  }
+                  alignment: DialogAlignment.Center
                 })
+                dialogController.open()
               } catch (e) {
-                hilog.error(0x0001, 'FactoryResetPage', `AlertDialog.show failed: ${e}`)
+                hilog.error(0x0001, 'FactoryResetPage', `CustomDialogController.open failed: ${e}`)
               }
             })
           }
@@ -292,5 +283,54 @@ struct FactoryResetPage {
     }
     .width('100%')
     .height('100%')
+  }
+}
+
+@CustomDialog
+struct FactoryResetConfirmDialog {
+  controller: CustomDialogController
+  theme: ThemePalette = DARK_THEME
+  onConfirm: () => void = () => {}
+
+  build() {
+    Column() {
+      Text('恢复出厂设置')
+        .fontSize(18)
+        .fontColor(this.theme.textPrimary)
+        .fontWeight(FontWeight.Bold)
+        .margin({ bottom: 12 })
+
+      Text('此操作将清除所有配置并恢复出厂状态，确定要执行吗？')
+        .fontSize(14)
+        .fontColor(this.theme.textSecondary)
+        .lineHeight(20)
+        .margin({ bottom: 24 })
+
+      Row() {
+        Button('取消')
+          .fontSize(14)
+          .fontColor(this.theme.textPrimary)
+          .backgroundColor(this.theme.bgCard)
+          .borderRadius(10)
+          .layoutWeight(1)
+          .margin({ right: 8 })
+          .onClick(() => this.controller.close())
+
+        Button('确定恢复')
+          .fontSize(14)
+          .fontColor('#FFFFFF')
+          .backgroundColor(this.theme.danger)
+          .borderRadius(10)
+          .layoutWeight(1)
+          .margin({ left: 8 })
+          .onClick(() => {
+            this.controller.close()
+            this.onConfirm()
+          })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding(20)
   }
 }

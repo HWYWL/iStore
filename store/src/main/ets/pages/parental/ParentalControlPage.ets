@@ -2,7 +2,6 @@ import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { OafStatus } from '../../models/Models'
-import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
@@ -92,7 +91,7 @@ struct ParentalControlPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              router.back()
+              this.getUIContext().getRouter().back()
             } catch (e) {
               hilog.error(0x0001, 'ParentalControlPage', `router.back failed: ${e}`)
             }
@@ -308,7 +307,7 @@ struct ParentalControlPage {
       .border({ width: 0.5, color: this.theme.borderGlass })
       .onClick(() => {
         try {
-          router.pushUrl({ url: route })
+          this.getUIContext().getRouter().pushUrl({ url: route })
         } catch (e) {
           hilog.error(0x0001, 'ParentalControlPage', `pushUrl failed: ${e}`)
         }

@@ -1,10 +1,8 @@
-import { router } from '@kit.ArkUI'
-
 @Entry
 @Component
 struct Index {
   aboutToAppear(): void {
-    router.replaceUrl({ url: 'pages/entry/LoginPage' })
+    this.getUIContext().getRouter().replaceUrl({ url: 'pages/entry/LoginPage' })
   }
 
   build() {

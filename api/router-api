@@ -357,41 +357,6 @@ EOF
     json_error 500 "uci show failed"
 }
 
-handle_login() {
-    local body=""
-    if [ "$METHOD" = "POST" ]; then
-        read -r body
-    fi
-
-    local username=$(echo "$body" | sed -n 's/.*"username"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-    local password=$(echo "$body" | sed -n 's/.*"password"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-
-    if [ "$HAS_LUCI" = "1" ] && [ -n "$username" ] && [ -n "$password" ]; then
-        local result
-        result=$(lua -e "
-            local json = require 'luci.json'
-            local sauth = require 'luci.sauth'
-            local result, session = sauth.login('$username', '$password')
-            if result == 0 then
-                print(json.encode({code=0, token=session}))
-            else
-                print(json.encode({code=401, msg='login failed'}))
-            end
-        " 2>/dev/null)
-        if [ -n "$result" ]; then
-            echo "$result"
-            return
-        fi
-    fi
-
-    if [ -n "$AUTH_TOKEN" ]; then
-        json_obj_num "code" 0 "token" "\"$AUTH_TOKEN\"" "mode" "\"static_token\""
-        return
-    fi
-
-    json_error 401 "login unavailable (configure router-api token or ensure LuCI is installed)"
-}
-
 # ---- 解析请求 ----
 METHOD="${REQUEST_METHOD:-GET}"
 QUERY_STRING="${QUERY_STRING:-}"
@@ -469,11 +434,7 @@ case "$ACTION" in
         handle_uci_get_all
         ;;
 
-    login)
-        handle_login
-        ;;
-
     *)
-        json_error 404 "unknown action: $ACTION. Available: ping, system_info, network_interfaces, network_wifi, dhcp_leases, storage_info, memory_info, cpu_info, uci_get, uci_get_all, login"
+        json_error 404 "unknown action: $ACTION. Available: ping, system_info, network_interfaces, network_wifi, dhcp_leases, storage_info, memory_info, cpu_info, uci_get, uci_get_all"
         ;;
 esac

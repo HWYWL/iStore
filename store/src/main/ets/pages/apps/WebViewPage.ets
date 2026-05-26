@@ -2,7 +2,6 @@ import { webview } from '@kit.ArkWeb'
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { SavedDevice } from '../../common/store/DeviceStore'
-import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'WebViewPage'
@@ -254,7 +253,7 @@ struct WebViewPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              router.back()
+              this.getUIContext().getRouter().back()
             } catch (e) {
               hilog.error(DOMAIN, TAG, `router.back failed: ${e}`)
             }

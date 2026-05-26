@@ -3,7 +3,6 @@ import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { DeviceVisitTime, DeviceVisitRecord, UserListItem } from '../../models/Models'
-import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
@@ -30,7 +29,7 @@ struct ClientDetailPage {
     this.isDark = AppState.getInstance().isDarkMode
     this.theme = AppState.getInstance().getTheme()
 
-    const params = router.getParams() as Record<string, Object>
+    const params = this.getUIContext().getRouter().getParams() as Record<string, Object>
     if (params) {
       this.mac = (params['mac'] as string) || ''
       this.hostname = (params['hostname'] as string) || ''
@@ -56,9 +55,7 @@ struct ClientDetailPage {
     try {
       const api = new ApiService()
       const users = await api.fetchUserList()
-      this.userInfo = users.find((u: UserListItem) =>
-        u.mac.toLowerCase() === this.mac.toLowerCase()
-      ) || null
+      this.userInfo = this.findUserByMac(users, this.mac)
       if (!this.userInfo) {
         this.basicError = '未找到该设备信息'
       }
@@ -66,6 +63,16 @@ struct ClientDetailPage {
       this.basicError = '加载基本信息失败'
     }
     this.isLoadingBasic = false
+  }
+
+  private findUserByMac(users: UserListItem[], mac: string): UserListItem | null {
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i]
+      if (user.mac.toLowerCase() === mac.toLowerCase()) {
+        return user
+      }
+    }
+    return null
   }
 
   async loadStats(): Promise<void> {
@@ -146,7 +153,7 @@ struct ClientDetailPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              router.back()
+              this.getUIContext().getRouter().back()
             } catch (e) {
               hilog.error(0x0001, 'ClientDetailPage', `router.back failed: ${e}`)
             }

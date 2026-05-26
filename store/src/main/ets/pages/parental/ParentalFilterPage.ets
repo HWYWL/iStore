@@ -2,7 +2,6 @@ import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { AppClass, AppItem, AppFilterTime, AppFilterUser, OafUser } from '../../models/Models'
-import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
@@ -52,7 +51,7 @@ struct ParentalFilterPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              router.back()
+              this.getUIContext().getRouter().back()
             } catch (e) {
               hilog.error(0x0001, 'ParentalFilterPage', `router.back failed: ${e}`)
             }

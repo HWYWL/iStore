@@ -3,7 +3,6 @@ import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
-import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 // ============================================================
@@ -952,7 +951,7 @@ struct DeviceTab {
               .border({ width: 0.5, color: this.theme.borderGlass })
               .onClick(() => {
                 try {
-                  router.pushUrl({
+                  this.getUIContext().getRouter().pushUrl({
                     url: 'pages/devices/ClientDetailPage',
                     params: { mac: device.mac, hostname: device.hostname }
                   })
@@ -1054,7 +1053,7 @@ struct DeviceTab {
             .border({ width: 0.5, color: this.theme.borderGlass })
             .onClick(() => {
               try {
-                router.pushUrl({
+                this.getUIContext().getRouter().pushUrl({
                   url: 'pages/devices/ClientDetailPage',
                   params: { mac: client.mac, hostname: client.hostname || client.mac }
                 })
@@ -1410,7 +1409,7 @@ struct MainPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              router.back()
+              this.getUIContext().getRouter().back()
             } catch (e) {
               hilog.error(0x0001, 'MainPage', `router.back failed: ${e}`)
             }
@@ -1565,7 +1564,7 @@ struct MainPage {
           .justifyContent(FlexAlign.Center)
           .onClick(() => {
             try {
-              router.pushUrl({ url: 'pages/apps/AppsPage' })
+              this.getUIContext().getRouter().pushUrl({ url: 'pages/apps/AppsPage' })
             } catch (e) {
               hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
             }

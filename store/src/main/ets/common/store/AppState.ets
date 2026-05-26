@@ -12,31 +12,21 @@ const PREFS_NAME = 'iStore_app_settings'
 type ThemeListener = () => void
 type DeviceListener = () => void
 
-/**
- * 全局应用状态 - 单例模式
- * 管理设备列表、活跃设备连接、主题切换
- * 当前设计：同一时间只连接一台设备（适合移动端）
- */
 export class AppState {
   private static instance: AppState
 
-  // 设备管理
   devices: SavedDevice[] = []
   activeDeviceId: string = ''
 
-  // 主题
   isDarkMode: boolean = true
 
-  // 连接 (使用 ApiClient 单例，切换设备时重新配置)
   private connected: boolean = false
   private lastError: string = ''
 
-  // 持久化
   private settingsPrefs: preferences.Preferences | null = null
   private deviceStore: DeviceStore = DeviceStore.getInstance()
   private initialized: boolean = false
 
-  // 监听器
   private themeListeners: ThemeListener[] = []
   private deviceListeners: DeviceListener[] = []
 
@@ -64,8 +54,6 @@ export class AppState {
     this.initialized = true
     hilog.info(DOMAIN, TAG, `Initialized: ${this.devices.length} devices, ${this.isDarkMode ? 'dark' : 'light'}`)
   }
-
-  // ==================== 主题管理 ====================
 
   getTheme(): ThemePalette {
     return this.isDarkMode ? DARK_THEME : LIGHT_THEME
@@ -131,8 +119,6 @@ export class AppState {
     }
   }
 
-  // ==================== 设备管理 ====================
-
   async loadDevices(): Promise<void> {
     this.devices = await this.deviceStore.loadAll()
     this.notifyDeviceListeners()
@@ -157,8 +143,6 @@ export class AppState {
   getDeviceById(id: string): SavedDevice | undefined {
     return this.devices.find(d => d.id === id)
   }
-
-  // ==================== 连接管理 (单设备模式) ====================
 
   async connectToDevice(deviceId: string): Promise<boolean> {
     const device: SavedDevice | undefined = this.getDeviceById(deviceId)

@@ -2,7 +2,6 @@ import { AppState } from '../../common/store/AppState'
 import { SavedDevice } from '../../common/store/DeviceStore'
 import { ConnectionConfig } from '../../models/Models'
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
-import { router } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -11,26 +10,25 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 struct LoginPage {
   @State host: string = ''
   @State port: string = '80'
-  @State username: string = 'root'
-  @State password: string = ''
+  @State token: string = ''
   @State label: string = ''
   @State isConnecting: boolean = false
   @State isSaving: boolean = false
   @State errorMessage: string = ''
   @State successMessage: string = ''
-  @State showPassword: boolean = false
+  @State showToken: boolean = false
   @State savedDevices: SavedDevice[] = []
   @State showAddForm: boolean = false
   @State editingId: string = ''
   @State connectingId: string = ''
-  @State formVersion: number = 0  // 递增以强制表单重新渲染
+  @State formVersion: number = 0
   @State isDark: boolean = true
   @State theme: ThemePalette = DARK_THEME
   private appState: AppState = AppState.getInstance()
   private connectTimerId: number = -1
 
   async aboutToAppear(): Promise<void> {
-    const ctx: common.Context = getContext(this) as common.Context
+    const ctx: common.Context = this.getUIContext().getHostContext() as common.Context
     await this.appState.init(ctx)
     this.savedDevices = this.appState.devices
     this.isDark = this.appState.isDarkMode
@@ -41,10 +39,9 @@ struct LoginPage {
       this.theme = this.appState.getTheme()
     })
 
-    // 如果已有活跃连接，直接进入主页面
     if (this.appState.getActiveDeviceId()) {
       try {
-        router.replaceUrl({ url: 'pages/dashboard/MainPage' })
+        this.getUIContext().getRouter().replaceUrl({ url: 'pages/dashboard/MainPage' })
       } catch (e) {
         hilog.error(0x0001, 'LoginPage', `replaceUrl failed: ${e}`)
       }
@@ -54,12 +51,10 @@ struct LoginPage {
   getConfig(): ConnectionConfig {
     const host: string = this.host.trim()
     const port: string = this.port || '80'
-    const username: string = this.username.trim() || 'root'
     return {
       host: host,
       port: Number(port) || 80,
-      username: username,
-      password: this.password,
+      token: this.token,
       useHttps: false
     }
   }
@@ -87,11 +82,12 @@ struct LoginPage {
           label: deviceLabel,
           host: config.host,
           port: String(config.port),
-          username: config.username,
-          password: config.password,
+          token: config.token,
           useHttps: false,
           lastConnected: existing ? existing.lastConnected : Date.now(),
-          version: existing ? existing.version : 0
+          version: existing ? existing.version : 0,
+          username: existing ? existing.username : '',
+          password: existing ? existing.password : ''
         }
         this.editingId = ''
       } else {
@@ -101,11 +97,12 @@ struct LoginPage {
           label: deviceLabel,
           host: config.host,
           port: String(config.port),
-          username: config.username,
-          password: config.password,
+          token: config.token,
           useHttps: false,
           lastConnected: Date.now(),
-          version: 0
+          version: 0,
+          username: '',
+          password: ''
         }
       }
 
@@ -125,9 +122,8 @@ struct LoginPage {
   async connectAndEnter(savedDevice?: SavedDevice): Promise<void> {
     const host: string = savedDevice ? savedDevice.host : this.host.trim()
     const port: string = savedDevice ? savedDevice.port : this.port
-    const username: string = savedDevice ? savedDevice.username : (this.username.trim() || 'root')
-    const password: string = savedDevice ? savedDevice.password : this.password
-    const config: ConnectionConfig = { host, port: Number(port) || 80, username, password, useHttps: false }
+    const token: string = savedDevice ? savedDevice.token : this.token
+    const config: ConnectionConfig = { host, port: Number(port) || 80, token, useHttps: false }
 
     if (!host) {
       this.errorMessage = '请输入设备地址'
@@ -139,7 +135,6 @@ struct LoginPage {
     this.connectingId = savedDevice ? savedDevice.id : ''
     let timedOut: boolean = false
 
-    // 超时处理
     this.connectTimerId = setTimeout(() => {
       if (this.isConnecting) {
         timedOut = true
@@ -151,18 +146,18 @@ struct LoginPage {
     }, 8000)
 
     try {
-      // 如果是已保存的设备，先确保它在列表中存在
       if (!savedDevice) {
         const device: SavedDevice = {
           id: `${config.host}_${Math.random().toString(36).substring(2, 10)}`,
           label: config.host,
           host: config.host,
           port: String(config.port),
-          username: config.username,
-          password: config.password,
+          token: config.token,
           useHttps: false,
           lastConnected: Date.now(),
-          version: 0
+          version: 0,
+          username: '',
+          password: ''
         }
         await this.appState.saveDevice(device)
         savedDevice = device
@@ -180,19 +175,18 @@ struct LoginPage {
         this.isConnecting = false
         this.connectingId = ''
         try {
-          router.pushUrl({ url: 'pages/dashboard/MainPage' })
+          this.getUIContext().getRouter().pushUrl({ url: 'pages/dashboard/MainPage' })
         } catch (e) {
           hilog.error(0x0001, 'LoginPage', `pushUrl failed: ${e}`)
         }
       } else {
         this.isConnecting = false
         this.connectingId = ''
-        // 显示 ApiClient 中的详细错误信息
         const lastErr: string = this.appState.getLastError()
         if (lastErr) {
           this.errorMessage = lastErr
         } else {
-          this.errorMessage = '连接失败，请检查地址和凭据'
+          this.errorMessage = '连接失败，请检查地址和 Token'
         }
         setTimeout(() => { this.errorMessage = '' }, 5000)
       }
@@ -212,8 +206,7 @@ struct LoginPage {
   resetForm(): void {
     this.host = ''
     this.port = '80'
-    this.username = 'root'
-    this.password = ''
+    this.token = ''
     this.label = ''
     this.editingId = ''
     this.errorMessage = ''
@@ -223,8 +216,7 @@ struct LoginPage {
   fillForm(device: SavedDevice): void {
     this.host = device.host
     this.port = device.port
-    this.username = device.username
-    this.password = device.password
+    this.token = device.token
     this.label = device.label
     this.editingId = device.id
     this.formVersion++
@@ -248,7 +240,6 @@ struct LoginPage {
   build() {
     Stack() {
       Column() {
-        // 顶部：Logo + 主题切换
         Row() {
           Blank()
           Row() {
@@ -337,7 +328,6 @@ struct LoginPage {
               }, (item: SavedDevice): string => `${item.id}_v${item.version}`)
             }
 
-            // 添加新设备按钮
             Row() {
               Text(this.showAddForm ? '收起 ▲' : '+ 添加新设备')
                 .fontSize(12).fontColor(this.theme.textSecondary)
@@ -349,7 +339,6 @@ struct LoginPage {
 
             if (this.showAddForm) {
               Column() {
-                // 名称
                 Row() {
                   TextInput({ placeholder: '设备名称（可选）', text: this.label })
                     .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
@@ -362,7 +351,6 @@ struct LoginPage {
                 .border({ width: 0.5, color: this.theme.borderGlass })
                 .padding({ left: 14, right: 14 }).margin({ bottom: 10 })
 
-                // 地址
                 Row() {
                   TextInput({ placeholder: 'IP 地址（如 192.168.1.1）', text: this.host })
                     .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
@@ -375,43 +363,34 @@ struct LoginPage {
                 .border({ width: 0.5, color: this.theme.borderGlass })
                 .padding({ left: 14, right: 14 }).margin({ bottom: 10 })
 
-                // 端口 + 用户 一行
                 Row() {
                   TextInput({ placeholder: '端口', text: this.port })
                     .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
                     .backgroundColor('transparent').type(InputType.Number)
                     .onChange((v: string) => { this.port = v })
                     .width('30%').height(48)
-
-                  TextInput({ placeholder: '用户名', text: this.username })
-                    .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
-                    .backgroundColor('transparent')
-                    .onChange((v: string) => { this.username = v })
-                    .layoutWeight(1).height(48).margin({ left: 10 })
                 }
                 .width('100%').height(48).borderRadius(12)
                 .backgroundColor(this.theme.bgCard).backdropBlur(10)
                 .border({ width: 0.5, color: this.theme.borderGlass })
                 .padding({ left: 14, right: 14 }).margin({ bottom: 10 })
 
-                // 密码
                 Row() {
-                  TextInput({ placeholder: '密码', text: this.password })
-                    .type(this.showPassword ? InputType.Normal : InputType.Password)
+                  TextInput({ placeholder: 'Token', text: this.token })
+                    .type(this.showToken ? InputType.Normal : InputType.Password)
                     .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
                     .backgroundColor('transparent')
-                    .onChange((v: string) => { this.password = v })
+                    .onChange((v: string) => { this.token = v })
                     .layoutWeight(1).height(48)
-                  Text(this.showPassword ? '◉' : '◎')
+                  Text(this.showToken ? '◉' : '◎')
                     .fontSize(18).fontColor(this.theme.textSecondary).padding(8)
-                    .onClick(() => { this.showPassword = !this.showPassword })
+                    .onClick(() => { this.showToken = !this.showToken })
                 }
                 .width('100%').height(48).borderRadius(12)
                 .backgroundColor(this.theme.bgCard)
                 .border({ width: 0.5, color: this.theme.borderGlass })
                 .padding({ left: 14, right: 8 }).margin({ bottom: 16 })
 
-                // 按钮
                 Row() {
                   Button() {
                     Text('保存设备')

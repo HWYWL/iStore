@@ -1,6 +1,5 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
-import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 interface ToolEntry {
@@ -64,7 +63,7 @@ struct AppsPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              router.back()
+              this.getUIContext().getRouter().back()
             } catch (e) {
               hilog.error(0x0001, 'AppsPage', `router.back failed: ${e}`)
             }
@@ -123,7 +122,7 @@ struct AppsPage {
                 .border({ width: 0.5, color: this.theme.borderGlass })
                 .onClick(() => {
                   try {
-                    router.pushUrl({ url: tool.route })
+                    this.getUIContext().getRouter().pushUrl({ url: tool.route })
                   } catch (e) {
                     hilog.error(0x0001, 'AppsPage', `pushUrl failed: ${e}`)
                   }

@@ -3,7 +3,6 @@ import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { ProcessInfo } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
-import { router } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 @Entry
@@ -83,7 +82,7 @@ struct ProcessListPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              router.back()
+              this.getUIContext().getRouter().back()
             } catch (e) {
               hilog.error(0x0001, 'ProcessListPage', `router.back failed: ${e}`)
             }

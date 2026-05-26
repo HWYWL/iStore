@@ -11,12 +11,13 @@ export interface SavedDevice {
   label: string
   host: string
   port: string
-  username: string
-  password: string
+  token: string
   useHttps: boolean
   lastConnected: number
   /** 版本号，每次保存递增，用于驱动 UI 刷新 */
   version: number
+  username: string
+  password: string
 }
 
 export class DeviceStore {
@@ -103,8 +104,7 @@ export class DeviceStore {
     return {
       host: d.host,
       port: Number(d.port),
-      username: d.username,
-      password: d.password,
+      token: d.token,
       useHttps: d.useHttps
     }
   }
@@ -116,11 +116,12 @@ export class DeviceStore {
       label: label || config.host,
       host: config.host.trim(),
       port: String(config.port),
-      username: config.username,
-      password: config.password,
+      token: config.token,
       useHttps: config.useHttps,
       lastConnected: Date.now(),
-      version: 0
+      version: 0,
+      username: config.username || '',
+      password: config.password || ''
     }
   }
 }

@@ -34,6 +34,7 @@ export interface NetworkInterface {
   txBytes: number
   rxRate: number
   txRate: number
+  uptime: number
 }
 
 export interface WanStatus {
@@ -100,10 +101,10 @@ export interface ApiResponse<T> {
 export interface ConnectionConfig {
   host: string
   port: number
-  username: string
-  password: string
+  token: string
   useHttps: boolean
-  token?: string
+  username?: string
+  password?: string
 }
 
 export interface LogEntry {
