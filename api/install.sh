@@ -173,8 +173,11 @@ setup_token() {
     fi
 
     # 保存到文件
-    echo "$token" > /etc/router-api-token
-    chmod 600 /etc/router-api-token
+    if ! echo "$token" > /etc/router-api-token 2>/dev/null; then
+        warn "无法写入 /etc/router-api-token，跳过文件保存"
+    else
+        chmod 600 /etc/router-api-token 2>/dev/null || true
+    fi
 
     # 写入 uci 配置（可选，某些精简版可能没有 uci）
     if command -v uci >/dev/null 2>&1; then
@@ -316,10 +319,10 @@ ensure_cgi_dir
 install_api_script
 
 # Step 4: 配置 Token
-setup_token
+setup_token || true
 
 # Step 5: 验证
-verify_installation
+verify_installation || true
 
 # Step 6: 使用说明
 print_usage
