@@ -8,7 +8,7 @@
 set -e
 
 # ---- 配置（部署前修改这里）----
-DOWNLOAD_BASE="https://raw.githubusercontent.com/你的用户名/iStore/main/api"
+DOWNLOAD_BASE="https://raw.githubusercontent.com/HWYWL/iStore/main/api"
 API_FILE="router-api"
 INSTALL_PATH="/www/cgi-bin/${API_FILE}"
 CGI_PREFIX="/cgi-bin"
