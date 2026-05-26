@@ -235,11 +235,13 @@ verify_installation() {
 
 # ---- 打印使用说明 ----
 print_usage() {
-    local router_ip
-    router_ip=$(uci -q get network.lan.ipaddr 2>/dev/null || \
-                ip addr show br-lan 2>/dev/null | grep -oE 'inet [0-9.]+' | head -1 | awk '{print $2}' || \
-                ip addr show eth0 2>/dev/null | grep -oE 'inet [0-9.]+' | head -1 | awk '{print $2}' || \
-                echo "路由器IP")
+    local router_ip=""
+    # 优先从接口获取实际 IP（而非 UCI 配置的默认值）
+    router_ip=$(ip addr show br-lan 2>/dev/null | grep -oE 'inet [0-9.]+' | head -1 | awk '{print $2}')
+    [ -z "$router_ip" ] && router_ip=$(ip addr show eth0 2>/dev/null | grep -oE 'inet [0-9.]+' | head -1 | awk '{print $2}')
+    [ -z "$router_ip" ] && router_ip=$(ip addr show eth1 2>/dev/null | grep -oE 'inet [0-9.]+' | head -1 | awk '{print $2}')
+    [ -z "$router_ip" ] && router_ip=$(uci -q get network.lan.ipaddr 2>/dev/null)
+    [ -z "$router_ip" ] && router_ip="127.0.0.1"
 
     local token
     token=$(cat /etc/router-api-token 2>/dev/null || echo "未生成")
