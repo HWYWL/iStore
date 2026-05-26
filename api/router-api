@@ -71,13 +71,22 @@ if [ "$HAS_UCI" = "1" ]; then
     AUTH_TOKEN=$(uci -q get router-api.config.auth_token 2>/dev/null || echo "")
 fi
 
+# 文件兜底（install.sh 同时写入 /etc/router-api-token）
+[ -z "$AUTH_TOKEN" ] && AUTH_TOKEN=$(cat /etc/router-api-token 2>/dev/null)
+
+# 有 Token 就自动启用认证
+[ -n "$AUTH_TOKEN" ] && AUTH_ENABLED=1
+
 check_auth() {
     [ "$AUTH_ENABLED" = "0" ] && return 0
     local client_token=""
-    # 从 HTTP Header 读取
+    # 1) HTTP Header（标准 CGI 变量）
     client_token=$(echo "$HTTP_X_AUTH_TOKEN" | head -1)
+    # 2) URL 参数兜底（?token=xxx）
+    [ -z "$client_token" ] && client_token=$(echo "$QUERY_STRING" | sed -n 's/.*token=\([^&]*\).*/\1/p')
+    # 3) Cookie 兜底
     [ -z "$client_token" ] && client_token="${HTTP_COOKIE##*router_token=}"
-    [ -z "$client_token" ] && json_error 401 "authentication required"
+    [ -z "$client_token" ] && json_error 401 "authentication required（请在 URL 加 ?token=xxx 或 Header X-Auth-Token）"
     [ "$client_token" != "$AUTH_TOKEN" ] && json_error 403 "invalid token"
     return 0
 }
@@ -265,7 +274,7 @@ handle_network_wifi() {
     if command -v iwinfo >/dev/null 2>&1; then
         local wifi_json="["
         local first=1
-        for dev in $(iwinfo 2>/dev/null | grep -oP 'wlan\d+|phy\d+-ap\d+'); do
+        for dev in $(iwinfo 2>/dev/null | grep -oE 'wlan[0-9]+|phy[0-9]+-ap[0-9]+'); do
             [ "$first" -eq 1 ] && first=0 || wifi_json="${wifi_json},"
             local ssid=$(iwinfo "$dev" info 2>/dev/null | grep -i "ESSID" | sed 's/.*ESSID: "\(.*\)"/\1/')
             [ -z "$ssid" ] && ssid=""

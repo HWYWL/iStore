@@ -273,8 +273,8 @@ print_usage() {
     echo "    uci_get           - 读取 UCI 配置"
     echo "    uci_get_all       - 读取全部 UCI 配置"
     echo ""
-    echo "  查看 Token:  cat /etc/router-api-token"
-    echo "  卸载:        wget -qO- ${DOWNLOAD_BASE}/uninstall.sh | sh"
+    echo "  查看 Token: cat /etc/router-api-token"
+    echo "  卸载: wget -qO- ${DOWNLOAD_BASE}/uninstall.sh | sh"
     echo ""
     echo "=============================================="
 }
