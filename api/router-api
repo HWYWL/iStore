@@ -24,13 +24,12 @@ echo "Access-Control-Allow-Headers: Content-Type, X-Auth-Token"
 echo "Cache-Control: no-cache"
 echo ""
 
-# ---- 简易 JSON 构造（零依赖，避免依赖 jq 等外部工具）----
+# ---- 简易 JSON 构造（零依赖）----
 json_escape() {
     sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\n/\\n/g' 2>/dev/null || cat
 }
 
 json_obj() {
-    # 用法: json_obj "key1" "val1" "key2" "val2" ...
     local first=1
     printf '{'
     while [ $# -ge 2 ]; do
@@ -42,7 +41,6 @@ json_obj() {
 }
 
 json_obj_num() {
-    # 数字值不加引号
     local first=1
     printf '{'
     while [ $# -ge 2 ]; do
@@ -57,12 +55,11 @@ json_obj_num() {
 json_error() {
     local code="${1:-1}"
     local msg="${2:-unknown error}"
-    json_obj_num "code" "$code" "msg" "\"$msg\""
+    printf '{"code":%d,"msg":"%s"}\n' "$code" "$(echo "$msg" | json_escape)"
     exit 0
 }
 
-# ---- 简易 Token 认证（可选，默认关闭）----
-# 如需启用，在路由器上执行: uci set router-api.config.auth_enabled=1 && uci commit
+# ---- 简易 Token 认证 ----
 AUTH_ENABLED=0
 AUTH_TOKEN=""
 
@@ -71,31 +68,335 @@ if [ "$HAS_UCI" = "1" ]; then
     AUTH_TOKEN=$(uci -q get router-api.config.auth_token 2>/dev/null || echo "")
 fi
 
-# 文件兜底（install.sh 同时写入 /etc/router-api-token）
 [ -z "$AUTH_TOKEN" ] && AUTH_TOKEN=$(cat /etc/router-api-token 2>/dev/null)
-
-# 有 Token 就自动启用认证
 [ -n "$AUTH_TOKEN" ] && AUTH_ENABLED=1
 
 check_auth() {
     [ "$AUTH_ENABLED" = "0" ] && return 0
     local client_token=""
-    # 1) HTTP Header（标准 CGI 变量）
     client_token=$(echo "$HTTP_X_AUTH_TOKEN" | head -1)
-    # 2) URL 参数兜底（?token=xxx）
     [ -z "$client_token" ] && client_token=$(echo "$QUERY_STRING" | sed -n 's/.*token=\([^&]*\).*/\1/p')
-    # 3) Cookie 兜底
     [ -z "$client_token" ] && client_token="${HTTP_COOKIE##*router_token=}"
     [ -z "$client_token" ] && json_error 401 "authentication required（请在 URL 加 ?token=xxx 或 Header X-Auth-Token）"
     [ "$client_token" != "$AUTH_TOKEN" ] && json_error 403 "invalid token"
     return 0
 }
 
+# ============================================================
+#   处理函数（必须在 case 分发前定义！）
+# ============================================================
+
+handle_system_info() {
+    if [ "$HAS_UBUS" = "1" ]; then
+        local info
+        info=$(ubus call system info 2>/dev/null)
+        if [ -n "$info" ]; then
+            # 清理：移除换行、回车，压缩首尾空格
+            info_clean=$(printf '%s' "$info" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' 2>/dev/null)
+
+            # 必须是非空、以 { 开头、以 } 结尾
+            case "$info_clean" in
+                '{'*'}')
+                    # 关键：用 jsonfilter 验证是否能解析（老版支持 -e '@'）
+                    if printf '%s\n' "$info_clean" | jsonfilter -e '@' >/dev/null 2>&1; then
+                        # 安全拼接外层 JSON
+                        printf '{"code":0,"data":%s}\n' "$info_clean"
+                        return
+                    fi
+                    ;;
+            esac
+        fi
+    fi
+
+    # 降级方案（纯 shell 构造）
+    local hostname=$(cat /proc/sys/kernel/hostname 2>/dev/null || echo "OpenWrt")
+    local model=$(cat /tmp/sysinfo/model 2>/dev/null || cat /proc/device-tree/model 2>/dev/null || echo "Unknown")
+    local kernel=$(uname -r 2>/dev/null || echo "unknown")
+    local uptime=$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d'.' -f1 || echo 0)
+    local local_time=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "")
+
+    json_obj_num "code" 0 "data" "$(json_obj \
+        "hostname" "$hostname" \
+        "model" "$model" \
+        "kernel" "$kernel" \
+        "uptime" "$uptime" \
+        "local_time" "$local_time")"
+}
+
+handle_system_board() {
+    if [ "$HAS_UBUS" = "1" ]; then
+        local info
+        info=$(ubus call system board 2>/dev/null)
+        if [ -n "$info" ]; then
+            info_clean=$(printf '%s' "$info" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' 2>/dev/null)
+            case "$info_clean" in
+                '{'*'}')
+                    if printf '%s\n' "$info_clean" | jsonfilter -e '@' >/dev/null 2>&1; then
+                        printf '{"code":0,"data":%s}\n' "$info_clean"
+                        return
+                    fi
+                    ;;
+            esac
+        fi
+    fi
+
+    if [ -f /tmp/sysinfo/board_name ]; then
+        local board=$(cat /tmp/sysinfo/board_name 2>/dev/null)
+        local model=$(cat /tmp/sysinfo/model 2>/dev/null)
+        json_obj_num "code" 0 "data" "$(json_obj "board" "$board" "model" "$model")"
+        return
+    fi
+
+    json_error 500 "board info unavailable"
+}
+
+handle_network_interfaces() {
+    if [ "$HAS_UBUS" = "1" ]; then
+        local data
+        data=$(ubus call network.interface dump 2>/dev/null)
+        if [ -n "$data" ]; then
+            data_clean=$(printf '%s' "$data" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' 2>/dev/null)
+            case "$data_clean" in
+                '{'*'}'|'['*']')  # 可能是对象或数组
+                    if printf '%s\n' "$data_clean" | jsonfilter -e '@' >/dev/null 2>&1; then
+                        printf '{"code":0,"data":%s}\n' "$data_clean"
+                        return
+                    fi
+                    ;;
+            esac
+        fi
+    fi
+
+    # 降级：读取 /proc/net/dev
+    local devs=""
+    local first=1
+    while IFS=: read -r iface _; do
+        iface=$(echo "$iface" | sed 's/^[[:space:]]*//')
+        [ -z "$iface" ] && continue
+        [ "$first" -eq 1 ] && first=0 || devs="${devs},"
+        devs="${devs}\"${iface}\""
+    done < /proc/net/dev
+    printf '{"code":0,"data":{"interfaces":[%s]}}\n' "$devs"
+}
+
+handle_network_wifi() {
+    if [ "$HAS_UBUS" = "1" ]; then
+        local data
+        data=$(ubus call iwinfo info 2>/dev/null)
+        if [ -z "$data" ]; then
+            data=$(ubus call network.wireless status 2>/dev/null)
+        fi
+        if [ -n "$data" ] && [ "$HAS_JSONFILTER" = "1" ]; then
+            printf '%s\n' "$data" | jsonfilter -e "code=0" -e "data=@"
+            return
+        fi
+    fi
+
+    if command -v iwinfo >/dev/null 2>&1; then
+        local wifi_json="["
+        local first=1
+        for dev in $(iwinfo 2>/dev/null | grep -oE 'wlan[0-9]+|phy[0-9]+-ap[0-9]+'); do
+            [ "$first" -eq 1 ] && first=0 || wifi_json="${wifi_json},"
+            local ssid=$(iwinfo "$dev" info 2>/dev/null | grep -i "ESSID" | sed 's/.*ESSID: "\(.*\)"/\1/')
+            [ -z "$ssid" ] && ssid=""
+            wifi_json="${wifi_json}{\"device\":\"${dev}\",\"ssid\":\"${ssid}\"}"
+        done
+        wifi_json="${wifi_json}]"
+        printf '{"code":0,"data":%s}\n' "$wifi_json"
+    else
+        json_error 500 "iwinfo not available"
+    fi
+}
+
+handle_network_devices() {
+    if [ "$HAS_UBUS" = "1" ]; then
+        local data
+        data=$(ubus call network.device status 2>/dev/null)
+        if [ -n "$data" ] && [ "$HAS_JSONFILTER" = "1" ]; then
+            printf '%s\n' "$data" | jsonfilter -e "code=0" -e "data=@"
+            return
+        fi
+    fi
+    json_error 500 "network.device ubus unavailable"
+}
+
+handle_dhcp_leases() {
+    local leases_json="["
+    local first=1
+
+    if [ -f /tmp/dhcp.leases ]; then
+        while IFS=' ' read -r timestamp mac ip name _; do
+            [ "$first" -eq 1 ] && first=0 || leases_json="${leases_json},"
+            leases_json="${leases_json}{\"mac\":\"${mac}\",\"ip\":\"${ip}\",\"name\":\"${name}\",\"expires\":${timestamp}}"
+        done < /tmp/dhcp.leases
+    fi
+    leases_json="${leases_json}]"
+    printf '{"code":0,"data":%s}\n' "$leases_json"
+}
+
+handle_storage_info() {
+    local mounts_json="["
+    local first=1
+
+    while IFS=' ' read -r dev mnt fs _; do
+        case "$dev" in
+            /dev/*)
+                local total=0 used=0 free=0
+                if command -v df >/dev/null 2>&1; then
+                    read -r _ total used free _ <<EOF
+$(df -k "$mnt" 2>/dev/null | tail -1)
+EOF
+                fi
+                [ "$first" -eq 1 ] && first=0 || mounts_json="${mounts_json},"
+                mounts_json="${mounts_json}{\"device\":\"${dev}\",\"mount\":\"${mnt}\",\"fs\":\"${fs}\",\"total_kb\":${total:-0},\"used_kb\":${used:-0},\"free_kb\":${free:-0}}"
+                ;;
+        esac
+    done < /proc/mounts
+
+    mounts_json="${mounts_json}]"
+    printf '{"code":0,"data":%s}\n' "$mounts_json"
+}
+
+handle_memory_info() {
+    local total=0 free=0 avail=0 cached=0 buffers=0
+    while IFS=':' read -r key val; do
+        val=$(echo "$val" | sed 's/[^0-9]*//g')
+        case "$key" in
+            MemTotal)  total=$val ;;
+            MemFree)   free=$val ;;
+            MemAvailable) avail=$val ;;
+            Cached)    cached=$val ;;
+            Buffers)   buffers=$val ;;
+        esac
+    done < /proc/meminfo
+
+    local used=$((total - free))
+    [ "$avail" = "0" ] && avail=$((free + buffers + cached))
+
+    printf '{"code":0,"data":{"total_kb":%d,"free_kb":%d,"available_kb":%d,"used_kb":%d,"buffers_kb":%d,"cached_kb":%d}}\n' \
+        "$total" "$free" "$avail" "$used" "$buffers" "$cached"
+}
+
+handle_cpu_info() {
+    local usage=0
+    read -r _ user nice system idle iowait irq softirq _ < /proc/stat
+    local total=$((user + nice + system + idle + iowait + irq + softirq))
+    local used=$((total - idle - iowait))
+    [ "$total" -gt 0 ] && usage=$((used * 100 / total))
+
+    local model=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed 's/^[ \t]*//')
+    local cores=$(grep -c processor /proc/cpuinfo 2>/dev/null)
+
+    json_obj_num "code" 0 "data" "$(json_obj_num \
+        "usage_percent" "$usage" \
+        "model" "\"${model:-Unknown}\"" \
+        "cores" "${cores:-0}")"
+}
+
+handle_processes() {
+    local top_n="${QUERY_STRING##*top=}"
+    top_n="${top_n%%&*}"
+    [ -z "$top_n" ] && top_n=5
+
+    local procs_json="["
+    local first=1 count=0
+
+    for pid_dir in /proc/[0-9]*; do
+        [ "$count" -ge "$top_n" ] && break
+        local pid=$(basename "$pid_dir")
+        local comm=$(cut -d' ' -f1 "$pid_dir/comm" 2>/dev/null)
+        local rss=$(awk '/VmRSS/{print $2}' "$pid_dir/status" 2>/dev/null)
+        [ -z "$comm" ] && continue
+        [ -z "$rss" ] && rss=0
+
+        [ "$first" -eq 1 ] && first=0 || procs_json="${procs_json},"
+        procs_json="${procs_json}{\"pid\":${pid},\"name\":\"${comm}\",\"rss_kb\":${rss}}"
+        count=$((count + 1))
+    done
+
+    procs_json="${procs_json}]"
+    printf '{"code":0,"data":%s}\n' "$procs_json"
+}
+
+handle_uci_get() {
+    [ "$HAS_UCI" = "0" ] && json_error 500 "uci not available"
+
+    local config=$(echo "$QUERY_STRING" | sed -n 's/.*config=\([^&]*\).*/\1/p')
+    local section=$(echo "$QUERY_STRING" | sed -n 's/.*section=\([^&]*\).*/\1/p')
+    local option=$(echo "$QUERY_STRING" | sed -n 's/.*option=\([^&]*\).*/\1/p')
+
+    [ -z "$config" ] && json_error 400 "missing config parameter"
+    [ -z "$section" ] || [ -z "$option" ] && json_error 400 "missing section or option"
+
+    local val=$(uci -q get "${config}.${section}.${option}" 2>/dev/null || echo "")
+    json_obj_num "code" 0 "data" "$(json_obj "value" "$val")"
+}
+
+handle_uci_get_all() {
+    [ "$HAS_UCI" = "0" ] && json_error 500 "uci not available"
+
+    local config=$(echo "$QUERY_STRING" | sed -n 's/.*config=\([^&]*\).*/\1/p')
+    [ -z "$config" ] && json_error 400 "missing config parameter"
+
+    if command -v uci >/dev/null 2>&1; then
+        local result=$(uci -q show "$config" 2>/dev/null)
+        if [ -n "$result" ]; then
+            local json="["
+            local first=1
+            while IFS='=' read -r key val; do
+                [ "$first" -eq 1 ] && first=0 || json="${json},"
+                json="${json}{\"key\":\"${key}\",\"value\":\"${val}\"}"
+            done <<EOF
+$result
+EOF
+            json="${json}]"
+            printf '{"code":0,"data":%s}\n' "$json"
+            return
+        fi
+    fi
+    json_error 500 "uci show failed"
+}
+
+handle_login() {
+    local body=""
+    if [ "$METHOD" = "POST" ]; then
+        read -r body
+    fi
+
+    local username=$(echo "$body" | sed -n 's/.*"username"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    local password=$(echo "$body" | sed -n 's/.*"password"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+
+    if [ "$HAS_LUCI" = "1" ] && [ -n "$username" ] && [ -n "$password" ]; then
+        local result
+        result=$(lua -e "
+            local json = require 'luci.json'
+            local sauth = require 'luci.sauth'
+            local result, session = sauth.login('$username', '$password')
+            if result == 0 then
+                print(json.encode({code=0, token=session}))
+            else
+                print(json.encode({code=401, msg='login failed'}))
+            end
+        " 2>/dev/null)
+        if [ -n "$result" ]; then
+            echo "$result"
+            return
+        fi
+    fi
+
+    if [ -n "$AUTH_TOKEN" ]; then
+        json_obj_num "code" 0 "token" "\"$AUTH_TOKEN\"" "mode" "\"static_token\""
+        return
+    fi
+
+    json_error 401 "login unavailable (configure router-api token or ensure LuCI is installed)"
+}
+
 # ---- 解析请求 ----
 METHOD="${REQUEST_METHOD:-GET}"
 QUERY_STRING="${QUERY_STRING:-}"
 ACTION=""
-# 支持两种方式传参: ?action=xxx 或 PATH_INFO (优雅 URL)
+
 if echo "$QUERY_STRING" | grep -q 'action='; then
     ACTION=$(echo "$QUERY_STRING" | sed 's/.*action=\([^&]*\).*/\1/')
 elif [ -n "${PATH_INFO}" ]; then
@@ -103,11 +404,8 @@ elif [ -n "${PATH_INFO}" ]; then
 fi
 
 # ---- 路由表 ----
-# 根据 action 分发到对应处理函数
-
 case "$ACTION" in
     ping)
-        # 健康检查（无需认证）
         json_obj_num "code" 0 "pong" "true" "has_uci" "$HAS_UCI" "has_ubus" "$HAS_UBUS" "has_luci" "$HAS_LUCI"
         ;;
 
@@ -162,19 +460,16 @@ case "$ACTION" in
         ;;
 
     uci_get)
-        # ?action=uci_get&config=network&section=lan&option=ipaddr
         check_auth
         handle_uci_get
         ;;
 
     uci_get_all)
-        # ?action=uci_get_all&config=wireless
         check_auth
         handle_uci_get_all
         ;;
 
     login)
-        # 尝试 LuCI 登录，失败则降级到 Token 模式
         handle_login
         ;;
 
@@ -182,304 +477,3 @@ case "$ACTION" in
         json_error 404 "unknown action: $ACTION. Available: ping, system_info, network_interfaces, network_wifi, dhcp_leases, storage_info, memory_info, cpu_info, uci_get, uci_get_all, login"
         ;;
 esac
-
-# ============================================================
-#   处理函数（纯 Shell，不依赖任何 Lua 库）
-# ============================================================
-
-handle_system_info() {
-    local hostname="" model="" kernel="" uptime="" local_time=""
-
-    if [ "$HAS_UBUS" = "1" ]; then
-        # 优先用 ubus（更准确）
-        local info
-        info=$(ubus call system info 2>/dev/null)
-        if [ -n "$info" ]; then
-            local code
-            code=$(echo "$info" | jsonfilter -e '@.code' 2>/dev/null)
-            if [ -z "$code" ] || [ "$code" = "0" ]; then
-                # ubus 返回的 JSON 直接嵌入
-                printf '{"code":0,"data":%s}\n' "$info"
-                return
-            fi
-        fi
-    fi
-
-    # 降级到 /proc 文件系统读取
-    hostname=$(cat /proc/sys/kernel/hostname 2>/dev/null || echo "OpenWrt")
-    model=$(cat /tmp/sysinfo/model 2>/dev/null || cat /proc/device-tree/model 2>/dev/null || echo "Unknown")
-    kernel=$(uname -r)
-    uptime=$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d'.' -f1 || echo 0)
-    local_time=$(date '+%Y-%m-%d %H:%M:%S')
-
-    json_obj_num "code" 0 "data" "$(json_obj \
-        "hostname" "$hostname" \
-        "model" "$model" \
-        "kernel" "$kernel" \
-        "uptime" "$uptime" \
-        "local_time" "$local_time")"
-}
-
-handle_system_board() {
-    if [ -f /tmp/sysinfo/board_name ]; then
-        local board=$(cat /tmp/sysinfo/board_name 2>/dev/null)
-        local model=$(cat /tmp/sysinfo/model 2>/dev/null)
-        json_obj_num "code" 0 "data" "$(json_obj "board" "$board" "model" "$model")"
-    elif [ "$HAS_UBUS" = "1" ]; then
-        local info=$(ubus call system board 2>/dev/null)
-        printf '{"code":0,"data":%s}\n' "$info"
-    else
-        json_error 500 "board info unavailable"
-    fi
-}
-
-handle_network_interfaces() {
-    if [ "$HAS_UBUS" = "1" ]; then
-        local data
-        data=$(ubus call network.interface dump 2>/dev/null)
-        if [ -n "$data" ]; then
-            printf '{"code":0,"data":%s}\n' "$data"
-            return
-        fi
-    fi
-
-    # 降级方案：读取 /proc/net/dev
-    local devs=""
-    local first=1
-    while IFS=: read -r iface _; do
-        iface=$(echo "$iface" | sed 's/^[[:space:]]*//')
-        [ -z "$iface" ] && continue
-        [ "$first" -eq 1 ] && first=0 || devs="${devs},"
-        devs="${devs}\"${iface}\""
-    done < /proc/net/dev
-    printf '{"code":0,"data":{"interfaces":[%s]}}\n' "$devs"
-}
-
-handle_network_wifi() {
-    if [ "$HAS_UBUS" = "1" ]; then
-        local data
-        # 先尝试新版接口
-        data=$(ubus call iwinfo info 2>/dev/null)
-        if [ -z "$data" ]; then
-            # 降级到旧版
-            data=$(ubus call network.wireless status 2>/dev/null)
-        fi
-        if [ -n "$data" ]; then
-            printf '{"code":0,"data":%s}\n' "$data"
-            return
-        fi
-    fi
-
-    # 降级：直接读 iwinfo
-    if command -v iwinfo >/dev/null 2>&1; then
-        local wifi_json="["
-        local first=1
-        for dev in $(iwinfo 2>/dev/null | grep -oE 'wlan[0-9]+|phy[0-9]+-ap[0-9]+'); do
-            [ "$first" -eq 1 ] && first=0 || wifi_json="${wifi_json},"
-            local ssid=$(iwinfo "$dev" info 2>/dev/null | grep -i "ESSID" | sed 's/.*ESSID: "\(.*\)"/\1/')
-            [ -z "$ssid" ] && ssid=""
-            wifi_json="${wifi_json}{\"device\":\"${dev}\",\"ssid\":\"${ssid}\"}"
-        done
-        wifi_json="${wifi_json}]"
-        printf '{"code":0,"data":%s}\n' "$wifi_json"
-    else
-        json_error 500 "iwinfo not available"
-    fi
-}
-
-handle_network_devices() {
-    if [ "$HAS_UBUS" = "1" ]; then
-        local data
-        data=$(ubus call network.device status 2>/dev/null)
-        if [ -n "$data" ]; then
-            printf '{"code":0,"data":%s}\n' "$data"
-            return
-        fi
-    fi
-    json_error 500 "network.device ubus unavailable"
-}
-
-handle_dhcp_leases() {
-    local leases_json="["
-    local first=1
-
-    if [ -f /tmp/dhcp.leases ]; then
-        while IFS=' ' read -r timestamp mac ip name _; do
-            [ "$first" -eq 1 ] && first=0 || leases_json="${leases_json},"
-            leases_json="${leases_json}{\"mac\":\"${mac}\",\"ip\":\"${ip}\",\"name\":\"${name}\",\"expires\":${timestamp}}"
-        done < /tmp/dhcp.leases
-    fi
-    leases_json="${leases_json}]"
-    printf '{"code":0,"data":%s}\n' "$leases_json"
-}
-
-handle_storage_info() {
-    local mounts_json="["
-    local first=1
-
-    # 读取 /proc/mounts
-    while IFS=' ' read -r dev mnt fs _; do
-        case "$dev" in
-            /dev/*)
-                # 获取可用空间
-                local total=0 used=0 free=0
-                if command -v df >/dev/null 2>&1; then
-                    read -r _ total used free _ <<EOF
-$(df -k "$mnt" 2>/dev/null | tail -1)
-EOF
-                fi
-                [ "$first" -eq 1 ] && first=0 || mounts_json="${mounts_json},"
-                mounts_json="${mounts_json}{\"device\":\"${dev}\",\"mount\":\"${mnt}\",\"fs\":\"${fs}\",\"total_kb\":${total:-0},\"used_kb\":${used:-0},\"free_kb\":${free:-0}}"
-                ;;
-        esac
-    done < /proc/mounts
-
-    mounts_json="${mounts_json}]"
-    printf '{"code":0,"data":%s}\n' "$mounts_json"
-}
-
-handle_memory_info() {
-    local total=0 free=0 avail=0 cached=0 buffers=0
-    while IFS=':' read -r key val; do
-        val=$(echo "$val" | sed 's/[^0-9]*//g')
-        case "$key" in
-            MemTotal)  total=$val ;;
-            MemFree)   free=$val ;;
-            MemAvailable) avail=$val ;;
-            Cached)    cached=$val ;;
-            Buffers)   buffers=$val ;;
-        esac
-    done < /proc/meminfo
-
-    local used=$((total - free))
-    [ "$avail" = "0" ] && avail=$((free + buffers + cached))
-
-    printf '{"code":0,"data":{"total_kb":%d,"free_kb":%d,"available_kb":%d,"used_kb":%d,"buffers_kb":%d,"cached_kb":%d}}\n' \
-        "$total" "$free" "$avail" "$used" "$buffers" "$cached"
-}
-
-handle_cpu_info() {
-    local usage=0
-    # /proc/stat 第一行计算
-    read -r _ user nice system idle iowait irq softirq _ < /proc/stat
-    local total=$((user + nice + system + idle + iowait + irq + softirq))
-    local used=$((total - idle - iowait))
-    [ "$total" -gt 0 ] && usage=$((used * 100 / total))
-
-    local model=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed 's/^[ \t]*//')
-    local cores=$(grep -c processor /proc/cpuinfo 2>/dev/null)
-
-    json_obj_num "code" 0 "data" "$(json_obj_num \
-        "usage_percent" "$usage" \
-        "model" "\"${model:-Unknown}\"" \
-        "cores" "${cores:-0}")"
-}
-
-handle_processes() {
-    local top_n="${QUERY_STRING##*top=}"
-    top_n="${top_n%%&*}"
-    [ -z "$top_n" ] && top_n=5
-
-    local procs_json="["
-    local first=1 count=0
-
-    # 按 RSS 排序取前 N
-    for pid_dir in /proc/[0-9]*; do
-        [ "$count" -ge "$top_n" ] && break
-
-        local pid=$(basename "$pid_dir")
-        local comm=$(cut -d' ' -f1 "$pid_dir/comm" 2>/dev/null)
-        local rss=$(awk '/VmRSS/{print $2}' "$pid_dir/status" 2>/dev/null)
-
-        [ -z "$comm" ] && continue
-        [ -z "$rss" ] && rss=0
-
-        [ "$first" -eq 1 ] && first=0 || procs_json="${procs_json},"
-        procs_json="${procs_json}{\"pid\":${pid},\"name\":\"${comm}\",\"rss_kb\":${rss}}"
-        count=$((count + 1))
-    done
-
-    procs_json="${procs_json}]"
-    printf '{"code":0,"data":%s}\n' "$procs_json"
-}
-
-handle_uci_get() {
-    [ "$HAS_UCI" = "0" ] && json_error 500 "uci not available"
-
-    local config=$(echo "$QUERY_STRING" | sed -n 's/.*config=\([^&]*\).*/\1/p')
-    local section=$(echo "$QUERY_STRING" | sed -n 's/.*section=\([^&]*\).*/\1/p')
-    local option=$(echo "$QUERY_STRING" | sed -n 's/.*option=\([^&]*\).*/\1/p')
-
-    [ -z "$config" ] && json_error 400 "missing config parameter"
-
-    if [ -n "$section" ] && [ -n "$option" ]; then
-        local val=$(uci -q get "${config}.${section}.${option}" 2>/dev/null || echo "")
-        json_obj_num "code" 0 "data" "$(json_obj "value" "$val")"
-    else
-        json_error 400 "missing section or option"
-    fi
-}
-
-handle_uci_get_all() {
-    [ "$HAS_UCI" = "0" ] && json_error 500 "uci not available"
-
-    local config=$(echo "$QUERY_STRING" | sed -n 's/.*config=\([^&]*\).*/\1/p')
-    [ -z "$config" ] && json_error 400 "missing config parameter"
-
-    if command -v uci >/dev/null 2>&1; then
-        local result=$(uci -q show "$config" 2>/dev/null)
-        if [ -n "$result" ]; then
-            # 转为 JSON
-            local json="["
-            local first=1
-            while IFS='=' read -r key val; do
-                [ "$first" -eq 1 ] && first=0 || json="${json},"
-                json="${json}{\"key\":\"${key}\",\"value\":\"${val}\"}"
-            done <<EOF
-$result
-EOF
-            json="${json}]"
-            printf '{"code":0,"data":%s}\n' "$json"
-            return
-        fi
-    fi
-    json_error 500 "uci show failed"
-}
-
-handle_login() {
-    # 读取 POST body
-    local body=""
-    if [ "$METHOD" = "POST" ]; then
-        read -r body
-    fi
-
-    local username=$(echo "$body" | sed -n 's/.*"username"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-    local password=$(echo "$body" | sed -n 's/.*"password"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-
-    # 尝试 LuCI 登录（如果可用）
-    if [ "$HAS_LUCI" = "1" ] && [ -n "$username" ] && [ -n "$password" ]; then
-        local result
-        result=$(lua -e "
-            local json = require 'luci.json'
-            local sauth = require 'luci.sauth'
-            local result, session = sauth.login('$username', '$password')
-            if result == 0 then
-                print(json.encode({code=0, token=session}))
-            else
-                print(json.encode({code=401, msg='login failed'}))
-            end
-        " 2>/dev/null)
-        if [ -n "$result" ]; then
-            echo "$result"
-            return
-        fi
-    fi
-
-    # 降级：返回系统 Token（需要在 uci 中配置）
-    if [ -n "$AUTH_TOKEN" ]; then
-        json_obj_num "code" 0 "token" "\"$AUTH_TOKEN\"" "mode" "\"static_token\""
-        return
-    fi
-
-    json_error 401 "login unavailable (configure router-api token or ensure LuCI is installed)"
-}
