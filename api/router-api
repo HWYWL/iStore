@@ -303,13 +303,11 @@ handle_cpu_info() {
 
     local model=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed 's/^[ \t]*//')
     local cores=$(grep -c processor /proc/cpuinfo 2>/dev/null)
-    local cpu_temp=$(get_cpu_temp)
 
     json_obj_num "code" 0 "data" "$(json_obj_num \
         "usage_percent" "$usage" \
         "model" "\"${model:-Unknown}\"" \
-        "cores" "${cores:-0}" \
-        "cpu_temp" "${cpu_temp}")"
+        "cores" "${cores:-0}")"
 }
 
 handle_processes() {
@@ -436,6 +434,11 @@ case "$ACTION" in
     cpu_info)
         check_auth
         handle_cpu_info
+        ;;
+
+    cpu_temp)
+        check_auth
+        get_cpu_temp
         ;;
 
     processes)
