@@ -1,4 +1,9 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 恢复出厂设置页面
+ * 调用路由器 API 执行恢复出厂设置，操作前需二次确认
+ * 提供 60 秒倒计时反馈
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'

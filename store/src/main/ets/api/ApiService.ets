@@ -1,3 +1,8 @@
+/**
+ * API 业务服务层
+ * 封装对 ApiClient 的调用，负责数据解析和类型转换
+ * 通过 ObjectHelper 安全读取 JSON 字段，失败时返回空数据兜底
+ */
 import { ApiClient } from './ApiClient'
 import {
   SystemInfo,

@@ -1,4 +1,9 @@
 import { webview } from '@kit.ArkWeb'
+/**
+ * WebView 内嵌浏览器页面
+ * 通过 WebView 加载路由器的 Web 管理界面
+ * 支持自动登录（注入用户名密码到登录表单）
+ */
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { SavedDevice } from '../../common/store/DeviceStore'

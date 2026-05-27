@@ -1,3 +1,11 @@
+/**
+ * 登录页面
+ * 功能：
+ * - 管理已保存的设备列表（增删改查，持久化存储）
+ * - 连接指定的路由器设备（支持超时处理）
+ * - 主题切换（深色/浅色模式）
+ * - 连接成功后跳转到主仪表盘（MainPage）
+ */
 import { AppState } from '../../common/store/AppState'
 import { SavedDevice } from '../../common/store/DeviceStore'
 import { ConnectionConfig } from '../../models/Models'
@@ -8,6 +16,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 @Entry
 @Component
 struct LoginPage {
+  // ========== 表单状态 ==========
   @State host: string = ''
   @State port: string = '80'
   @State token: string = ''
@@ -25,8 +34,9 @@ struct LoginPage {
   @State isDark: boolean = true
   @State theme: ThemePalette = DARK_THEME
   private appState: AppState = AppState.getInstance()
-  private connectTimerId: number = -1
+  private connectTimerId: number = -1  // 连接超时定时器 ID
 
+  /** 页面初始化：加载设备列表，检查是否已有活动连接 */
   async aboutToAppear(): Promise<void> {
     const ctx: common.Context = this.getUIContext().getHostContext() as common.Context
     await this.appState.init(ctx)
@@ -39,6 +49,7 @@ struct LoginPage {
       this.theme = this.appState.getTheme()
     })
 
+    // 如果已有活动连接，直接跳转到仪表盘
     if (this.appState.getActiveDeviceId()) {
       try {
         this.getUIContext().getRouter().replaceUrl({ url: 'pages/dashboard/MainPage' })
@@ -48,6 +59,7 @@ struct LoginPage {
     }
   }
 
+  /** 从表单输入构造连接配置 */
   getConfig(): ConnectionConfig {
     const host: string = this.host.trim()
     const port: string = this.port || '80'
@@ -59,6 +71,7 @@ struct LoginPage {
     }
   }
 
+  /** 保存/更新设备到持久化存储 */
   async doSave(): Promise<void> {
     const host: string = this.host.trim()
     if (!host) {
@@ -119,6 +132,7 @@ struct LoginPage {
     }
   }
 
+  /** 连接设备并进入主页面，支持 8 秒超时 */
   async connectAndEnter(savedDevice?: SavedDevice): Promise<void> {
     const host: string = savedDevice ? savedDevice.host : this.host.trim()
     const port: string = savedDevice ? savedDevice.port : this.port

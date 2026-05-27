@@ -1,4 +1,8 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 家长控制 - 高级设置
+ * 管理自动加载引擎、禁用 NAT 等高级选项
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'

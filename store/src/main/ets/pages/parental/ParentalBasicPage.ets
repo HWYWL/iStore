@@ -1,4 +1,8 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 家长控制 - 基础设置
+ * 管理应用过滤总开关和应用日志开关
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { AppFilterBase } from '../../models/Models'

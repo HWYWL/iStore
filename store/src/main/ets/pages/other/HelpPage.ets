@@ -1,4 +1,8 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 帮助页面
+ * FAQ 常见问题解答，支持展开/折叠查看
+ */
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 

@@ -1,4 +1,8 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 路由表页面
+ * 展示路由器内核路由表，包含目标地址、网关、出口设备和路由标志
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { RouteEntry } from '../../models/Models'

@@ -1,4 +1,9 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 客户端设备详情页面
+ * 展示单个设备的应用使用统计（访问时长、访问记录）
+ * 支持三个子 Tab：基本信息/访问统计/访问记录
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { FormatUtils } from '../../common/utils/FormatUtils'

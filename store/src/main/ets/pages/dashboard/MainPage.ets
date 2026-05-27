@@ -1,4 +1,10 @@
 import { AppState } from '../../common/store/AppState'
+/**
+ * 主仪表盘页面
+ * 包含 5 个 Tab 页：首页/设备/存储/无线/日志
+ * 首页 Tab 提供系统状态、网络状态、设备列表的综合概览
+ * 5 秒自动刷新数据
+ */
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'

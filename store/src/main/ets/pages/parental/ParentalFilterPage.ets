@@ -1,4 +1,9 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 家长控制 - 应用过滤
+ * 管理应用分类过滤、时间段设定和用户选择
+ * 支持三个子 Tab：应用列表/时间段/用户管理
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { AppClass, AppItem, AppFilterTime, AppFilterUser, OafUser } from '../../models/Models'

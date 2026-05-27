@@ -1,5 +1,9 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
 
+/**
+ * 本地单元测试
+ * 使用 describe/it 编写测试用例
+ */
 export default function localUnitTest() {
   describe('localUnitTest', () => {
     // Defines a test suite. Two parameters are supported: test suite name and test suite function.

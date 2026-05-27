@@ -1,4 +1,9 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 家长控制 - 主页面
+ * 展示应用过滤引擎（OAF）运行状态
+ * 提供三个子 Tab：基础设置/应用过滤/高级设置
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { OafStatus } from '../../models/Models'

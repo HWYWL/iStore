@@ -1,4 +1,9 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 工具/应用页面
+ * 以网格卡片形式展示系统工具入口列表：
+ * 家长控制、路由表、系统进程、启动项、重启、恢复出厂、OpenWRT 首页
+ */
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 

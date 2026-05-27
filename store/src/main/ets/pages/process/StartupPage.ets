@@ -1,4 +1,8 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 系统启动项页面
+ * 展示路由器开机自启的服务列表及其启用状态
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { StartupItem } from '../../models/Models'

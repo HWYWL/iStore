@@ -1,4 +1,8 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit'
+/**
+ * 应用主 Ability
+ * 应用入口，设置窗口模式为未指定（跟随系统），管理应用生命周期
+ */
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { window } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'

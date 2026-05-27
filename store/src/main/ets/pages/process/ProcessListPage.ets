@@ -1,4 +1,8 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
+/**
+ * 系统进程列表页面
+ * 展示路由器运行中的进程，支持点击展开查看详情
+ */
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { ProcessInfo } from '../../models/Models'
