@@ -134,6 +134,7 @@ struct LoginPage {
 
   /** 连接设备并进入主页面，支持 8 秒超时 */
   async connectAndEnter(savedDevice?: SavedDevice): Promise<void> {
+    // 优先使用已保存设备的参数，否则使用表单输入值
     const host: string = savedDevice ? savedDevice.host : this.host.trim()
     const port: string = savedDevice ? savedDevice.port : this.port
     const token: string = savedDevice ? savedDevice.token : this.token
@@ -149,6 +150,7 @@ struct LoginPage {
     this.connectingId = savedDevice ? savedDevice.id : ''
     let timedOut: boolean = false
 
+    // 启动 8 秒超时定时器
     this.connectTimerId = setTimeout(() => {
       if (this.isConnecting) {
         timedOut = true
@@ -160,6 +162,7 @@ struct LoginPage {
     }, 8000)
 
     try {
+      // 如果没有保存设备，先创建新设备并持久化
       if (!savedDevice) {
         const device: SavedDevice = {
           id: `${config.host}_${Math.random().toString(36).substring(2, 10)}`,
@@ -177,8 +180,10 @@ struct LoginPage {
         savedDevice = device
       }
 
+      // 执行实际连接
       const connected: boolean = await this.appState.connectToDevice(savedDevice.id)
 
+      // 超时后不再处理结果
       if (timedOut) return
       if (this.connectTimerId !== -1) {
         clearTimeout(this.connectTimerId)
@@ -186,6 +191,7 @@ struct LoginPage {
       }
 
       if (connected) {
+        // 连接成功，跳转到主仪表盘
         this.isConnecting = false
         this.connectingId = ''
         try {
@@ -194,6 +200,7 @@ struct LoginPage {
           hilog.error(0x0001, 'LoginPage', `pushUrl failed: ${e}`)
         }
       } else {
+        // 连接失败，显示具体错误信息
         this.isConnecting = false
         this.connectingId = ''
         const lastErr: string = this.appState.getLastError()
@@ -205,6 +212,7 @@ struct LoginPage {
         setTimeout(() => { this.errorMessage = '' }, 5000)
       }
     } catch (netErr) {
+      // 网络异常处理
       if (timedOut) return
       if (this.connectTimerId !== -1) {
         clearTimeout(this.connectTimerId)

@@ -34,6 +34,7 @@ struct StartupPage {
     this.errorText = ''
     try {
       const api = new ApiService()
+      // 获取系统启动项列表
       this.items = await api.fetchStartupItems()
     } catch (e) {
       this.errorText = '加载启动项失败'

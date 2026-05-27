@@ -35,16 +35,20 @@ struct ParentalAdvancedPage {
     this.errorText = ''
     try {
       const api = new ApiService()
+      // 从 API 获取高级配置对象
       const adv: ESObject = await api.fetchAppFilterAdv()
       if (adv && typeof adv === 'object') {
+        // 安全读取自动加载引擎开关
         const autoVal: Object | undefined = adv['auto_load_engine']
         if (autoVal !== undefined) {
           this.autoLoadEngine = Boolean(autoVal)
         }
+        // 安全读取禁用 NAT 开关
         const natVal: Object | undefined = adv['disable_nat']
         if (natVal !== undefined) {
           this.disableNat = Boolean(natVal)
         }
+        // 安全读取 LAN 网络接口名称
         const ifnameVal: Object | undefined = adv['lan_ifname']
         if (ifnameVal !== undefined && ifnameVal !== null) {
           this.lanIfname = String(ifnameVal)
@@ -62,6 +66,7 @@ struct ParentalAdvancedPage {
     this.successText = ''
     try {
       const api = new ApiService()
+      // 构造参数字典，键名与路由器 API 保持一致
       const advParams: Record<string, Object> = {}
       advParams['auto_load_engine'] = this.autoLoadEngine
       advParams['disable_nat'] = this.disableNat
@@ -69,7 +74,7 @@ struct ParentalAdvancedPage {
       await api.saveAppFilterAdv(advParams)
       this.successText = '保存成功'
       setTimeout(() => {
-        this.successText = ''
+        this.successText = ''  // 2 秒后隐藏成功提示
       }, 2000)
     } catch (e) {
       this.errorText = '保存失败'

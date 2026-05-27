@@ -40,6 +40,7 @@ class EmptyRecord {
 }
 
 class ObjectHelper {
+  /** 安全读取字符串字段，缺失时返回默认值 */
   static getString(obj: Object, key: string, def: string): string {
     if (!obj || typeof obj !== 'object') return def
     const keys = Object.keys(obj)
@@ -54,6 +55,7 @@ class ObjectHelper {
     return def
   }
 
+  /** 安全读取数值字段，缺失时返回默认值 */
   static getNumber(obj: Object, key: string, def: number): number {
     if (!obj || typeof obj !== 'object') return def
     const keys = Object.keys(obj)
@@ -68,6 +70,7 @@ class ObjectHelper {
     return def
   }
 
+  /** 安全读取数组字段，缺失或非数组时返回空数组 */
   static getArray(obj: Object, key: string): Object[] {
     if (!obj || typeof obj !== 'object') return []
     const keys = Object.keys(obj)
@@ -82,6 +85,7 @@ class ObjectHelper {
     return []
   }
 
+  /** 检查对象是否包含指定键 */
   static hasKey(obj: Object, key: string): boolean {
     if (!obj || typeof obj !== 'object') return false
     const keys = Object.keys(obj)
@@ -133,30 +137,41 @@ export class ApiService {
 
   async fetchSystemInfo(): Promise<SystemInfo> {
     try {
+      // 1. 并发请求两个 API：主板信息 + 系统运行信息
       const board = await this.client.getSystemBoard()
       const info = await this.client.getSystemInfo()
 
+      // 2. 从主板信息（board）中提取基础硬件信息
       const hostname = ObjectHelper.getString(board, 'hostname', 'OpenWrt')
+      // model 字段优先，fallback 到 'system' 字段，最后兜底为 'OpenWrt'
       const model = ObjectHelper.getString(board, 'model', '') || ObjectHelper.getString(board, 'system', '') || 'OpenWrt'
       const kernel = ObjectHelper.getString(board, 'kernel', '')
+      // cpu_model 字段优先，fallback 到 'model' 字段
       const cpuModel = ObjectHelper.getString(board, 'cpu_model', '') || ObjectHelper.getString(board, 'model', '')
       const boardName = ObjectHelper.getString(board, 'board_name', '')
       const distribution = ObjectHelper.getString(board, 'distribution', '')
+      // firmware_version 字段优先，fallback 到 'version' 字段
       const firmwareVersion = ObjectHelper.getString(board, 'firmware_version', '') || ObjectHelper.getString(board, 'version', '')
 
+      // 3. 从系统运行信息（info）中提取运行时数据
       const uptime = ObjectHelper.getNumber(info, 'uptime', 0)
+      // localtime 字段是 Unix 时间戳（秒），需要乘以 1000 转为毫秒
       const localtimeVal = ObjectHelper.getString(info, 'localtime', '')
       const localTime = localtimeVal ? new Date(Number(localtimeVal) * 1000).toISOString() : new Date().toISOString()
       const cpuUsage = ObjectHelper.getNumber(info, 'cpu_usage', 0)
 
+      // 4. 内存信息在 info.memory 数组中，取第一项
       const memoryArr = ObjectHelper.getArray(info, 'memory')
       const memory = memoryArr.length > 0 ? memoryArr[0] : new EmptyRecord()
       const memTotal = ObjectHelper.getNumber(memory, 'total', 0)
       const memUsed = ObjectHelper.getNumber(memory, 'used', 0)
       const memFree = ObjectHelper.getNumber(memory, 'free', 0)
+      // available 字段优先，fallback 到 free（兼容旧固件）
       const memAvailable = ObjectHelper.getNumber(memory, 'available', memFree)
+      // cached 和 buffered 合并为缓存总量
       const memCached = ObjectHelper.getNumber(memory, 'cached', 0) + ObjectHelper.getNumber(memory, 'buffered', 0)
 
+      // 5. 额外获取 CPU 温度
       const cpuTemp = await this.fetchCPUTemp()
 
       return {
@@ -189,9 +204,11 @@ export class ApiService {
 
   async fetchWanStatus(): Promise<WanStatus> {
     try {
+      // 1. 获取所有网络接口列表，从中匹配 WAN 接口
       const interfaces = await this.client.getNetworkInterfaces()
       const interfacesList = ObjectHelper.getArray(interfaces, 'interfaces')
 
+      // 2. 按 type 字段遍历查找 WAN 类型接口
       let wanIf: Object | null = null
       for (let i = 0; i < interfacesList.length; i++) {
         const iface = interfacesList[i]
@@ -202,14 +219,17 @@ export class ApiService {
         }
       }
 
+      // 3. 未找到 WAN 接口则返回空状态
       if (!wanIf) {
         return this.emptyWanStatus()
       }
 
+      // 4. 从 WAN 接口对象中提取网络配置
       const ifname = ObjectHelper.getString(wanIf, 'name', 'wan')
       const ipAddress = ObjectHelper.getString(wanIf, 'ip_address', '0.0.0.0')
       const netmask = ObjectHelper.getString(wanIf, 'netmask', '')
       const gateway = ObjectHelper.getString(wanIf, 'gateway', '')
+      // DNS 服务器可能有多条，最多取前 3 条
       const dnsArray = ObjectHelper.getArray(wanIf, 'dns')
       const dns: string[] = []
       for (let i = 0; i < dnsArray.length && i < 3; i++) {
@@ -218,9 +238,11 @@ export class ApiService {
       const proto = ObjectHelper.getString(wanIf, 'proto', '')
       const macAddr = ObjectHelper.getString(wanIf, 'mac_address', '')
       const uptime = ObjectHelper.getNumber(wanIf, 'uptime', 0)
+      // rx_rate/tx_rate 为实时速率（字节/秒）
       const rxRate = ObjectHelper.getNumber(wanIf, 'rx_rate', 0)
       const txRate = ObjectHelper.getNumber(wanIf, 'tx_rate', 0)
 
+      // 5. 将 uptime 秒数转为可读字符串
       const onlineTime = this.formatUptime(uptime)
 
       return {
@@ -255,11 +277,13 @@ export class ApiService {
       for (let i = 0; i < interfacesList.length; i++) {
         const iface = interfacesList[i]
         const name = ObjectHelper.getString(iface, 'name', '')
+        // 将类型字符串映射为枚举值，未知类型默认视为 LAN
         const typeStr = ObjectHelper.getString(iface, 'type', '')
         let type: 'wan' | 'lan' | 'wifi' | 'vpn' = 'lan'
         if (typeStr === 'wan') type = 'wan'
         else if (typeStr === 'wifi') type = 'wifi'
         else if (typeStr === 'vpn') type = 'vpn'
+        // 提取接口的 IP、速率、流量统计等字段
         const ipAddress = ObjectHelper.getString(iface, 'ip_address', '')
         const netmask = ObjectHelper.getString(iface, 'netmask', '')
         const macAddress = ObjectHelper.getString(iface, 'mac_address', '')
@@ -295,15 +319,18 @@ export class ApiService {
 
   async fetchConnectedDevices(): Promise<ConnectedDevice[]> {
     try {
+      // 从 DHCP 租约列表获取已连接设备信息
       const leases = await this.client.getLuciDHCPLeases()
       const leasesList = ObjectHelper.getArray(leases, 'leases')
       const list: ConnectedDevice[] = []
 
       for (let i = 0; i < leasesList.length; i++) {
         const lease = leasesList[i]
+        // 每一条租约记录包含 MAC、IP、主机名和在线状态
         const mac = ObjectHelper.getString(lease, 'mac', '')
         const ip = ObjectHelper.getString(lease, 'ip', '')
         const hostname = ObjectHelper.getString(lease, 'hostname', '')
+        // online 字段为 1 表示设备在线
         const isOnline = ObjectHelper.getNumber(lease, 'online', 0) === 1
         const interfaceName = ObjectHelper.getString(lease, 'interface', '')
 
@@ -353,6 +380,7 @@ export class ApiService {
     }
   }
 
+  /** 将秒数格式化为可读的 "X天X时X分" 格式 */
   private formatUptime(seconds: number): string {
     const days = Math.floor(seconds / 86400)
     const hours = Math.floor((seconds % 86400) / 3600)
@@ -374,6 +402,7 @@ export class ApiService {
         const size = ObjectHelper.getNumber(mount, 'size', 0)
         const used = ObjectHelper.getNumber(mount, 'used', 0)
         const available = ObjectHelper.getNumber(mount, 'available', 0)
+        // 计算磁盘使用率百分比（避免除零）
         const usedPercent = size > 0 ? Math.round((used / size) * 100) : 0
 
         const item: MountPoint = {
@@ -396,9 +425,11 @@ export class ApiService {
 
   async fetchConntrackInfo(): Promise<ConntrackInfo> {
     try {
+      // 获取 NAT 连接跟踪统计
       const info = await this.client.getConntrackInfo()
       const count = ObjectHelper.getNumber(info, 'count', 0)
       const max = ObjectHelper.getNumber(info, 'max', 0)
+      // 当前连接数 / 最大连接数 的百分比
       const percent = max > 0 ? Math.round((count / max) * 100) : 0
 
       return {
@@ -476,10 +507,12 @@ export class ApiService {
 
   async fetchWirelessClients(_device?: string): Promise<WirelessClient[]> {
     try {
+      // 获取无线状态，包含所有接口及其连接的客户端列表
       const wireless = await this.client.getWirelessStatus()
       const interfaces = ObjectHelper.getArray(wireless, 'interfaces')
       const list: WirelessClient[] = []
 
+      // 遍历每个无线接口下的客户端（两层嵌套：interfaces → 每个 interface 下的 clients）
       for (let i = 0; i < interfaces.length; i++) {
         const iface = interfaces[i]
         const clients = ObjectHelper.getArray(iface, 'clients')
@@ -489,6 +522,7 @@ export class ApiService {
             mac: ObjectHelper.getString(client, 'mac', ''),
             hostname: ObjectHelper.getString(client, 'hostname', ''),
             interface: ObjectHelper.getString(client, 'interface', ''),
+            // signal 为信号强度（dBm），通常为负值
             signal: ObjectHelper.getNumber(client, 'signal', 0),
             signalNoise: 0,
             rxRate: ObjectHelper.getNumber(client, 'rx_rate', 0),
@@ -509,6 +543,7 @@ export class ApiService {
 
   async fetchWirelessDevices(): Promise<WirelessDevice[]> {
     try {
+      // 获取无线设备列表（如无线网卡），每个设备可能包含多个接口（如 2.4G + 5G）
       const wireless = await this.client.getWirelessDevices()
       const devices = ObjectHelper.getArray(wireless, 'devices')
       const list: WirelessDevice[] = []
@@ -517,6 +552,7 @@ export class ApiService {
         const device = devices[i]
         const interfaces = ObjectHelper.getArray(device, 'interfaces')
 
+        // 从设备的所有子接口中提取 SSID、信道等信息
         let ssid = ''
         let channel = 0
         let frequency = 0
@@ -559,6 +595,7 @@ export class ApiService {
 
   async fetchOafStatus(): Promise<OafStatus> {
     try {
+      // 获取 OAF（应用过滤引擎）各组件版本和运行状态
       const status = await this.client.getOafStatus()
       return {
         pluginVersion: ObjectHelper.getString(status, 'plugin_version', ''),
@@ -585,6 +622,7 @@ export class ApiService {
 
   async fetchAppFilterBase(): Promise<AppFilterBase> {
     try {
+      // 读取应用过滤总开关配置，API 返回 0/1 数值，需转为布尔值
       const base = await this.client.getAppFilterBase()
       return {
         appFilterEnabled: ObjectHelper.getNumber(base, 'enabled', 0) === 1,
@@ -599,10 +637,13 @@ export class ApiService {
 
   async fetchAppFilterClasses(): Promise<AppClass[]> {
     try {
+      // API 返回 [{ classes: [{ id, name, apps: [{ id, name }] }] }] 结构
       const classes = await this.client.getAppFilterClassList()
+      // 取第一个元素的 'classes' 数组
       const classList = classes.length > 0 ? ObjectHelper.getArray(classes[0], 'classes') : []
       const list: AppClass[] = []
 
+      // 两层嵌套遍历：分类 → 每个分类下的应用
       for (let i = 0; i < classList.length; i++) {
         const cls = classList[i]
         const apps = ObjectHelper.getArray(cls, 'apps')
@@ -638,7 +679,10 @@ export class ApiService {
 
   async fetchAppFilterTime(): Promise<AppFilterTime> {
     try {
+      // 解析时间段配置，包含固定时间段和动态时长两种模式
       const time = await this.client.getAppFilterTime()
+
+      // 1. 解析固定时间段数组（每个包含 startHour/startMin/endHour/endMin）
       const fixedTimes = ObjectHelper.getArray(time, 'fixed_times')
       const fixedList: TimeSlot[] = []
 
@@ -653,6 +697,7 @@ export class ApiService {
         fixedList.push(slot)
       }
 
+      // 2. 解析生效的星期列表（0=周日, 1=周一 ... 6=周六）
       const weekdaysArr = ObjectHelper.getArray(time, 'weekdays')
       const weekdays: number[] = []
       for (let i = 0; i < weekdaysArr.length; i++) {
@@ -714,26 +759,32 @@ export class ApiService {
   }
 
   async saveAppFilterBase(_base: AppFilterBase): Promise<boolean> {
+    // TODO: 暂未实现后端保存 API
     return false
   }
 
   async saveAppFilter(_classes: AppClass[]): Promise<boolean> {
+    // TODO: 暂未实现后端保存 API
     return false
   }
 
   async saveAppFilterTime(_time: AppFilterTime): Promise<boolean> {
+    // TODO: 暂未实现后端保存 API
     return false
   }
 
   async saveAppFilterUser(_user: AppFilterUser): Promise<boolean> {
+    // TODO: 暂未实现后端保存 API
     return false
   }
 
   async saveAppFilterAdv(_adv: Object): Promise<boolean> {
+    // TODO: 暂未实现后端保存 API
     return false
   }
 
   async rebootDevice(): Promise<boolean> {
+    // TODO: 暂未实现后端重启 API
     return false
   }
 }

@@ -30,6 +30,7 @@ struct DashboardTab {
   private timerId: number = -1
 
   aboutToAppear(): void {
+    // 首次加载数据，然后启动 5 秒轮询刷新
     this.loadData()
     this.timerId = setInterval(() => {
       this.refreshData()
@@ -47,12 +48,14 @@ struct DashboardTab {
     this.isLoading = true
     this.errorText = ''
     try {
+      // 检查连接状态，未连接则直接返回
       if (!AppState.getInstance().isConnected()) {
         this.errorText = '设备未连接'
         this.isLoading = false
         return
       }
       const api = new ApiService()
+      // 并行请求 6 个 API，减少总加载时间
       const results = await Promise.all([
         api.fetchSystemInfo(),
         api.fetchWanStatus(),
@@ -61,6 +64,7 @@ struct DashboardTab {
         api.fetchConntrack(),
         api.fetchNetworkInterfaces()
       ])
+      // 按 Promise.all 顺序解包结果
       this.systemInfo = results[0]
       this.wanStatus = results[1]
       this.lanStatus = results[2]
@@ -77,10 +81,12 @@ struct DashboardTab {
 
   async refreshData(): Promise<void> {
     try {
+      // 断开连接后停止刷新
       if (!AppState.getInstance().isConnected()) {
         return
       }
       const api = new ApiService()
+      // 静默刷新核心数据（不刷新网络接口列表以减少负载）
       const results = await Promise.all([
         api.fetchSystemInfo(),
         api.fetchWanStatus(),
@@ -95,7 +101,7 @@ struct DashboardTab {
       this.conntrack = results[4]
       this.isOnline = true
     } catch (refErr) {
-      // Silent fail on refresh
+      // 刷新失败静默处理，不打断用户操作
     }
     this.updateTimestamp()
   }
@@ -125,37 +131,47 @@ struct DashboardTab {
 
   getTempColor(temp: number): string {
     if (temp <= 0) {
+      // 未获取到温度数据，使用灰色
       return this.theme.textTertiary
     }
     if (temp < 50) {
+      // < 50°C：健康（绿色）
       return '#00E676'
     }
     if (temp < 65) {
+      // 50-65°C：警告（黄色）
       return '#FFD740'
     }
+    // ≥ 65°C：过热（红色）
     return '#FF5252'
   }
 
   getCpuColor(usage: number): string {
     if (usage < 30) {
+      // < 30%：低负载（绿色）
       return '#00E676'
     }
     if (usage < 60) {
+      // 30-60%：中等负载（黄色）
       return '#FFD740'
     }
+    // ≥ 60%：高负载（红色）
     return '#FF5252'
   }
 
   formatLocalTime(isoStr: string): string {
     try {
+      // 将 ISO 格式时间字符串转为本地友好格式
       const d: Date = new Date(isoStr)
       return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
     } catch (e) {
+      // 解析失败时返回原始字符串兜底
       return isoStr
     }
   }
 
   getMemoryPct(): number {
+    // 计算内存使用率，避免除零
     return this.systemInfo.memoryTotal > 0
       ? (this.systemInfo.memoryUsed / this.systemInfo.memoryTotal) * 100
       : 0
@@ -163,28 +179,32 @@ struct DashboardTab {
 
   getMemoryColor(usage: number): string {
     if (usage < 40) {
+      // < 40%：充足（绿色）
       return '#00E676'
     }
     if (usage < 75) {
+      // 40-75%：适中（黄色）
       return '#FFD740'
     }
+    // ≥ 75%：紧张（红色）
     return '#FF5252'
   }
 
   getTypeColor(type: string): string {
     if (type === 'wan') {
-      return '#FF6E40'
+      return '#FF6E40'  // WAN 用橙色
     }
     if (type === 'lan') {
-      return '#448AFF'
+      return '#448AFF'  // LAN 用蓝色
     }
     if (type === 'wifi') {
-      return '#00E676'
+      return '#00E676'  // WiFi 用绿色
     }
     return this.theme.textTertiary
   }
 
   getLanInterface(): NetworkInterface | null {
+    // 遍历网络接口列表查找第一个 LAN 类型接口
     for (let i = 0; i < this.networkInterfaces.length; i++) {
       if (this.networkInterfaces[i].type === 'lan') {
         return this.networkInterfaces[i]

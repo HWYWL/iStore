@@ -30,12 +30,14 @@ struct ProcessListPage {
     })
 
     this.loadData()
+    // 进程列表每 3 秒自动刷新
     this.refreshTimerId = setInterval(() => {
       this.loadData()
     }, 3000)
   }
 
   aboutToDisappear(): void {
+    // 停止自动刷新定时器
     if (this.refreshTimerId !== -1) {
       clearInterval(this.refreshTimerId)
       this.refreshTimerId = -1
@@ -43,12 +45,14 @@ struct ProcessListPage {
   }
 
   async loadData(): Promise<void> {
+    // 首次加载显示 loading，刷新时不显示（避免闪烁）
     this.isLoading = this.processes.length === 0
     this.errorText = ''
     try {
       const api = new ApiService()
       this.processes = await api.fetchProcessList()
     } catch (e) {
+      // 仅在还没有数据时显示错误
       if (this.processes.length === 0) {
         this.errorText = '加载进程列表失败'
       }

@@ -38,6 +38,7 @@ struct ParentalBasicPage {
     this.errorText = ''
     try {
       const api = new ApiService()
+      // 从 API 获取应用过滤基础配置
       const base: AppFilterBase = await api.fetchAppFilterBase()
       this.appFilterEnabled = base.appFilterEnabled
       this.appLogEnabled = base.appLogEnabled
@@ -54,14 +55,16 @@ struct ParentalBasicPage {
     this.successText = ''
     try {
       const api = new ApiService()
+      // 构造配置对象，断言 workMode 类型以通过编译
       const base: AppFilterBase = {
         appFilterEnabled: this.appFilterEnabled,
         appLogEnabled: this.appLogEnabled,
         workMode: this.workMode as 'gateway' | 'bypass'
       }
+      // 保存配置到路由器
       await api.saveAppFilterBase(base)
       this.successText = '保存成功'
-      setTimeout(() => { this.successText = '' }, 2000)
+      setTimeout(() => { this.successText = '' }, 2000)  // 2 秒后隐藏成功提示
     } catch (e) {
       this.errorText = '保存失败'
     }

@@ -30,6 +30,7 @@ struct FactoryResetPage {
   }
 
   aboutToDisappear(): void {
+    // 离开页面时清理倒计时定时器，防止内存泄漏
     if (this.countdownTimer >= 0) {
       clearInterval(this.countdownTimer)
       this.countdownTimer = -1
@@ -39,13 +40,15 @@ struct FactoryResetPage {
   async loadData(): Promise<void> {
     this.isLoading = true
     this.errorText = ''
+    // 模拟加载延迟，给用户过渡感
     await new Promise<void>((r) => setTimeout(r, 300))
     this.isLoading = false
   }
 
   startCountdown(): void {
     this.isResetting = true
-    this.countdown = 60
+    this.countdown = 60  // 60 秒倒计时
+    // 每秒递减，归零后自动返回上一页
     this.countdownTimer = setInterval(() => {
       this.countdown--
       if (this.countdown <= 0) {
@@ -65,7 +68,9 @@ struct FactoryResetPage {
     this.errorText = ''
     try {
       const api = new ApiService()
+      // 调用 API 执行恢复出厂设置
       await api.factoryReset()
+      // API 调用成功后启动倒计时等待设备重启
       this.startCountdown()
     } catch (e) {
       this.errorText = '恢复出厂设置失败，请重试'

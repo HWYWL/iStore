@@ -180,11 +180,13 @@ struct AppFilterRulesTab {
   }
 
   toggleExpand(id: number): void {
+    // 切换分类展开/折叠状态（使用 Set 追踪已展开的 ID）
     if (this.expandedIds.has(id)) {
       this.expandedIds.delete(id)
     } else {
       this.expandedIds.add(id)
     }
+    // 创建新 Set 实例以触发 @State 响应式更新
     this.expandedIds = new Set(this.expandedIds)
   }
 
@@ -396,7 +398,9 @@ struct AppFilterTimeTab {
                 .fontColor(this.theme.danger)
                 .padding({ left: 12, right: 4 })
                 .onClick(() => {
+                  // 从 fixedTimes 数组中删除指定索引的时间段
                   this.timeConfig.fixedTimes.splice(idx, 1)
+                  // 重建 timeConfig 对象以触发 @State 更新（数组 splice 不会触发变化检测）
                   const newConfig: AppFilterTime = {
                     fixedTimes: [],
                     dynamicMinutes: this.timeConfig.dynamicMinutes,
@@ -406,6 +410,7 @@ struct AppFilterTimeTab {
                     dynamicEndMin: this.timeConfig.dynamicEndMin,
                     weekdays: []
                   }
+                  // 将修改后的数组复制到新对象
                   for (let fi = 0; fi < this.timeConfig.fixedTimes.length; fi++) {
                     newConfig.fixedTimes.push(this.timeConfig.fixedTimes[fi])
                   }
@@ -413,7 +418,7 @@ struct AppFilterTimeTab {
                     newConfig.weekdays.push(this.timeConfig.weekdays[wi])
                   }
                   this.timeConfig = newConfig
-                  this.doSave()
+                  this.doSave()  // 自动保存到后端
                 })
             }
             .width('100%')

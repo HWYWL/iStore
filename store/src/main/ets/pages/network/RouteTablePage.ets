@@ -34,6 +34,7 @@ struct RouteTablePage {
     this.errorText = ''
     try {
       const api = new ApiService()
+      // 获取内核路由表数据
       this.routes = await api.fetchRoutes()
     } catch (e) {
       this.errorText = '加载路由表失败'

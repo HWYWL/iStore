@@ -29,6 +29,7 @@ struct RebootPage {
   }
 
   aboutToDisappear(): void {
+    // 离开页面时清理倒计时定时器，防止内存泄漏
     if (this.countdownTimer >= 0) {
       clearInterval(this.countdownTimer)
       this.countdownTimer = -1
@@ -38,16 +39,18 @@ struct RebootPage {
   async loadData(): Promise<void> {
     this.isLoading = true
     this.errorText = ''
+    // 模拟加载延迟，给用户过渡感
     await new Promise<void>((r) => setTimeout(r, 300))
     this.isLoading = false
   }
 
   startCountdown(): void {
     this.isRebooting = true
-    this.countdown = 60
+    this.countdown = 60  // 60 秒倒计时，等待设备重启完成
     this.countdownTimer = setInterval(() => {
       this.countdown--
       if (this.countdown <= 0) {
+        // 倒计时结束，清理定时器并返回
         clearInterval(this.countdownTimer)
         this.countdownTimer = -1
         this.isRebooting = false
@@ -64,7 +67,9 @@ struct RebootPage {
     this.errorText = ''
     try {
       const api = new ApiService()
+      // 调用 API 执行系统重启
       await api.rebootDevice()
+      // 重启命令发出后启动倒计时
       this.startCountdown()
     } catch (e) {
       this.errorText = '重启失败，请重试'

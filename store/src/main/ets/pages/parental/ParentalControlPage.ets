@@ -39,6 +39,7 @@ struct ParentalControlPage {
     this.errorText = ''
     try {
       const api = new ApiService()
+      // 获取 OAF（应用过滤引擎）运行状态
       this.oafStatus = await api.fetchOafStatus()
     } catch (e) {
       this.errorText = '加载状态失败'
@@ -48,12 +49,12 @@ struct ParentalControlPage {
 
   getStatusColor(status: string): string {
     if (!status) {
-      return this.theme.textTertiary
+      return this.theme.textTertiary  // 无数据时灰色
     }
     if (status === 'running' || status === 'active' || status === 'enabled') {
-      return this.theme.success
+      return this.theme.success  // 正常运行为绿色
     }
-    return this.theme.danger
+    return this.theme.danger  // 异常状态为红色
   }
 
   getStatusLabel(status: string): string {
