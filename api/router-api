@@ -277,6 +277,27 @@ handle_memory_info() {
         "$total" "$free" "$avail" "$used" "$buffers" "$cached"
 }
 
+get_cpu_temp() {
+    # 遍历所有 thermal_zone，按类型匹配
+    for zone in /sys/class/thermal/thermal_zone*; do
+        [ -e "$zone/type" ] || continue
+        local type=$(cat "$zone/type" 2>/dev/null)
+        if [ "$type" = "x86_pkg_temp" ] || [ "$type" = "soc-thermal" ]; then
+            local temp_raw=$(cat "$zone/temp" 2>/dev/null)
+            echo $((temp_raw / 1000))
+            return
+        fi
+    done
+
+    # 如果没有匹配到特定类型，尝试读取第一个存在的温区
+    if [ -r /sys/class/thermal/thermal_zone0/temp ]; then
+        echo $(( $(cat /sys/class/thermal/thermal_zone0/temp) / 1000 ))
+        return
+    fi
+
+    # 都失败则返回 0
+    echo 0
+}
 handle_cpu_info() {
     local usage=0
     read -r _ user nice system idle iowait irq softirq _ < /proc/stat
@@ -287,10 +308,14 @@ handle_cpu_info() {
     local model=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed 's/^[ \t]*//')
     local cores=$(grep -c processor /proc/cpuinfo 2>/dev/null)
 
+    # 获取 CPU 温度
+    local cpu_temp=$(get_cpu_temp)   # 调用上面的函数
+
     json_obj_num "code" 0 "data" "$(json_obj_num \
         "usage_percent" "$usage" \
         "model" "\"${model:-Unknown}\"" \
-        "cores" "${cores:-0}")"
+        "cores" "${cores:-0}" \
+        "cpu_temp" "${cpu_temp}")"
 }
 
 handle_processes() {

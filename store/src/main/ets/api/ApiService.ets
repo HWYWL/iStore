@@ -85,6 +85,15 @@ class ObjectHelper {
     return []
   }
 
+  /** 安全读取嵌套对象字段，缺失时返回空对象 */
+  static getObject(obj: Object, key: string): Object {
+    if (!obj || typeof obj !== 'object') return new EmptyRecord()
+    const record = obj as Record<string, Object>
+    const v = record[key]
+    if (!v || typeof v !== 'object') return new EmptyRecord()
+    return v
+  }
+
   /** 检查对象是否包含指定键 */
   static hasKey(obj: Object, key: string): boolean {
     if (!obj || typeof obj !== 'object') return false
@@ -140,6 +149,7 @@ export class ApiService {
       // 1. 并发请求两个 API：主板信息 + 系统运行信息
       const board = await this.client.getSystemBoard()
       const info = await this.client.getSystemInfo()
+      const release = ObjectHelper.getObject(board, 'release')
 
       // 2. 从主板信息（board）中提取基础硬件信息
       const hostname = ObjectHelper.getString(board, 'hostname', 'OpenWrt')
@@ -147,11 +157,13 @@ export class ApiService {
       const model = ObjectHelper.getString(board, 'model', '') || ObjectHelper.getString(board, 'system', '') || 'OpenWrt'
       const kernel = ObjectHelper.getString(board, 'kernel', '')
       // cpu_model 字段优先，fallback 到 'model' 字段
-      const cpuModel = ObjectHelper.getString(board, 'cpu_model', '') || ObjectHelper.getString(board, 'model', '')
+      const cpuModel = ObjectHelper.getString(board, 'system', '') || ObjectHelper.getString(board, 'model', '')
       const boardName = ObjectHelper.getString(board, 'board_name', '')
-      const distribution = ObjectHelper.getString(board, 'distribution', '')
+      // distribution 在 board.release.distribution 中，需先提取 release 对象
+
+      const distribution = release ? ObjectHelper.getString(release, 'distribution', '') : ''
       // firmware_version 字段优先，fallback 到 'version' 字段
-      const firmwareVersion = ObjectHelper.getString(board, 'firmware_version', '') || ObjectHelper.getString(board, 'version', '')
+      const firmwareVersion = release ? ObjectHelper.getString(release, 'description', '') : '' || ObjectHelper.getString(board, 'firmware_version', '') || ObjectHelper.getString(board, 'version', '')
 
       // 3. 从系统运行信息（info）中提取运行时数据
       const uptime = ObjectHelper.getNumber(info, 'uptime', 0)
@@ -162,15 +174,14 @@ export class ApiService {
 
       // 4. 内存信息在 info.memory 数组中，取第一项
       const memoryArr = ObjectHelper.getArray(info, 'memory')
-      const memory = memoryArr.length > 0 ? memoryArr[0] : new EmptyRecord()
+      const memory = memoryArr.length > 0 ? memoryArr[0] : ObjectHelper.getObject(info, 'memory')
       const memTotal = ObjectHelper.getNumber(memory, 'total', 0)
-      const memUsed = ObjectHelper.getNumber(memory, 'used', 0)
       const memFree = ObjectHelper.getNumber(memory, 'free', 0)
       // available 字段优先，fallback 到 free（兼容旧固件）
       const memAvailable = ObjectHelper.getNumber(memory, 'available', memFree)
       // cached 和 buffered 合并为缓存总量
       const memCached = ObjectHelper.getNumber(memory, 'cached', 0) + ObjectHelper.getNumber(memory, 'buffered', 0)
-
+      const memUsed = memTotal - memAvailable
       // 5. 额外获取 CPU 温度
       const cpuTemp = await this.fetchCPUTemp()
 
