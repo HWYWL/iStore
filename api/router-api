@@ -86,41 +86,77 @@ check_auth() {
 #   处理函数（必须在 case 分发前定义！）
 # ============================================================
 
-handle_system_info() {
-    if [ "$HAS_UBUS" = "1" ]; then
-        local info
-        info=$(ubus call system info 2>/dev/null)
-        if [ -n "$info" ]; then
-            # 清理：移除换行、回车，压缩首尾空格
-            info_clean=$(printf '%s' "$info" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' 2>/dev/null)
+get_cpu_usage() {
+    # 第一次读取
+    read -r _ u1 n1 s1 i1 w1 ir1 si1 _ < /proc/stat
+    sleep 1
+    # 第二次读取
+    read -r _ u2 n2 s2 i2 w2 ir2 si2 _ < /proc/stat
 
-            # 必须是非空、以 { 开头、以 } 结尾
-            case "$info_clean" in
-                '{'*'}')
-                    # 关键：用 jsonfilter 验证是否能解析（老版支持 -e '@'）
-                    if printf '%s\n' "$info_clean" | jsonfilter -e '@' >/dev/null 2>&1; then
-                        # 安全拼接外层 JSON
-                        printf '{"code":0,"data":%s}\n' "$info_clean"
-                        return
-                    fi
-                    ;;
-            esac
-        fi
+    # 计算总时间差和空闲时间差
+    total1=$((u1 + n1 + s1 + i1 + w1 + ir1 + si1))
+    total2=$((u2 + n2 + s2 + i2 + w2 + ir2 + si2))
+    idle1=$((i1 + w1))
+    idle2=$((i2 + w2))
+
+    delta_total=$((total2 - total1))
+    delta_idle=$((idle2 - idle1))
+    delta_used=$((delta_total - delta_idle))
+
+    if [ "$delta_total" -gt 0 ]; then
+        echo $((delta_used * 100 / delta_total))
+    else
+        echo 0
     fi
+}
 
-    # 降级方案（纯 shell 构造）
+handle_system_info() {
+    # 统一使用纯 shell 构造，避免 ubus 分支不一致
     local hostname=$(cat /proc/sys/kernel/hostname 2>/dev/null || echo "OpenWrt")
     local model=$(cat /tmp/sysinfo/model 2>/dev/null || cat /proc/device-tree/model 2>/dev/null || echo "Unknown")
     local kernel=$(uname -r 2>/dev/null || echo "unknown")
     local uptime=$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d'.' -f1 || echo 0)
     local local_time=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "")
 
-    json_obj_num "code" 0 "data" "$(json_obj \
-        "hostname" "$hostname" \
-        "model" "$model" \
-        "kernel" "$kernel" \
+    # 获取 CPU 使用率（会阻塞 1 秒）
+    local cpu_usage=$(get_cpu_usage)
+
+    # 获取负载（/proc/loadavg 前三个字段）
+    local load=""
+    read -r load1 load5 load15 _ < /proc/loadavg 2>/dev/null
+    load="[$load1, $load5, $load15]"
+
+    # 获取内存（单位：KB）
+    local mem_total=0 mem_free=0 mem_avail=0 mem_buffers=0 mem_cached=0
+    while IFS=':' read -r key val; do
+        val=$(echo "$val" | sed 's/[^0-9]*//g')
+        case "$key" in
+            MemTotal)     mem_total=$val ;;
+            MemFree)      mem_free=$val ;;
+            MemAvailable) mem_avail=$val ;;
+            Buffers)      mem_buffers=$val ;;
+            Cached)       mem_cached=$val ;;
+        esac
+    done < /proc/meminfo
+
+    # 组装 JSON
+    json_obj_num "code" 0 "data" "$(json_obj_num \
+        "hostname" "\"$hostname\"" \
+        "model" "\"$model\"" \
+        "kernel" "\"$kernel\"" \
         "uptime" "$uptime" \
-        "local_time" "$local_time")"
+        "localtime" "$(date +%s)" \
+        "load" "$load" \
+        "cpu_usage" "$cpu_usage" \
+        "memory" "$(json_obj_num \
+            "total" "$mem_total" \
+            "free" "$mem_free" \
+            "available" "$mem_avail" \
+            "buffers" "$mem_buffers" \
+            "cached" "$mem_cached")" \
+        "root" "$(df / | awk 'NR==2{printf "{\"total\":%d,\"free\":%d,\"used\":%d,\"avail\":%d}",$2,$4,$3,$4}')" \
+        "tmp" "$(df /tmp | awk 'NR==2{printf "{\"total\":%d,\"free\":%d,\"used\":%d,\"avail\":%d}",$2,$4,$3,$4}')" \
+    )"
 }
 
 handle_system_board() {
@@ -303,11 +339,13 @@ handle_cpu_info() {
 
     local model=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed 's/^[ \t]*//')
     local cores=$(grep -c processor /proc/cpuinfo 2>/dev/null)
+    local cpu_temp=$(get_cpu_temp)
 
     json_obj_num "code" 0 "data" "$(json_obj_num \
         "usage_percent" "$usage" \
         "model" "\"${model:-Unknown}\"" \
-        "cores" "${cores:-0}")"
+        "cores" "${cores:-0}" \
+        "cpu_temp" "${cpu_temp}")"
 }
 
 handle_processes() {
@@ -434,11 +472,6 @@ case "$ACTION" in
     cpu_info)
         check_auth
         handle_cpu_info
-        ;;
-
-    cpu_temp)
-        check_auth
-        get_cpu_temp
         ;;
 
     processes)

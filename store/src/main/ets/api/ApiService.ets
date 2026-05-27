@@ -149,7 +149,6 @@ export class ApiService {
       // 1. 并发请求两个 API：主板信息 + 系统运行信息
       const board = await this.client.getSystemBoard()
       const info = await this.client.getSystemInfo()
-      const release = ObjectHelper.getObject(board, 'release')
 
       // 2. 从主板信息（board）中提取基础硬件信息
       const hostname = ObjectHelper.getString(board, 'hostname', 'OpenWrt')
@@ -159,8 +158,9 @@ export class ApiService {
       // cpu_model 字段优先，fallback 到 'model' 字段
       const cpuModel = ObjectHelper.getString(board, 'system', '') || ObjectHelper.getString(board, 'model', '')
       const boardName = ObjectHelper.getString(board, 'board_name', '')
-      // distribution 在 board.release.distribution 中，需先提取 release 对象
 
+      // distribution 在 board.release.distribution 中，需先提取 release 对象
+      const release = ObjectHelper.getObject(board, 'release')
       const distribution = release ? ObjectHelper.getString(release, 'distribution', '') : ''
       // firmware_version 字段优先，fallback 到 'version' 字段
       const firmwareVersion = release ? ObjectHelper.getString(release, 'description', '') : '' || ObjectHelper.getString(board, 'firmware_version', '') || ObjectHelper.getString(board, 'version', '')
@@ -213,45 +213,46 @@ export class ApiService {
     return this.emptySystemInfo()
   }
 
-  async fetchWanStatus(): Promise<WanStatus> {
+  async fetchLanStatus(): Promise<WanStatus> {
     try {
       // 1. 获取所有网络接口列表，从中匹配 WAN 接口
       const interfaces = await this.client.getNetworkInterfaces()
-      const interfacesList = ObjectHelper.getArray(interfaces, 'interfaces')
+      const interfacesList = ObjectHelper.getArray(interfaces, 'interface')
 
       // 2. 按 type 字段遍历查找 WAN 类型接口
-      let wanIf: Object | null = null
+      let lanIf: Object | null = null
       for (let i = 0; i < interfacesList.length; i++) {
         const iface = interfacesList[i]
-        const type = ObjectHelper.getString(iface, 'type', '')
-        if (type === 'wan') {
-          wanIf = iface
+        const type = ObjectHelper.getString(iface, 'interface', '')
+        if (type === 'lan') {
+          lanIf = iface
           break
         }
       }
 
-      // 3. 未找到 WAN 接口则返回空状态
-      if (!wanIf) {
+      // 3. 未找到 lan 接口则返回空状态
+      if (!lanIf) {
         return this.emptyWanStatus()
       }
 
-      // 4. 从 WAN 接口对象中提取网络配置
-      const ifname = ObjectHelper.getString(wanIf, 'name', 'wan')
-      const ipAddress = ObjectHelper.getString(wanIf, 'ip_address', '0.0.0.0')
-      const netmask = ObjectHelper.getString(wanIf, 'netmask', '')
-      const gateway = ObjectHelper.getString(wanIf, 'gateway', '')
+      // 4. 从 LAN 接口对象中提取网络配置
+      const ifname = ObjectHelper.getString(lanIf, 'device', '')
+      const ipAddress = ObjectHelper.getString(ObjectHelper.getArray(lanIf, 'ipv4-address')?.[0], 'address', '0.0.0.0');
+      const netmask = ObjectHelper.getString(ObjectHelper.getArray(lanIf, 'ipv4-address')?.[0], 'mask', '0.0.0.0');
+      const gateway = ObjectHelper.getString(ObjectHelper.getArray(lanIf, 'route')?.[0], 'nexthop', '0.0.0.0');
+
       // DNS 服务器可能有多条，最多取前 3 条
-      const dnsArray = ObjectHelper.getArray(wanIf, 'dns')
+      const dnsArray = ObjectHelper.getArray(lanIf, 'dns-server')
       const dns: string[] = []
       for (let i = 0; i < dnsArray.length && i < 3; i++) {
         dns.push(String(dnsArray[i]))
       }
-      const proto = ObjectHelper.getString(wanIf, 'proto', '')
-      const macAddr = ObjectHelper.getString(wanIf, 'mac_address', '')
-      const uptime = ObjectHelper.getNumber(wanIf, 'uptime', 0)
+      const proto = ObjectHelper.getString(lanIf, 'proto', '')
+      const macAddr = ObjectHelper.getString(lanIf, 'mac_address', '')
+      const uptime = ObjectHelper.getNumber(lanIf, 'uptime', 0)
       // rx_rate/tx_rate 为实时速率（字节/秒）
-      const rxRate = ObjectHelper.getNumber(wanIf, 'rx_rate', 0)
-      const txRate = ObjectHelper.getNumber(wanIf, 'tx_rate', 0)
+      const rxRate = ObjectHelper.getNumber(lanIf, 'rx_rate', 0)
+      const txRate = ObjectHelper.getNumber(lanIf, 'tx_rate', 0)
 
       // 5. 将 uptime 秒数转为可读字符串
       const onlineTime = this.formatUptime(uptime)
@@ -270,19 +271,16 @@ export class ApiService {
         macAddr: macAddr
       }
     } catch (e) {
-      hilog.error(DOMAIN, TAG, `fetchWanStatus err: ${String(e)}`)
+      hilog.error(DOMAIN, TAG, `fetchLanStatus err: ${String(e)}`)
     }
     return this.emptyWanStatus()
   }
 
-  async fetchLanStatus(): Promise<WanStatus> {
-    return this.fetchWanStatus()
-  }
 
   async fetchNetworkInterfaces(): Promise<NetworkInterface[]> {
     try {
       const interfaces = await this.client.getNetworkInterfaces()
-      const interfacesList = ObjectHelper.getArray(interfaces, 'interfaces')
+      const interfacesList = ObjectHelper.getArray(interfaces, 'interface')
       const list: NetworkInterface[] = []
 
       for (let i = 0; i < interfacesList.length; i++) {

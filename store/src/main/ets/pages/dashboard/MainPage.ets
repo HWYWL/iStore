@@ -58,7 +58,6 @@ struct DashboardTab {
       // 并行请求 6 个 API，减少总加载时间
       const results = await Promise.all([
         api.fetchSystemInfo(),
-        api.fetchWanStatus(),
         api.fetchLanStatus(),
         api.fetchMountPoints(),
         api.fetchConntrack(),
@@ -66,11 +65,10 @@ struct DashboardTab {
       ])
       // 按 Promise.all 顺序解包结果
       this.systemInfo = results[0]
-      this.wanStatus = results[1]
-      this.lanStatus = results[2]
-      this.mountPoints = results[3]
-      this.conntrack = results[4]
-      this.networkInterfaces = results[5]
+      this.lanStatus = results[1]
+      this.mountPoints = results[2]
+      this.conntrack = results[3]
+      this.networkInterfaces = results[4]
       this.isOnline = true
     } catch (dashErr) {
       this.errorText = '加载数据失败'
@@ -89,16 +87,14 @@ struct DashboardTab {
       // 静默刷新核心数据（不刷新网络接口列表以减少负载）
       const results = await Promise.all([
         api.fetchSystemInfo(),
-        api.fetchWanStatus(),
         api.fetchLanStatus(),
         api.fetchMountPoints(),
         api.fetchConntrack()
       ])
       this.systemInfo = results[0]
-      this.wanStatus = results[1]
-      this.lanStatus = results[2]
-      this.mountPoints = results[3]
-      this.conntrack = results[4]
+      this.lanStatus = results[1]
+      this.mountPoints = results[2]
+      this.conntrack = results[3]
       this.isOnline = true
     } catch (refErr) {
       // 刷新失败静默处理，不打断用户操作
@@ -1129,7 +1125,6 @@ struct NetworkTab {
         return
       }
       const api = new ApiService()
-      this.wanStatus = await api.fetchWanStatus()
       this.lanStatus = await api.fetchLanStatus()
       this.interfaces = await api.fetchNetworkInterfaces()
     } catch (netErr) {

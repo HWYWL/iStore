@@ -196,7 +196,7 @@ export class ApiClient {
     const result = await this.request('cpu_info')
     if (result && result.data) {
       const data = result.data as Record<string, Object>
-      return Number(data['temp'] || data['temperature'] || 0)
+      return Number(data['cpu_temp'] || data['temp'] || data['temperature'] || 0)
     }
     return 0
   }
