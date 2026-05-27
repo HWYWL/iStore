@@ -305,15 +305,11 @@ handle_cpu_info() {
     local cores=$(grep -c processor /proc/cpuinfo 2>/dev/null)
     local cpu_temp=$(get_cpu_temp)
 
-    json_init
-    json_add_int "code" 0
-    json_add_object "data"
-    json_add_int "usage_percent" "$usage"
-    json_add_string "model" "${model:-Unknown}"
-    json_add_int "cores" "${cores:-0}"
-    json_add_int "cpu_temp" "$cpu_temp"
-    json_close_object
-    json_dump
+    json_obj_num "code" 0 "data" "$(json_obj_num \
+        "usage_percent" "$usage" \
+        "model" "\"${model:-Unknown}\"" \
+        "cores" "${cores:-0}" \
+        "cpu_temp" "${cpu_temp}")"
 }
 
 handle_processes() {
