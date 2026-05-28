@@ -7,8 +7,12 @@ import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { FormatUtils } from '../../common/utils/FormatUtils'
-import { DeviceVisitTime, DeviceVisitRecord, UserListItem } from '../../models/Models'
+import { DeviceVisitTime, DeviceVisitRecord, ConnectedDevice, WirelessClient } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+
+interface HasMac {
+  mac: string
+}
 
 @Entry
 @Component
@@ -23,7 +27,8 @@ struct ClientDetailPage {
   @State isLoadingStats: boolean = true
   @State isLoadingRecords: boolean = true
 
-  @State userInfo: UserListItem | null = null
+  @State dhcpDevice: ConnectedDevice | null = null
+  @State wifiClient: WirelessClient | null = null
   @State visitTimes: DeviceVisitTime[] = []
   @State visitRecords: DeviceVisitRecord[] = []
   @State basicError: string = ''
@@ -59,9 +64,17 @@ struct ClientDetailPage {
     this.basicError = ''
     try {
       const api = new ApiService()
-      const users = await api.fetchUserList()
-      this.userInfo = this.findUserByMac(users, this.mac)
-      if (!this.userInfo) {
+      const results = await Promise.all([
+        api.fetchConnectedDevices(),
+        api.fetchWirelessClients()
+      ])
+      const dhcpDevices: ConnectedDevice[] = results[0]
+      const wifiClients: WirelessClient[] = results[1]
+
+      this.dhcpDevice = this.findByMac(dhcpDevices, this.mac)
+      this.wifiClient = this.findByMac(wifiClients, this.mac)
+
+      if (!this.dhcpDevice && !this.wifiClient) {
         this.basicError = '未找到该设备信息'
       }
     } catch (e) {
@@ -70,11 +83,11 @@ struct ClientDetailPage {
     this.isLoadingBasic = false
   }
 
-  private findUserByMac(users: UserListItem[], mac: string): UserListItem | null {
-    for (let i = 0; i < users.length; i++) {
-      const user = users[i]
-      if (user.mac.toLowerCase() === mac.toLowerCase()) {
-        return user
+  private findByMac<T extends HasMac>(list: T[], mac: string): T | null {
+    const target = mac.toLowerCase()
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].mac.toLowerCase() === target) {
+        return list[i]
       }
     }
     return null
@@ -292,7 +305,7 @@ struct ClientDetailPage {
         .width('100%')
         .height(200)
         .justifyContent(FlexAlign.Center)
-      } else if (this.basicError && !this.userInfo) {
+      } else if (this.basicError && !this.dhcpDevice && !this.wifiClient) {
         Row() {
           Text('⚠')
             .fontSize(16)
@@ -308,45 +321,113 @@ struct ClientDetailPage {
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
       } else {
-        Column() {
-          Text('📋 基本信息')
-            .fontSize(14)
-            .fontColor(this.theme.textPrimary)
-            .fontWeight(FontWeight.Medium)
-            .margin({ bottom: 12 })
-            .width('100%')
-
-          this.infoRow('设备名称', this.userInfo?.hostname || this.hostname || '--')
-          this.infoRow('MAC 地址', FormatUtils.formatMac(this.userInfo?.mac || this.mac))
-          this.infoRow('IP 地址', this.userInfo?.ip || '--')
-          this.infoRow('在线状态', this.userInfo ? '在线' : '离线',
-            this.userInfo ? this.theme.success : this.theme.danger)
-          this.infoRow('当前应用', this.userInfo?.currentApp || '--')
-          this.infoRow('当前 URL', this.userInfo?.currentUrl || '--')
-
-          if (this.userInfo && this.userInfo.commonApps && this.userInfo.commonApps.length > 0) {
-            Text('常用应用 ID')
-              .fontSize(12)
-              .fontColor(this.theme.textSecondary)
-              .margin({ top: 12, bottom: 6 })
-              .width('100%')
-            Text(this.userInfo.commonApps.join(', '))
-              .fontSize(12)
-              .fontColor(this.theme.textTertiary)
-              .fontFamily('monospace')
-              .width('100%')
-          }
+        if (this.dhcpDevice) {
+          this.DhcpInfoSection()
         }
-        .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .margin({ top: 8 })
-        .backgroundColor(this.theme.bgCard)
-        .backdropBlur(20)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+
+        if (this.wifiClient) {
+          this.WifiInfoSection()
+        }
+
+        if (!this.dhcpDevice && !this.wifiClient) {
+          Row() {
+            Text('⚠')
+              .fontSize(16)
+              .margin({ right: 8 })
+            Text('未找到该设备信息')
+              .fontSize(12)
+              .fontColor(this.theme.warning)
+          }
+          .width('100%')
+          .padding(16)
+          .borderRadius(14)
+          .margin({ top: 8 })
+          .backgroundColor(this.theme.bgCard)
+          .border({ width: 0.5, color: this.theme.borderGlass })
+        }
       }
     }
     .width('100%')
+  }
+
+  @Builder
+  DhcpInfoSection() {
+    Column() {
+      Text('📋 DHCP 租约信息')
+        .fontSize(14)
+        .fontColor(this.theme.textPrimary)
+        .fontWeight(FontWeight.Medium)
+        .margin({ bottom: 12 })
+        .width('100%')
+
+      this.infoRow('设备名称', this.dhcpDevice!.hostname || this.hostname || '--')
+      this.infoRow('MAC 地址', FormatUtils.formatMac(this.dhcpDevice!.mac || this.mac))
+      this.infoRow('IP 地址', FormatUtils.formatIp(this.dhcpDevice!.ip))
+      this.infoRow('在线状态', this.dhcpDevice!.isOnline ? '在线' : '离线',
+        this.dhcpDevice!.isOnline ? this.theme.success : this.theme.danger)
+      this.infoRow('网络接口', this.dhcpDevice!.interface || '--')
+      if (this.dhcpDevice!.onlineTime) {
+        this.infoRow('租约时间', this.dhcpDevice!.onlineTime)
+      }
+      if (this.dhcpDevice!.vendor) {
+        this.infoRow('厂商', this.dhcpDevice!.vendor)
+      }
+    }
+    .width('100%')
+    .padding(14)
+    .borderRadius(14)
+    .margin({ top: 8 })
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(20)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+  }
+
+  @Builder
+  WifiInfoSection() {
+    Column() {
+      Text('📡 无线连接信息')
+        .fontSize(14)
+        .fontColor(this.theme.textPrimary)
+        .fontWeight(FontWeight.Medium)
+        .margin({ bottom: 12 })
+        .width('100%')
+
+      this.infoRow('接入接口', this.wifiClient!.interface || '--')
+      this.infoRow('信号强度', `${this.wifiClient!.signal} dBm`, this.getSignalColor(this.wifiClient!.signal))
+      this.infoRow('信号质量', this.getSignalLevel(this.wifiClient!.signal))
+      this.infoRow('RX 速率', FormatUtils.formatSpeed(this.wifiClient!.rxRate))
+      this.infoRow('TX 速率', FormatUtils.formatSpeed(this.wifiClient!.txRate))
+      if (this.wifiClient!.connectedTime > 0) {
+        this.infoRow('已连接时长', FormatUtils.formatUptime(this.wifiClient!.connectedTime))
+      }
+      if (this.wifiClient!.inactiveTime > 0) {
+        this.infoRow('非活跃时长', FormatUtils.formatUptime(this.wifiClient!.inactiveTime))
+      }
+      if (this.wifiClient!.isMesh) {
+        this.infoRow('组网方式', 'Mesh')
+      }
+    }
+    .width('100%')
+    .padding(14)
+    .borderRadius(14)
+    .margin({ top: 8 })
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(20)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+  }
+
+  getSignalColor(signal: number): string {
+    if (signal >= -50) return this.theme.success
+    if (signal >= -65) return this.theme.warning
+    return this.theme.danger
+  }
+
+  getSignalLevel(signal: number): string {
+    if (signal >= -45) return '▂▄▆█ 优秀'
+    if (signal >= -55) return '▂▄▆_ 良好'
+    if (signal >= -65) return '▂▄__ 一般'
+    if (signal >= -75) return '▂___ 较差'
+    return '____ 很差'
   }
 
   @Builder
@@ -449,6 +530,7 @@ struct ClientDetailPage {
           })
       }
       .width('100%')
+      .alignContent(Alignment.End)
       .margin({ top: 6 })
     }
     .width('100%')

@@ -355,6 +355,7 @@ struct DashboardTab {
                     })
                 }
                 .width('100%')
+                .alignContent(Alignment.End)
               }
               .width('30%')
               .padding(12)
@@ -399,6 +400,7 @@ struct DashboardTab {
                     })
                 }
                 .width('100%')
+                .alignContent(Alignment.End)
               }
               .width('30%')
               .padding(12)
@@ -445,6 +447,7 @@ struct DashboardTab {
                     })
                 }
                 .width('100%')
+                .alignContent(Alignment.End)
               }
               .width('30%')
               .padding(12)
@@ -587,6 +590,7 @@ struct DashboardTab {
                         })
                     }
                     .width('100%')
+                    .alignContent(Alignment.End)
                     .margin({ top: 8 })
                   }
                   .width('100%')

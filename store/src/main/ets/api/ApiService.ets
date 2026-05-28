@@ -30,6 +30,7 @@ import {
 } from '../models/Models'
 import { ConnectionConfig } from '../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { FormatUtils } from '../common/utils/FormatUtils'
 
 const TAG = 'ApiService'
 const DOMAIN = 0x0001
@@ -397,26 +398,51 @@ export class ApiService {
     try {
       // 从 DHCP 租约列表获取已连接设备信息
       const leases = await this.client.getLuciDHCPLeases()
-      const leasesList = ObjectHelper.getArray(leases, 'leases')
+
+      // API 返回的 data 直接就是数组 [{mac, ip, name, expires}, ...]，也可能包在 leases 中
+      let leaseArray: Object[] = []
+      if (Array.isArray(leases)) {
+        leaseArray = leases as Object[]
+      } else {
+        leaseArray = ObjectHelper.getArray(leases, 'leases')
+      }
+
+      const now = Math.floor(Date.now() / 1000)
       const list: ConnectedDevice[] = []
 
-      for (let i = 0; i < leasesList.length; i++) {
-        const lease = leasesList[i]
-        // 每一条租约记录包含 MAC、IP、主机名和在线状态
-        const mac = ObjectHelper.getString(lease, 'mac', '')
-        const ip = ObjectHelper.getString(lease, 'ip', '')
-        const hostname = ObjectHelper.getString(lease, 'hostname', '')
-        // online 字段为 1 表示设备在线
-        const isOnline = ObjectHelper.getNumber(lease, 'online', 0) === 1
-        const interfaceName = ObjectHelper.getString(lease, 'interface', '')
+      for (let i = 0; i < leaseArray.length; i++) {
+        const lease = leaseArray[i]
+        const mac = ObjectHelper.getString(lease, 'mac', '') ||
+          ObjectHelper.getString(lease, 'macaddr', '') ||
+          ObjectHelper.getString(lease, 'hwaddr', '')
+        const ip = ObjectHelper.getString(lease, 'ip', '') ||
+          ObjectHelper.getString(lease, 'ipaddr', '') ||
+          ObjectHelper.getString(lease, 'ipaddress', '')
+        // 优先 hostname，其次 name（API 实际返回的字段）
+        const hostname = ObjectHelper.getString(lease, 'hostname', '') ||
+          ObjectHelper.getString(lease, 'name', '')
+        // expires 为 Unix 时间戳，大于当前时间表示租约未过期 = 在线
+        const expiresNum = ObjectHelper.getNumber(lease, 'expires', 0)
+        const isOnline = ObjectHelper.getNumber(lease, 'online', 0) === 1 ||
+          ObjectHelper.getString(lease, 'online', '') === 'true' ||
+          ObjectHelper.getString(lease, 'active', '') === 'true' ||
+          (expiresNum > 0 && expiresNum > now)
+        const interfaceName = ObjectHelper.getString(lease, 'interface', '') ||
+          ObjectHelper.getString(lease, 'dev', '') ||
+          ObjectHelper.getString(lease, 'device', '')
+        const onlineTimeStr = ObjectHelper.getString(lease, 'online_time', '') ||
+          ObjectHelper.getString(lease, 'lease_time', '')
+        // 如果只有 expires 时间戳，转换为可读时间
+        const expiresTime = expiresNum > 0 ? this.formatTimestamp(expiresNum) : ''
+        const displayOnlineTime = onlineTimeStr || expiresTime
 
         const item: ConnectedDevice = {
           mac: mac,
           ip: ip,
           hostname: hostname,
-          vendor: '',
+          vendor: FormatUtils.getVendorName(mac),
           interface: interfaceName,
-          onlineTime: '',
+          onlineTime: displayOnlineTime,
           signalStrength: 0,
           rxRate: 0,
           txRate: 0,
@@ -467,24 +493,51 @@ export class ApiService {
     return `${hours}时${mins}分`
   }
 
+  /** 将 Unix 时间戳转换为可读的日期时间字符串 */
+  private formatTimestamp(ts: number): string {
+    const d: Date = new Date(ts * 1000)
+    const pad = (n: number): string => n.toString().padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  }
+
   async fetchMountPoints(): Promise<MountPoint[]> {
     try {
       const mounts = await this.client.getMountPoints()
-      const mountsList = ObjectHelper.getArray(mounts, 'mounts')
+
+      // API 返回的 data 直接就是数组 [{device, mount, fs, total_kb, ...}, ...]，也可能包在 mounts 中
+      let mountArray: Object[] = []
+      if (Array.isArray(mounts)) {
+        mountArray = mounts as Object[]
+      } else {
+        mountArray = ObjectHelper.getArray(mounts, 'mounts')
+      }
+
       const list: MountPoint[] = []
 
-      for (let i = 0; i < mountsList.length; i++) {
-        const mount = mountsList[i]
-        const size = ObjectHelper.getNumber(mount, 'size', 0)
-        const used = ObjectHelper.getNumber(mount, 'used', 0)
-        const available = ObjectHelper.getNumber(mount, 'available', 0)
+      for (let i = 0; i < mountArray.length; i++) {
+        const mount = mountArray[i]
+        // API 返回 total_kb/used_kb/free_kb（KB），需 ×1024 转字节
+        const sizeKb = ObjectHelper.getNumber(mount, 'total_kb', 0) ||
+          ObjectHelper.getNumber(mount, 'total', 0)
+        const usedKb = ObjectHelper.getNumber(mount, 'used_kb', 0) ||
+          ObjectHelper.getNumber(mount, 'used', 0)
+        const freeKb = ObjectHelper.getNumber(mount, 'free_kb', 0) ||
+          ObjectHelper.getNumber(mount, 'available', 0) ||
+          ObjectHelper.getNumber(mount, 'free', 0)
+        const size = sizeKb * 1024
+        const used = usedKb * 1024
+        const available = freeKb * 1024
         // 计算磁盘使用率百分比（避免除零）
         const usedPercent = size > 0 ? Math.round((used / size) * 100) : 0
 
         const item: MountPoint = {
           device: ObjectHelper.getString(mount, 'device', ''),
-          mountPoint: ObjectHelper.getString(mount, 'mountpoint', ''),
-          filesystem: ObjectHelper.getString(mount, 'type', ''),
+          mountPoint: ObjectHelper.getString(mount, 'mount', '') ||
+            ObjectHelper.getString(mount, 'mountpoint', '') ||
+            ObjectHelper.getString(mount, 'mount_point', ''),
+          filesystem: ObjectHelper.getString(mount, 'fs', '') ||
+            ObjectHelper.getString(mount, 'type', '') ||
+            ObjectHelper.getString(mount, 'filesystem', ''),
           size: size,
           used: used,
           available: available,
@@ -585,29 +638,26 @@ export class ApiService {
     try {
       // 获取无线状态，包含所有接口及其连接的客户端列表
       const wireless = await this.client.getWirelessStatus()
-      const interfaces = ObjectHelper.getArray(wireless, 'interfaces')
       const list: WirelessClient[] = []
 
+      // 先尝试顶层直接返回的 clients 数组（扁平结构）
+      const topClients = ObjectHelper.getArray(wireless, 'clients')
+      if (topClients.length > 0) {
+        for (let j = 0; j < topClients.length; j++) {
+          const client = topClients[j]
+          list.push(this.parseWirelessClient(client, client))
+        }
+        return list
+      }
+
       // 遍历每个无线接口下的客户端（两层嵌套：interfaces → 每个 interface 下的 clients）
+      const interfaces = ObjectHelper.getArray(wireless, 'interfaces')
       for (let i = 0; i < interfaces.length; i++) {
         const iface = interfaces[i]
         const clients = ObjectHelper.getArray(iface, 'clients')
         for (let j = 0; j < clients.length; j++) {
           const client = clients[j]
-          const item: WirelessClient = {
-            mac: ObjectHelper.getString(client, 'mac', ''),
-            hostname: ObjectHelper.getString(client, 'hostname', ''),
-            interface: ObjectHelper.getString(client, 'interface', ''),
-            // signal 为信号强度（dBm），通常为负值
-            signal: ObjectHelper.getNumber(client, 'signal', 0),
-            signalNoise: 0,
-            rxRate: ObjectHelper.getNumber(client, 'rx_rate', 0),
-            txRate: ObjectHelper.getNumber(client, 'tx_rate', 0),
-            connectedTime: 0,
-            inactiveTime: 0,
-            isMesh: false
-          }
-          list.push(item)
+          list.push(this.parseWirelessClient(client, iface))
         }
       }
       return list
@@ -615,6 +665,36 @@ export class ApiService {
       hilog.error(DOMAIN, TAG, 'fetchWirelessClients err')
     }
     return []
+  }
+
+  private parseWirelessClient(client: Object, iface: Object): WirelessClient {
+    return {
+      mac: ObjectHelper.getString(client, 'mac', '') ||
+        ObjectHelper.getString(client, 'macaddr', ''),
+      hostname: ObjectHelper.getString(client, 'hostname', '') ||
+        ObjectHelper.getString(client, 'name', ''),
+      interface: ObjectHelper.getString(client, 'interface', '') ||
+        ObjectHelper.getString(iface, 'interface', '') ||
+        ObjectHelper.getString(iface, 'ifname', '') ||
+        ObjectHelper.getString(iface, 'name', ''),
+      signal: ObjectHelper.getNumber(client, 'signal', 0) ||
+        ObjectHelper.getNumber(client, 'rssi', 0),
+      signalNoise: ObjectHelper.getNumber(client, 'noise', 0) ||
+        ObjectHelper.getNumber(client, 'signal_noise', 0),
+      rxRate: ObjectHelper.getNumber(client, 'rx_rate', 0) ||
+        ObjectHelper.getNumber(client, 'rx_bitrate', 0) ||
+        ObjectHelper.getNumber(client, 'rx', 0),
+      txRate: ObjectHelper.getNumber(client, 'tx_rate', 0) ||
+        ObjectHelper.getNumber(client, 'tx_bitrate', 0) ||
+        ObjectHelper.getNumber(client, 'tx', 0),
+      connectedTime: ObjectHelper.getNumber(client, 'connected_time', 0) ||
+        ObjectHelper.getNumber(client, 'assoc_time', 0) ||
+        ObjectHelper.getNumber(client, 'uptime', 0),
+      inactiveTime: ObjectHelper.getNumber(client, 'inactive_time', 0) ||
+        ObjectHelper.getNumber(client, 'idle_time', 0),
+      isMesh: ObjectHelper.getNumber(client, 'mesh', 0) === 1 ||
+        ObjectHelper.getString(client, 'mesh', '') === 'true'
+    }
   }
 
   async fetchWirelessDevices(): Promise<WirelessDevice[]> {
