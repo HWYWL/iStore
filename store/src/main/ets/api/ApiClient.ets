@@ -284,6 +284,15 @@ export class ApiClient {
     return new EmptyRecord()
   }
 
+  /** 获取启动项列表 */
+  async getStartupItems(): Promise<Object> {
+    const result = await this.request('startup_items')
+    if (result && result.data) {
+      return result.data
+    }
+    return new EmptyRecord()
+  }
+
   /** 获取路由表 */
   async getRouteTable(): Promise<Object> {
     const result = await this.request('route_table')

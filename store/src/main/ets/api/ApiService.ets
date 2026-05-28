@@ -621,21 +621,39 @@ export class ApiService {
   async fetchProcessList(): Promise<ProcessInfo[]> {
     try {
       const processes = await this.client.getProcessList()
-      const processList = ObjectHelper.getArray(processes, 'processes')
+      let processList: Object[] = []
+      if (Array.isArray(processes)) {
+        processList = processes as Object[]
+      } else {
+        processList = ObjectHelper.getArray(processes, 'processes')
+      }
       const list: ProcessInfo[] = []
 
       for (let i = 0; i < processList.length; i++) {
         const p = processList[i]
+        const rssKb = ObjectHelper.getNumber(p, 'rss_kb', 0)
+        const rssRaw = ObjectHelper.getNumber(p, 'rss', 0)
         const item: ProcessInfo = {
           pid: ObjectHelper.getNumber(p, 'pid', 0),
           ppid: ObjectHelper.getNumber(p, 'ppid', 0),
-          name: ObjectHelper.getString(p, 'name', ''),
-          cpu: ObjectHelper.getNumber(p, 'cpu', 0),
-          mem: ObjectHelper.getNumber(p, 'mem_bytes', 0),
-          memPercent: ObjectHelper.getNumber(p, 'mem_percent', 0),
-          status: ObjectHelper.getString(p, 'status', ''),
+          name: ObjectHelper.getString(p, 'comm', '') ||
+            ObjectHelper.getString(p, 'name', ''),
+          cpu: ObjectHelper.getNumber(p, 'cpu_percent', 0) ||
+            ObjectHelper.getNumber(p, 'cpu', 0) ||
+            ObjectHelper.getNumber(p, 'pcpu', 0),
+          mem: ObjectHelper.getNumber(p, 'mem_bytes', 0) ||
+            ObjectHelper.getNumber(p, 'mem', 0) ||
+            (rssKb > 0 ? rssKb * 1024 : 0) ||
+            (rssRaw > 0 ? rssRaw * 1024 : 0),
+          memPercent: ObjectHelper.getNumber(p, 'mem_percent', 0) ||
+            ObjectHelper.getNumber(p, 'pmem', 0),
+          status: ObjectHelper.getString(p, 'status', '') ||
+            ObjectHelper.getString(p, 'stat', ''),
           user: ObjectHelper.getString(p, 'user', ''),
-          command: ObjectHelper.getString(p, 'command', '')
+          command: ObjectHelper.getString(p, 'command', '') ||
+            ObjectHelper.getString(p, 'args', '') ||
+            ObjectHelper.getString(p, 'comm', '') ||
+            ObjectHelper.getString(p, 'name', '')
         }
         list.push(item)
       }
@@ -647,13 +665,56 @@ export class ApiService {
   }
 
   async fetchStartupItems(): Promise<StartupItem[]> {
+    try {
+      const items = await this.client.getStartupItems()
+      const list: StartupItem[] = []
+
+      // ubus rc list 返回对象格式: { "name": { "start": 30, "enabled": true, "running": true } }
+      if (Array.isArray(items)) {
+        // 兼容旧数组格式
+        const arr = items as Object[]
+        for (let i = 0; i < arr.length; i++) {
+          const it = arr[i]
+          const name = ObjectHelper.getString(it, 'name', '') ||
+            ObjectHelper.getString(it, 'comm', '')
+          list.push(this.parseStartupItem(it, name))
+        }
+      } else if (items && typeof items === 'object') {
+        // 对象格式：遍历 key
+        const keys = Object.keys(items)
+        for (let i = 0; i < keys.length; i++) {
+          const name = keys[i]
+          const svc = (items as Record<string, Object>)[name]
+          list.push(this.parseStartupItem(svc, name))
+        }
+      }
+      return list
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, 'fetchStartupItems err')
+    }
     return []
+  }
+
+  private parseStartupItem(svc: Object, name: string): StartupItem {
+    return {
+      name: typeof name === 'string' ? name : ObjectHelper.getString(svc, 'name', ''),
+      priority: ObjectHelper.getNumber(svc, 'start', 0),
+      enabled: ObjectHelper.getNumber(svc, 'enabled', 0) === 1 ||
+        ObjectHelper.getString(svc, 'enabled', '') === 'true',
+      running: ObjectHelper.getNumber(svc, 'running', 0) === 1 ||
+        ObjectHelper.getString(svc, 'running', '') === 'true'
+    }
   }
 
   async fetchRoutes(): Promise<RouteEntry[]> {
     try {
       const routes = await this.client.getRouteTable()
-      const routeList = ObjectHelper.getArray(routes, 'routes')
+      let routeList: Object[] = []
+      if (Array.isArray(routes)) {
+        routeList = routes as Object[]
+      } else {
+        routeList = ObjectHelper.getArray(routes, 'routes')
+      }
       const list: RouteEntry[] = []
 
       for (let i = 0; i < routeList.length; i++) {
@@ -661,8 +722,10 @@ export class ApiService {
         const item: RouteEntry = {
           destination: ObjectHelper.getString(r, 'destination', ''),
           gateway: ObjectHelper.getString(r, 'gateway', ''),
-          device: ObjectHelper.getString(r, 'device', ''),
-          source: ObjectHelper.getString(r, 'source', ''),
+          device: ObjectHelper.getString(r, 'device', '') ||
+            ObjectHelper.getString(r, 'iface', ''),
+          source: ObjectHelper.getString(r, 'source', '') ||
+            ObjectHelper.getString(r, 'src', ''),
           scope: ObjectHelper.getString(r, 'scope', ''),
           table: ObjectHelper.getString(r, 'table', ''),
           flags: ObjectHelper.getString(r, 'flags', '')

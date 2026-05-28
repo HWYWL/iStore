@@ -387,28 +387,112 @@ handle_cpu_info() {
 }
 
 handle_processes() {
-    local top_n="${QUERY_STRING##*top=}"
-    top_n="${top_n%%&*}"
-    [ -z "$top_n" ] && top_n=5
+    # 可通过 ?top=10 控制返回数量，默认 10
+    local top_n=20
 
-    local procs_json="["
-    local first=1 count=0
+    # 获取系统时钟频率（默认 100）和运行时间（秒）
+    local HZ=$(getconf CLK_TCK 2>/dev/null || echo 100)
+    local uptime_sec=$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d'.' -f1)
+    [ -z "$uptime_sec" ] && uptime_sec=0
 
-    for pid_dir in /proc/[0-9]*; do
-        [ "$count" -ge "$top_n" ] && break
-        local pid=$(basename "$pid_dir")
-        local comm=$(cut -d' ' -f1 "$pid_dir/comm" 2>/dev/null)
-        local rss=$(awk '/VmRSS/{print $2}' "$pid_dir/status" 2>/dev/null)
+    local tmp1="/tmp/procs_$$_1"
+    local tmp2="/tmp/procs_$$_2"
+    > "$tmp1"
+
+    # 遍历所有进程
+    for status in /proc/[0-9]*/status; do
+        [ -f "$status" ] || continue
+        local dir="${status%/status}"
+        local pid="${dir##*/}"
+        local comm=$(cat "/proc/$pid/comm" 2>/dev/null)
         [ -z "$comm" ] && continue
+
+        # 物理内存
+        local rss=$(awk '/^VmRSS:/{print $2}' "$status" 2>/dev/null)
         [ -z "$rss" ] && rss=0
 
-        [ "$first" -eq 1 ] && first=0 || procs_json="${procs_json},"
-        procs_json="${procs_json}{\"pid\":${pid},\"name\":\"${comm}\",\"rss_kb\":${rss}}"
-        count=$((count + 1))
+        # 读取 /proc/[pid]/stat 获取 CPU 时间和启动时间
+        local stat_line=$(cat "/proc/$pid/stat" 2>/dev/null)
+        local utime=0 stime=0 starttime=0
+        if [ -n "$stat_line" ]; then
+            utime=$(echo "$stat_line" | awk '{print $14}')
+            stime=$(echo "$stat_line" | awk '{print $15}')
+            starttime=$(echo "$stat_line" | awk '{print $22}')
+        fi
+
+        # 计算平均 CPU 使用率（自进程启动以来）
+        local cpu_percent=0
+        if [ "$uptime_sec" -gt 0 ] && [ "$HZ" -gt 0 ]; then
+            local total_jiffies=$((utime + stime))
+            local proc_uptime_jiffies=$(( uptime_sec * HZ - starttime ))
+            if [ "$proc_uptime_jiffies" -gt 0 ]; then
+                cpu_percent=$(( total_jiffies * 100 / proc_uptime_jiffies ))
+                [ "$cpu_percent" -gt 100 ] && cpu_percent=100
+            fi
+        fi
+
+        # 记录到临时文件（字段：rss pid comm cpu_percent）
+        echo "$rss $pid $comm $cpu_percent" >> "$tmp1"
     done
 
-    procs_json="${procs_json}]"
-    printf '{"code":0,"data":%s}\n' "$procs_json"
+    # 按内存降序排序，取前 top_n 个
+    sort -rn "$tmp1" | head -n "$top_n" > "$tmp2"
+
+    # 构造 JSON
+    local output="[" first=1
+    while read -r rss pid comm cpu_percent; do
+        [ -z "$pid" ] && continue
+        local escaped_comm=$(echo "$comm" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        [ "$first" = "1" ] && first=0 || output="${output},"
+        output="${output}{\"pid\":${pid},\"rss\":${rss},\"comm\":\"${escaped_comm}\",\"cpu_percent\":${cpu_percent}}"
+    done < "$tmp2"
+
+    output="${output}]"
+    printf '{"code":0,"data":%s}\n' "$output"
+    rm -f "$tmp1" "$tmp2"
+}
+
+handle_route_table() {
+    printf '{"code":0,"data":['
+
+    if command -v ip >/dev/null 2>&1; then
+        local first=1
+        ip route show 2>/dev/null | while read -r line; do
+            [ -z "$line" ] && continue
+            local dest="" gw="" dev="" src=""
+            # 解析 ip route 输出
+            dest=$(echo "$line" | awk '{print $1}')
+            local rest=$(echo "$line" | sed 's/^[^ ]* //')
+            gw=$(echo "$rest" | sed -n 's/.*via \([^ ]*\).*/\1/p')
+            dev=$(echo "$rest" | sed -n 's/.*dev \([^ ]*\).*/\1/p')
+            src=$(echo "$rest" | sed -n 's/.*src \([^ ]*\).*/\1/p')
+            [ -z "$dest" ] && continue
+            [ "$first" -eq 1 ] && first=0 || printf ','
+            printf '{"destination":"%s","gateway":"%s","device":"%s","source":"%s","flags":"%s"}' \
+                "$dest" "${gw:-}" "${dev:-}" "${src:-}" "$(echo "$line" | awk '{for(i=2;i<=NF;i++)if($i!~/dev|via|src|proto|scope|metric|link|src/&&$i!~/^[0-9]/){printf "%s ",$i}}')"
+        done
+    elif command -v route >/dev/null 2>&1; then
+        local first=1
+        route -n 2>/dev/null | tail -n +3 | while read -r dest gw _ flags _ _ _ iface; do
+            [ -z "$dest" ] && continue
+            [ "$first" -eq 1 ] && first=0 || printf ','
+            printf '{"destination":"%s","gateway":"%s","device":"%s","source":"","flags":"%s"}' "$dest" "$gw" "$iface" "$flags"
+        done
+    fi
+
+    printf ']}\n'
+}
+
+handle_startup_items() {
+    if [ "$HAS_UBUS" = "1" ]; then
+        local data
+        data=$(ubus call rc list '{"verbose":true}' 2>/dev/null)
+        if [ -n "$data" ]; then
+            printf '{"code":0,"data":%s}\n' "$data"
+            return
+        fi
+    fi
+    printf '{"code":0,"data":{}}\n'
 }
 
 handle_uci_get() {
@@ -522,6 +606,16 @@ case "$ACTION" in
     processes)
         check_auth
         handle_processes
+        ;;
+
+    route_table)
+        check_auth
+        handle_route_table
+        ;;
+
+    startup_items)
+        check_auth
+        handle_startup_items
         ;;
 
     uci_get)
