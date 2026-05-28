@@ -78,7 +78,7 @@ check_auth() {
     [ -z "$client_token" ] && client_token=$(echo "$QUERY_STRING" | sed -n 's/.*token=\([^&]*\).*/\1/p')
     [ -z "$client_token" ] && client_token="${HTTP_COOKIE##*router_token=}"
     [ -z "$client_token" ] && json_error 401 "authentication required（请在 URL 加 ?token=xxx 或 Header X-Auth-Token）"
-    [ "$client_token" != "$AUTH_TOKEN" ] && json_error 403 "invalid token"
+    [ "$client_token" != "$AUTH_TOKEN" ] && json_error 403 "Token错误"
     return 0
 }
 

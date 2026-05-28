@@ -209,7 +209,7 @@ struct LoginPage {
         } else {
           this.errorMessage = '连接失败，请检查地址和 Token'
         }
-        setTimeout(() => { this.errorMessage = '' }, 5000)
+        setTimeout(() => { this.errorMessage = '' }, 10000)
       }
     } catch (netErr) {
       // 网络异常处理
@@ -439,10 +439,15 @@ struct LoginPage {
             }
 
             if (this.errorMessage) {
-              Text(this.errorMessage)
-                .fontSize(12).fontColor(this.theme.danger)
-                .width('100%').textAlign(TextAlign.Center)
-                .margin({ top: 12, bottom: 4 })
+              Row() {
+                Text('⚠ ' + this.errorMessage)
+                  .fontSize(13).fontColor(this.theme.danger)
+                  .layoutWeight(1)
+              }
+              .width('100%').padding({ left: 14, right: 14, top: 12, bottom: 12 })
+              .borderRadius(12).margin({ top: 14 })
+              .backgroundColor(this.isDark ? 'rgba(255, 82, 82, 0.1)' : 'rgba(255, 82, 82, 0.05)')
+              .border({ width: 0.5, color: this.isDark ? 'rgba(255, 82, 82, 0.25)' : 'rgba(255, 82, 82, 0.15)' })
             }
 
             if (this.successMessage) {

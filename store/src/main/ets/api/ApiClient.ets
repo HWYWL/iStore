@@ -20,6 +20,7 @@ const DOMAIN = 0x0001
 class RouterApiResponse {
   code: number = 0       // 0 表示成功
   message: string = ''   // 响应消息
+  msg: string = ''       // 兼容 msg 字段
   data: Object = new EmptyRecord()  // 响应数据
 }
 
@@ -58,23 +59,38 @@ export class ApiClient {
   }
 
   /**
-   * 测试连接：发送 ping 请求验证连通性
+   * 测试连接并验证认证：发送 system_board 请求（需要认证）
+   * ping 不检查 Token，改用 system_board 确保 Token 有效性
    * @returns 连接是否成功
    */
   async connect(): Promise<boolean> {
     try {
-      const result = await this.request('ping')
+      const result = await this.request('system_board')
       if (result && result.code === 0) {
         this.connected = true
         this.lastError = ''
         return true
       } else {
-        const msg: string = result && typeof result.message === 'string' ? result.message : 'Connection failed'
+        let msg: string = ''
+        if (result && result.message) {
+          msg = result.message
+        }
+        if (!msg && result) {
+          const code: number = result.code
+          if (code === 401 || code === 403) {
+            msg = `认证失败：${code === 401 ? 'Token 未提供' : 'Token 无效或已过期'}`
+          } else if (code !== 0) {
+            msg = `服务器返回错误 (${code})`
+          }
+        }
+        if (!msg) {
+          msg = '连接失败，请检查设备地址和 Token'
+        }
         this.lastError = msg
         return false
       }
     } catch (e) {
-      this.lastError = `Connection failed: ${String(e)}`
+      this.lastError = '无法连接到设备，请检查网络和地址'
       hilog.error(DOMAIN, TAG, `Connect failed: ${e}`)
       return false
     }
@@ -109,16 +125,35 @@ export class ApiClient {
 
       const code = r.responseCode
       if (code === 200) {
-        // 处理不同格式的响应体（字符串或对象）
         const resultData = r.result as Object
-        let respBody = ''
+        let parsed: RouterApiResponse
         if (typeof resultData === 'string') {
-          respBody = resultData
+          // 响应体是字符串，直接解析 JSON
+          parsed = JSON.parse(resultData) as RouterApiResponse
+          if (!parsed.message && parsed.msg) {
+            parsed.message = parsed.msg
+          }
+        } else if (typeof resultData === 'object') {
+          // 响应体已被框架解析为对象，映射字段
+          parsed = new RouterApiResponse()
+          const obj = resultData as Record<string, Object>
+          if (obj['code'] !== undefined) {
+            parsed.code = Number(obj['code'])
+          }
+          if (typeof obj['message'] === 'string') {
+            parsed.message = obj['message'] as string
+          } else if (typeof obj['msg'] === 'string') {
+            // 兼容服务器返回 msg 字段
+            parsed.message = obj['msg'] as string
+          }
+          if (obj['data'] !== undefined) {
+            parsed.data = obj['data'] as Object
+          }
         } else {
-          respBody = String(resultData)
+          // 未知格式，返回空响应
+          parsed = new RouterApiResponse()
         }
         req.destroy()  // 释放 HTTP 资源
-        const parsed: RouterApiResponse = JSON.parse(respBody) as RouterApiResponse
         return parsed
       } else {
         req.destroy()
