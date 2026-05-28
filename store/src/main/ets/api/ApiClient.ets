@@ -22,6 +22,7 @@ class RouterApiResponse {
   message: string = ''   // 响应消息
   msg: string = ''       // 兼容 msg 字段
   data: Object = new EmptyRecord()  // 响应数据
+  rates: Object = new EmptyRecord() // 网速速率（network_interfaces 返回）
 }
 
 /**
@@ -149,6 +150,9 @@ export class ApiClient {
           if (obj['data'] !== undefined) {
             parsed.data = obj['data'] as Object
           }
+          if (obj['rates'] !== undefined) {
+            parsed.rates = obj['rates'] as Object
+          }
         } else {
           // 未知格式，返回空响应
           parsed = new RouterApiResponse()
@@ -166,6 +170,11 @@ export class ApiClient {
       this.lastError = `Request failed: ${String(e)}`
       return null
     }
+  }
+
+  /** 直接请求任意 action 并返回完整响应（含 rates 等扩展字段） */
+  async requestDirect(action: string, device?: string): Promise<RouterApiResponse | null> {
+    return this.request(action, device)
   }
 
   // ========== 系统信息类 API ==========
@@ -217,6 +226,15 @@ export class ApiClient {
     return new EmptyRecord()
   }
 
+  /** 获取网络接口列表 + 实时速率（一次请求，避免并发导致速率归零） */
+  async getNetworkInterfacesWithRates(): Promise<Object> {
+    const result = await this.request('network_interfaces')
+    if (result) {
+      return result as Object
+    }
+    return new EmptyRecord()
+  }
+
   /** 获取指定接口的流量统计 */
   async getNetworkDeviceStats(device: string): Promise<Object> {
     const result = await this.request('network_devices', device)
@@ -224,6 +242,18 @@ export class ApiClient {
       return result.data
     }
     return new EmptyRecord()
+  }
+
+  /** 获取各接口的实时网速（rx_rate/tx_rate, bytes/s） */
+  async getNetworkRates(): Promise<Object[]> {
+    const result = await this.request('network_rates')
+    if (result && result.data) {
+      const data = result.data
+      if (Array.isArray(data)) {
+        return data as Object[]
+      }
+    }
+    return []
   }
 
   /** 获取 CPU 温度 */

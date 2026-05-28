@@ -187,15 +187,20 @@ handle_system_board() {
 }
 
 handle_network_interfaces() {
+    # 先计算实时网速（每次请求都更新）
+    local rates
+    rates=$(get_network_rates)
+
     if [ "$HAS_UBUS" = "1" ]; then
         local data
         data=$(ubus call network.interface dump 2>/dev/null)
         if [ -n "$data" ]; then
             data_clean=$(printf '%s' "$data" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' 2>/dev/null)
             case "$data_clean" in
-                '{'*'}'|'['*']')  # 可能是对象或数组
+                '{'*'}'|'['*']')
                     if printf '%s\n' "$data_clean" | jsonfilter -e '@' >/dev/null 2>&1; then
-                        printf '{"code":0,"data":%s}\n' "$data_clean"
+                        # ubus 数据 + 速率（客户端按 iface/interface 字段合并）
+                        printf '{"code":0,"data":%s,"rates":%s}\n' "$data_clean" "$rates"
                         return
                     fi
                     ;;
@@ -203,16 +208,8 @@ handle_network_interfaces() {
         fi
     fi
 
-    # 降级：读取 /proc/net/dev
-    local devs=""
-    local first=1
-    while IFS=: read -r iface _; do
-        iface=$(echo "$iface" | sed 's/^[[:space:]]*//')
-        [ -z "$iface" ] && continue
-        [ "$first" -eq 1 ] && first=0 || devs="${devs},"
-        devs="${devs}\"${iface}\""
-    done < /proc/net/dev
-    printf '{"code":0,"data":{"interfaces":[%s]}}\n' "$devs"
+    # 降级：从 /proc/net/dev + 速率计算结果构建响应
+    printf '{"code":0,"data":{"interfaces":%s}}\n' "$rates"
 }
 
 handle_network_wifi() {
@@ -242,6 +239,47 @@ handle_network_wifi() {
     else
         json_error 500 "iwinfo not available"
     fi
+}
+
+# ---- 网速速率计算（从 /proc/net/dev 两次采样对比）----
+get_network_rates() {
+    # 第一次快照
+    local snap1=$(cat /proc/net/dev)
+    sleep 1
+    # 第二次快照
+    local snap2=$(cat /proc/net/dev)
+
+    # 使用 awk 对比两个快照（通过变量传递，而不是文件）
+    awk -v s1="$snap1" -v s2="$snap2" '
+    BEGIN {
+        # 解析第一次快照，存入数组
+        split(s1, lines1, "\n")
+        for (i in lines1) {
+            if (lines1[i] ~ /:/ && lines1[i] !~ /^[ ]*lo:/) {
+                split(lines1[i], f)
+                iface = f[1]; sub(/:$/, "", iface)
+                rx1[iface] = f[2]
+                tx1[iface] = f[10]
+            }
+        }
+        # 解析第二次快照并输出
+        split(s2, lines2, "\n")
+        first = 1
+        printf "["
+        for (i in lines2) {
+            if (lines2[i] ~ /:/ && lines2[i] !~ /^[ ]*lo:/) {
+                split(lines2[i], f)
+                iface = f[1]; sub(/:$/, "", iface)
+                rx2 = f[2]; tx2 = f[10]
+                rx_rate = (rx2 - rx1[iface] >= 0) ? (rx2 - rx1[iface]) : 0
+                tx_rate = (tx2 - tx1[iface] >= 0) ? (tx2 - tx1[iface]) : 0
+                if (!first) printf ","
+                first = 0
+                printf "{\"iface\":\"%s\",\"rx_bytes\":%d,\"tx_bytes\":%d,\"rx_rate\":%d,\"tx_rate\":%d}", iface, rx2, tx2, rx_rate, tx_rate
+            }
+        }
+        printf "]\n"
+    }'
 }
 
 handle_network_devices() {
@@ -452,6 +490,13 @@ case "$ACTION" in
     network_devices)
         check_auth
         handle_network_devices
+        ;;
+
+    network_rates)
+        check_auth
+        printf '{"code":0,"data":'
+        get_network_rates
+        printf '}\n'
         ;;
 
     dhcp_leases)

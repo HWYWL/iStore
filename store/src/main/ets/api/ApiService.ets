@@ -124,9 +124,34 @@ export class ApiService {
   private client: ApiClient
   private historyBuffer: TrafficHistory[] = []
   private statsCache: Map<string, number[]> = new Map()
+  private rateMapCache: Record<string, Object> | null = null
+  private interfacesCache: Object | null = null
 
   constructor() {
     this.client = ApiClient.getInstance()
+  }
+
+  /** 获取网络接口数据 + 速率映射（实例级缓存，仅一次 HTTP 请求） */
+  private async getNetworkData(): Promise<void> {
+    if (this.interfacesCache && this.rateMapCache) {
+      return
+    }
+    const result = await this.client.requestDirect('network_interfaces')
+    this.interfacesCache = (result && result.data) ? result.data : new EmptyRecord()
+    const rateMap: Record<string, Object> = {}
+    if (result && result.rates && Array.isArray(result.rates)) {
+      const rates = result.rates as Object[]
+      for (let i = 0; i < rates.length; i++) {
+        const r = rates[i]
+        const key = ObjectHelper.getString(r, 'iface', '') ||
+          ObjectHelper.getString(r, 'interface', '') ||
+          ObjectHelper.getString(r, 'name', '')
+        if (key) {
+          rateMap[key] = r
+        }
+      }
+    }
+    this.rateMapCache = rateMap
   }
 
   configureConnection(config: ConnectionConfig): void {
@@ -232,9 +257,9 @@ export class ApiService {
 
   async fetchLanStatus(): Promise<WanStatus> {
     try {
-      // 1. 获取所有网络接口列表
-      const interfaces = await this.client.getNetworkInterfaces()
-      const interfacesList = ObjectHelper.getArray(interfaces, 'interface')
+      await this.getNetworkData()
+      const interfacesList = ObjectHelper.getArray(this.interfacesCache!, 'interface')
+      const rateMap = this.rateMapCache!
 
       // 2. 多策略查找 LAN 接口（按优先级尝试）
       let lanIf: Object | null = null
@@ -305,9 +330,16 @@ export class ApiService {
       const proto = ObjectHelper.getString(lanIf, 'proto', '')
       const macAddr = ObjectHelper.getString(lanIf, 'mac_address', '')
       const uptime = ObjectHelper.getNumber(lanIf, 'uptime', 0)
-      // rx_rate/tx_rate 为实时速率（字节/秒）
-      const rxRate = ObjectHelper.getNumber(lanIf, 'rx_rate', 0)
-      const txRate = ObjectHelper.getNumber(lanIf, 'tx_rate', 0)
+      // rx_rate/tx_rate 优先从 rateMap 查找（真实计算值）
+      const lanName = ObjectHelper.getString(lanIf, 'interface', '') ||
+        ObjectHelper.getString(lanIf, 'device', '')
+      const lanRate = rateMap[lanName] || rateMap[ifname]
+      let rxRate = ObjectHelper.getNumber(lanRate, 'rx_rate', 0)
+      let txRate = ObjectHelper.getNumber(lanRate, 'tx_rate', 0)
+      if (rxRate === 0 && txRate === 0) {
+        rxRate = ObjectHelper.getNumber(lanIf, 'rx_rate', 0)
+        txRate = ObjectHelper.getNumber(lanIf, 'tx_rate', 0)
+      }
 
       // 5. 将 uptime 秒数转为可读字符串
       const onlineTime = this.formatUptime(uptime)
@@ -334,8 +366,10 @@ export class ApiService {
 
   async fetchNetworkInterfaces(): Promise<NetworkInterface[]> {
     try {
-      const interfaces = await this.client.getNetworkInterfaces()
-      const interfacesList = ObjectHelper.getArray(interfaces, 'interface')
+      await this.getNetworkData()
+      const interfacesList = ObjectHelper.getArray(this.interfacesCache!, 'interface')
+      const rateMap = this.rateMapCache!
+
       const list: NetworkInterface[] = []
 
       for (let i = 0; i < interfacesList.length; i++) {
@@ -366,8 +400,16 @@ export class ApiService {
         const macAddress = ObjectHelper.getString(iface, 'mac_address', '')
         const rxBytes = ObjectHelper.getNumber(iface, 'rx_bytes', 0)
         const txBytes = ObjectHelper.getNumber(iface, 'tx_bytes', 0)
-        const rxRate = ObjectHelper.getNumber(iface, 'rx_rate', 0)
-        const txRate = ObjectHelper.getNumber(iface, 'tx_rate', 0)
+
+        // 速率优先从 rateMap 查找（真实计算值），fallback 到 ubus 返回的字段
+        const devName = ObjectHelper.getString(iface, 'device', '') || ''
+        const rate = rateMap[displayName] || rateMap[ifName] || rateMap[name] || rateMap[devName]
+        let rxRate = ObjectHelper.getNumber(rate, 'rx_rate', 0)
+        let txRate = ObjectHelper.getNumber(rate, 'tx_rate', 0)
+        if (rxRate === 0 && txRate === 0) {
+          rxRate = ObjectHelper.getNumber(iface, 'rx_rate', 0)
+          txRate = ObjectHelper.getNumber(iface, 'tx_rate', 0)
+        }
         const uptime = ObjectHelper.getNumber(iface, 'uptime', 0)
 
         const item: NetworkInterface = {

@@ -66,6 +66,7 @@ struct DashboardTab {
       // 按 Promise.all 顺序解包结果
       this.systemInfo = results[0]
       this.lanStatus = results[1]
+      this.wanStatus = results[1]
       this.mountPoints = results[2]
       this.conntrack = results[3]
       this.networkInterfaces = results[4]
@@ -93,6 +94,7 @@ struct DashboardTab {
       ])
       this.systemInfo = results[0]
       this.lanStatus = results[1]
+      this.wanStatus = results[1]
       this.mountPoints = results[2]
       this.conntrack = results[3]
       this.isOnline = true
