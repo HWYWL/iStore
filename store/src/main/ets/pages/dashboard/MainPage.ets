@@ -27,6 +27,7 @@ struct DashboardTab {
   @State mountPoints: MountPoint[] = []
   @State conntrack: ConntrackInfo = { current: 0, max: 0, percent: 0 }
   @State networkInterfaces: NetworkInterface[] = []
+  @State onlineClientCount: number = 0
   private timerId: number = -1
 
   aboutToAppear(): void {
@@ -55,13 +56,14 @@ struct DashboardTab {
         return
       }
       const api = new ApiService()
-      // 并行请求 6 个 API，减少总加载时间
+      // 并行请求，减少总加载时间
       const results = await Promise.all([
         api.fetchSystemInfo(),
         api.fetchLanStatus(),
         api.fetchMountPoints(),
         api.fetchConntrack(),
-        api.fetchNetworkInterfaces()
+        api.fetchNetworkInterfaces(),
+        api.fetchConnectedDevices()
       ])
       // 按 Promise.all 顺序解包结果
       this.systemInfo = results[0]
@@ -70,12 +72,23 @@ struct DashboardTab {
       this.mountPoints = results[2]
       this.conntrack = results[3]
       this.networkInterfaces = results[4]
+      this.onlineClientCount = this.countOnlineClients(results[5])
       this.isOnline = true
     } catch (dashErr) {
       this.errorText = '加载数据失败'
     }
     this.isLoading = false
     this.updateTimestamp()
+  }
+
+  countOnlineClients(devices: ConnectedDevice[]): number {
+    let count = 0
+    for (let i = 0; i < devices.length; i++) {
+      if (devices[i].isOnline) {
+        count++
+      }
+    }
+    return count
   }
 
   async refreshData(): Promise<void> {
@@ -85,18 +98,19 @@ struct DashboardTab {
         return
       }
       const api = new ApiService()
-      // 静默刷新核心数据（不刷新网络接口列表以减少负载）
       const results = await Promise.all([
         api.fetchSystemInfo(),
         api.fetchLanStatus(),
         api.fetchMountPoints(),
-        api.fetchConntrack()
+        api.fetchConntrack(),
+        api.fetchConnectedDevices()
       ])
       this.systemInfo = results[0]
       this.lanStatus = results[1]
       this.wanStatus = results[1]
       this.mountPoints = results[2]
       this.conntrack = results[3]
+      this.onlineClientCount = this.countOnlineClients(results[4])
       this.isOnline = true
     } catch (refErr) {
       // 刷新失败静默处理，不打断用户操作
@@ -505,31 +519,74 @@ struct DashboardTab {
             .backdropBlur(20)
             .border({ width: 0.5, color: this.theme.borderGlass })
 
-            // ============ 网络接口卡片（仅 LAN） ============
-            Column() {
-              Text('🌐 局域网')
-                .fontSize(14)
-                .fontColor(this.theme.textPrimary)
-                .fontWeight(FontWeight.Medium)
-                .margin({ bottom: 12 })
+            // ============ 局域网 + 在线用户数 并排卡片 ============
+            Row() {
+              // 局域网
+              Column() {
+                Text('🌐 局域网')
+                  .fontSize(14)
+                  .fontColor(this.theme.textPrimary)
+                  .fontWeight(FontWeight.Medium)
+                  .margin({ bottom: 12 })
 
-              if (this.getLanInterface() === null) {
-                this.infoRow('IP 地址', this.lanStatus.ipAddress !== '0.0.0.0' ? this.lanStatus.ipAddress : '--')
-                this.infoRow('网关', this.lanStatus.gateway || '--')
-                if (this.lanStatus.dns.length > 0) {
-                  this.infoRow('DNS', this.lanStatus.dns.join(', '))
+                if (this.getLanInterface() === null) {
+                  this.infoRow('IP 地址', this.lanStatus.ipAddress !== '0.0.0.0' ? this.lanStatus.ipAddress : '--')
+                  this.infoRow('网关', this.lanStatus.gateway || '--')
+                  if (this.lanStatus.dns.length > 0) {
+                    this.infoRow('DNS', this.lanStatus.dns.join(', '))
+                  }
+                } else {
+                  this.NetInterfaceRow(this.getLanInterface()!)
                 }
-              } else {
-                this.NetInterfaceRow(this.getLanInterface()!)
               }
+              .width('48%')
+              .padding(14)
+              .borderRadius(14)
+              .backgroundColor(this.theme.bgCard)
+              .backdropBlur(20)
+              .border({ width: 0.5, color: this.theme.borderGlass })
+              .alignItems(HorizontalAlign.Start)
+
+              Blank()
+
+              // 在线用户数
+              Column() {
+                Text('👥 在线用户')
+                  .fontSize(14)
+                  .fontColor(this.theme.textPrimary)
+                  .fontWeight(FontWeight.Medium)
+                  .margin({ bottom: 12 })
+
+                Row() {
+                  Text(`${this.onlineClientCount}`)
+                    .fontSize(36)
+                    .fontColor(this.theme.primary)
+                    .fontWeight(FontWeight.Bold)
+                    .fontFamily('monospace')
+                  Text(' 台设备')
+                    .fontSize(14)
+                    .fontColor(this.theme.textSecondary)
+                    .margin({ left: 4, top: 18 })
+                }
+
+                if (this.onlineClientCount === 0) {
+                  Text('暂无在线设备')
+                    .fontSize(11)
+                    .fontColor(this.theme.textTertiary)
+                    .margin({ top: 4 })
+                }
+              }
+              .width('48%')
+              .justifyContent(FlexAlign.Center)
+              .alignItems(HorizontalAlign.Center)
+              .padding(14)
+              .borderRadius(14)
+              .backgroundColor(this.theme.bgCard)
+              .backdropBlur(20)
+              .border({ width: 0.5, color: this.theme.borderGlass })
             }
             .width('100%')
-            .padding(14)
-            .borderRadius(14)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
 
             // ============ 磁盘使用卡片 ============
             Column() {
