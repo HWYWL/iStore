@@ -225,6 +225,14 @@ struct DashboardTab {
     return null
   }
 
+  getLanIP(): string {
+    const lanIf = this.getLanInterface()
+    if (lanIf && lanIf.ipAddress) {
+      return lanIf.ipAddress
+    }
+    return this.lanStatus.ipAddress !== '0.0.0.0' ? this.lanStatus.ipAddress : '--'
+  }
+
   build() {
     Column() {
       // 顶部：设备名 + 在线状态 + 更新时间
@@ -275,7 +283,7 @@ struct DashboardTab {
         Scroll() {
           Column() {
             if (this.errorText) {
-              Row() {
+              Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Stretch }) {
                 Text('⚠')
                   .fontSize(16)
                   .margin({ right: 8 })
@@ -519,76 +527,86 @@ struct DashboardTab {
             .backdropBlur(20)
             .border({ width: 0.5, color: this.theme.borderGlass })
 
-            // ============ 局域网 + 在线用户数 并排卡片 ============
-            Row() {
-              // 局域网
-              Column() {
+            // ============ 局域网 ============
+            Column() {
+              Row() {
                 Text('🌐 局域网')
-                  .fontSize(14)
+                  .fontSize(13)
                   .fontColor(this.theme.textPrimary)
                   .fontWeight(FontWeight.Medium)
-                  .margin({ bottom: 12 })
 
-                if (this.getLanInterface() === null) {
-                  this.infoRow('IP 地址', this.lanStatus.ipAddress !== '0.0.0.0' ? this.lanStatus.ipAddress : '--')
-                  this.infoRow('网关', this.lanStatus.gateway || '--')
-                  if (this.lanStatus.dns.length > 0) {
-                    this.infoRow('DNS', this.lanStatus.dns.join(', '))
-                  }
-                } else {
-                  this.NetInterfaceRow(this.getLanInterface()!)
-                }
+                Blank()
+
+                Text(this.getLanIP())
+                  .fontSize(16)
+                  .fontColor(this.theme.primary)
+                  .fontWeight(FontWeight.Bold)
+                  .fontFamily('monospace')
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
               }
-              .width('48%')
-              .padding(14)
-              .borderRadius(14)
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
-              .alignItems(HorizontalAlign.Start)
+              .width('100%')
 
-              Blank()
-
-              // 在线用户数
-              Column() {
-                Text('👥 在线用户')
-                  .fontSize(14)
-                  .fontColor(this.theme.textPrimary)
-                  .fontWeight(FontWeight.Medium)
-                  .margin({ bottom: 12 })
-
+              if (this.lanStatus.gateway) {
                 Row() {
-                  Text(`${this.onlineClientCount}`)
-                    .fontSize(36)
-                    .fontColor(this.theme.primary)
-                    .fontWeight(FontWeight.Bold)
-                    .fontFamily('monospace')
-                  Text(' 台设备')
-                    .fontSize(14)
-                    .fontColor(this.theme.textSecondary)
-                    .margin({ left: 4, top: 18 })
-                }
-
-                if (this.onlineClientCount === 0) {
-                  Text('暂无在线设备')
+                  Text('网关')
                     .fontSize(11)
                     .fontColor(this.theme.textTertiary)
-                    .margin({ top: 4 })
+                  Blank()
+                  Text(this.lanStatus.gateway)
+                    .fontSize(11)
+                    .fontColor(this.theme.textSecondary)
+                    .fontFamily('monospace')
                 }
+                .width('100%')
+                .margin({ top: 4 })
               }
-              .width('48%')
-              .justifyContent(FlexAlign.Center)
-              .alignItems(HorizontalAlign.Center)
-              .padding(14)
-              .borderRadius(14)
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
             }
             .width('100%')
+            .padding(10)
+            .borderRadius(12)
             .margin({ top: 10 })
+            .backgroundColor(this.theme.bgCard)
+            .backdropBlur(20)
+            .border({ width: 0.5, color: this.theme.borderGlass })
 
-            // ============ 磁盘使用卡片 ============
+            // ============ 在线用户数 ============
+            Column() {
+              Row() {
+                Text('👥 在线用户')
+                  .fontSize(13)
+                  .fontColor(this.theme.textPrimary)
+                  .fontWeight(FontWeight.Medium)
+
+                Blank()
+
+                Text(`${this.onlineClientCount}`)
+                  .fontSize(22)
+                  .fontColor(this.theme.primary)
+                  .fontWeight(FontWeight.Bold)
+                  .fontFamily('monospace')
+
+                Text(' 台设备')
+                  .fontSize(12)
+                  .fontColor(this.theme.textSecondary)
+                  .margin({ left: 4 })
+              }
+              .width('100%')
+
+              if (this.onlineClientCount === 0) {
+                Text('暂无在线设备')
+                  .fontSize(11)
+                  .fontColor(this.theme.textTertiary)
+                  .margin({ top: 4 })
+              }
+            }
+            .width('100%')
+            .padding(10)
+            .borderRadius(12)
+            .margin({ top: 10 })
+            .backgroundColor(this.theme.bgCard)
+            .backdropBlur(20)
+            .border({ width: 0.5, color: this.theme.borderGlass })
             Column() {
               Text('💾 磁盘使用')
                 .fontSize(14)
@@ -686,10 +704,12 @@ struct DashboardTab {
         .fill(iface.status === 'up' ? this.theme.success : this.theme.textTertiary)
         .margin({ right: 6 })
       Text(iface.ipAddress || '0.0.0.0')
-        .fontSize(18)
+        .fontSize(14)
         .fontColor(this.theme.primary)
         .fontWeight(FontWeight.Bold)
         .fontFamily('monospace')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
     .margin({ bottom: 8 })
