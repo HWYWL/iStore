@@ -213,24 +213,78 @@ export class ApiService {
     return this.emptySystemInfo()
   }
 
+  /**
+   * 判断 IPv4 地址是否为私有地址（内网）
+   * 支持 10.x.x.x, 172.16-31.x.x, 192.168.x.x
+   */
+  private isPrivateIPv4(ip: string): boolean {
+    if (!ip || ip === '0.0.0.0') return false
+    const parts = ip.split('.')
+    if (parts.length !== 4) return false
+    const first = parseInt(parts[0])
+    const second = parseInt(parts[1])
+    if (first === 10) return true
+    if (first === 172 && second >= 16 && second <= 31) return true
+    if (first === 192 && second === 168) return true
+    return false
+  }
+
   async fetchLanStatus(): Promise<WanStatus> {
     try {
-      // 1. 获取所有网络接口列表，从中匹配 WAN 接口
+      // 1. 获取所有网络接口列表
       const interfaces = await this.client.getNetworkInterfaces()
       const interfacesList = ObjectHelper.getArray(interfaces, 'interface')
 
-      // 2. 按 type 字段遍历查找 WAN 类型接口
+      // 2. 多策略查找 LAN 接口（按优先级尝试）
       let lanIf: Object | null = null
+
+      // 策略 A: 精确匹配 interface === 'lan'
       for (let i = 0; i < interfacesList.length; i++) {
         const iface = interfacesList[i]
-        const type = ObjectHelper.getString(iface, 'interface', '')
-        if (type === 'lan') {
+        const ifName = ObjectHelper.getString(iface, 'interface', '')
+        if (ifName === 'lan') {
           lanIf = iface
           break
         }
       }
 
-      // 3. 未找到 lan 接口则返回空状态
+      // 策略 B: 匹配 type === 'lan'
+      if (!lanIf) {
+        for (let i = 0; i < interfacesList.length; i++) {
+          const iface = interfacesList[i]
+          const typeStr = ObjectHelper.getString(iface, 'type', '')
+          if (typeStr === 'lan') {
+            lanIf = iface
+            break
+          }
+        }
+      }
+
+      // 策略 C: 匹配常见 LAN 桥接设备名（br-lan）
+      if (!lanIf) {
+        for (let i = 0; i < interfacesList.length; i++) {
+          const iface = interfacesList[i]
+          const device = ObjectHelper.getString(iface, 'device', '')
+          if (device === 'br-lan' || device.startsWith('br-lan')) {
+            lanIf = iface
+            break
+          }
+        }
+      }
+
+      // 策略 D: 查找第一个持有私有 IPv4 地址的接口
+      if (!lanIf) {
+        for (let i = 0; i < interfacesList.length; i++) {
+          const iface = interfacesList[i]
+          const ip = ObjectHelper.getString(ObjectHelper.getArray(iface, 'ipv4-address')?.[0], 'address', '')
+          if (this.isPrivateIPv4(ip)) {
+            lanIf = iface
+            break
+          }
+        }
+      }
+
+      // 3. 未找到 LAN 接口则返回空状态
       if (!lanIf) {
         return this.emptyWanStatus()
       }
@@ -238,7 +292,7 @@ export class ApiService {
       // 4. 从 LAN 接口对象中提取网络配置
       const ifname = ObjectHelper.getString(lanIf, 'device', '')
       const ipAddress = ObjectHelper.getString(ObjectHelper.getArray(lanIf, 'ipv4-address')?.[0], 'address', '0.0.0.0');
-      const netmask = ObjectHelper.getString(ObjectHelper.getArray(lanIf, 'ipv4-address')?.[0], 'mask', '0.0.0.0');
+      const netmask = ObjectHelper.getString(ObjectHelper.getArray(lanIf, 'ipv4-address')?.[0], 'mask', '0');
       const gateway = ObjectHelper.getString(ObjectHelper.getArray(lanIf, 'route')?.[0], 'nexthop', '0.0.0.0');
 
       // DNS 服务器可能有多条，最多取前 3 条
@@ -286,15 +340,28 @@ export class ApiService {
       for (let i = 0; i < interfacesList.length; i++) {
         const iface = interfacesList[i]
         const name = ObjectHelper.getString(iface, 'name', '')
-        // 将类型字符串映射为枚举值，未知类型默认视为 LAN
+        // 优先用 interface 字段作为名称，name 字段作为备选
+        const ifName = ObjectHelper.getString(iface, 'interface', '')
+        const displayName = name || ifName || ''
+
+        // 类型推断：优先使用 type 字段，其次根据接口名推断
         const typeStr = ObjectHelper.getString(iface, 'type', '')
         let type: 'wan' | 'lan' | 'wifi' | 'vpn' = 'lan'
         if (typeStr === 'wan') type = 'wan'
         else if (typeStr === 'wifi') type = 'wifi'
         else if (typeStr === 'vpn') type = 'vpn'
+        // 从接口名称推断类型（当 type 字段为空或不存在时）
+        else if (typeStr === '') {
+          const lower = ifName.toLowerCase()
+          if (lower.startsWith('wan') || lower.startsWith('wwan')) type = 'wan'
+          else if (lower.startsWith('wlan') || lower.startsWith('phy') || lower.startsWith('radio')) type = 'wifi'
+          else if (lower.startsWith('vpn') || lower.startsWith('tun') || lower.startsWith('tap')) type = 'vpn'
+          // 其他（包括 'lan', 'br-lan', 等）保持默认 'lan'
+        }
         // 提取接口的 IP、速率、流量统计等字段
-        const ipAddress = ObjectHelper.getString(iface, 'ip_address', '')
-        const netmask = ObjectHelper.getString(iface, 'netmask', '')
+        const ipAddress = ObjectHelper.getString(ObjectHelper.getArray(iface, 'ipv4-address')?.[0], 'address', '0.0.0.0');
+        const netmask = ObjectHelper.getString(ObjectHelper.getArray(iface, 'ipv4-address')?.[0], 'mask', '0');
+
         const macAddress = ObjectHelper.getString(iface, 'mac_address', '')
         const rxBytes = ObjectHelper.getNumber(iface, 'rx_bytes', 0)
         const txBytes = ObjectHelper.getNumber(iface, 'tx_bytes', 0)
@@ -303,7 +370,7 @@ export class ApiService {
         const uptime = ObjectHelper.getNumber(iface, 'uptime', 0)
 
         const item: NetworkInterface = {
-          name: name,
+          name: displayName,
           type: type,
           ipAddress: ipAddress,
           netmask: netmask,
