@@ -209,7 +209,7 @@ struct AboutPage {
             .backdropBlur(20)
             .border({ width: 0.5, color: this.theme.borderGlass })
 
-            Text('© 2026 iStore Team')
+            Text('© 2026 iStore 一叶秋枫')
               .fontSize(11)
               .fontColor(this.theme.textTertiary)
               .textAlign(TextAlign.Center)

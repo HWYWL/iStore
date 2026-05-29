@@ -12,6 +12,7 @@ import { ConnectionConfig } from '../../models/Models'
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { common } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { pasteboard } from '@kit.BasicServicesKit'
 
 @Entry
 @Component
@@ -259,6 +260,60 @@ struct LoginPage {
     }
   }
 
+  shareDevice(device: SavedDevice): void {
+    try {
+      const js = JSON.stringify({ host: device.host, port: device.port, token: device.token, label: device.label || '' })
+      const pb = pasteboard.getSystemPasteboard()
+      pb.setData(pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, js))
+      this.successMessage = '已复制，可在其他设备粘贴导入'
+      setTimeout(() => { this.successMessage = '' }, 2500)
+    } catch (e) {
+      this.errorMessage = '复制失败'
+    }
+  }
+
+  async importDevice(): Promise<void> {
+    try {
+      const pb: pasteboard.SystemPasteboard = pasteboard.getSystemPasteboard()
+      const pasteData: pasteboard.PasteData = await pb.getData()
+      const record: pasteboard.PasteDataRecord = pasteData.getRecord(0)
+      if (!record) {
+        this.errorMessage = '剪贴板为空'
+        return
+      }
+      const text: string = record.plainText
+      if (!text) {
+        this.errorMessage = '剪贴板为空'
+        return
+      }
+      const json: Record<string, string> = JSON.parse(text) as Record<string, string>
+      if (!json['host']) {
+        this.errorMessage = '缺少设备地址'
+        return
+      }
+      const label: string = json['label'] || json['host']
+      const newId: string = `import_${Date.now()}_${json['host']}`
+      const device: SavedDevice = {
+        id: newId,
+        host: json['host'],
+        port: String(json['port'] || '80'),
+        token: json['token'] || '',
+        useHttps: false,
+        label: label,
+        version: 0,
+        lastConnected: 0,
+        username: '',
+        password: ''
+      }
+      await this.appState.saveDevice(device)
+      this.savedDevices = this.appState.devices
+      this.successMessage = `已导入: ${label}`
+      setTimeout(() => { this.successMessage = '' }, 2500)
+    } catch (e) {
+      this.errorMessage = '导入失败，请确认剪贴板内容有效'
+    }
+  }
+
   build() {
     Stack() {
       Column() {
@@ -337,6 +392,10 @@ struct LoginPage {
                       .fontSize(16).fontColor(this.theme.textTertiary).padding(8)
                       .onClick(() => { this.fillForm(device) })
 
+                    Text('📋')
+                      .fontSize(16).fontColor(this.theme.textTertiary).padding(8)
+                      .onClick(() => { this.shareDevice(device) })
+
                     Text('🗑')
                       .fontSize(16).fontColor(this.theme.textTertiary).padding(8)
                       .onClick(() => { this.deleteDevice(device.id) })
@@ -352,8 +411,13 @@ struct LoginPage {
 
             Row() {
               Text(this.showAddForm ? '收起 ▲' : '+ 添加新设备')
-                .fontSize(12).fontColor(this.theme.textSecondary)
-                .padding({ top: 8, bottom: 8 })
+                .fontSize(14).fontColor(this.theme.primary).fontWeight(FontWeight.Medium)
+                .padding({ top: 12, bottom: 12 })
+              Blank()
+              Text('📥 导入设备')
+                .fontSize(14).fontColor(this.theme.primary).fontWeight(FontWeight.Medium)
+                .padding({ top: 12, bottom: 12, left: 16, right: 16 })
+                .onClick(() => { this.importDevice() })
             }
             .width('100%').justifyContent(FlexAlign.Center)
             .onClick(() => { this.toggleAddForm() })
