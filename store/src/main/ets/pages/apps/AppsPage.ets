@@ -25,7 +25,8 @@ struct AppsPage {
     { emoji: '🚀', name: '启动项', route: 'pages/process/StartupPage' },
     { emoji: '🔄', name: '重启', route: 'pages/system/RebootPage' },
     { emoji: '🔙', name: '恢复出厂', route: 'pages/system/FactoryResetPage' },
-    { emoji: '🌐', name: 'OpenWRT 首页', route: 'pages/apps/WebViewPage' }
+    { emoji: '🌐', name: 'OpenWRT 首页', route: 'pages/apps/WebViewPage' },
+    { emoji: 'ℹ️', name: '关于', route: 'pages/other/AboutPage' }
   ]
 
   aboutToAppear(): void {

@@ -534,6 +534,31 @@ EOF
     json_error 500 "uci show failed"
 }
 
+handle_reboot() {
+    # 立即重启（可能需要几秒才断开连接）
+    /sbin/reboot >/dev/null 2>&1
+    # 返回成功信息（实际命令发出后，连接可能就断了）
+    printf '{"code":0,"msg":"reboot signal sent, device will restart"}\n'
+}
+
+handle_factory_reset() {
+    # 强制要求 confirm=yes 参数，防止误操作
+    local confirm=$(echo "$QUERY_STRING" | sed -n 's/.*confirm=\([^&]*\).*/\1/p')
+    if [ "$confirm" != "yes" ]; then
+        json_error 400 "factory_reset requires ?confirm=yes"
+        return
+    fi
+
+    # 执行恢复出厂设置（清除所有配置，下次重启生效）
+    # firstboot 会删除 /overlay 等，然后自动重启
+    if command -v firstboot >/dev/null 2>&1; then
+        firstboot >/dev/null 2>&1 && reboot
+        printf '{"code":0,"msg":"factory reset initiated, device will reboot"}\n'
+    else
+        json_error 500 "firstboot command not found"
+    fi
+}
+
 # ---- 解析请求 ----
 METHOD="${REQUEST_METHOD:-GET}"
 QUERY_STRING="${QUERY_STRING:-}"
@@ -621,6 +646,16 @@ case "$ACTION" in
     uci_get)
         check_auth
         handle_uci_get
+        ;;
+
+    reboot)
+        check_auth
+        handle_reboot
+        ;;
+
+    factory_reset)
+        check_auth
+        handle_factory_reset
         ;;
 
     uci_get_all)

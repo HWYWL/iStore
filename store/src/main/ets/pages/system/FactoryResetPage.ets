@@ -68,10 +68,12 @@ struct FactoryResetPage {
     this.errorText = ''
     try {
       const api = new ApiService()
-      // 调用 API 执行恢复出厂设置
-      await api.factoryReset()
-      // API 调用成功后启动倒计时等待设备重启
-      this.startCountdown()
+      const result = await api.factoryReset()
+      if (result) {
+        this.startCountdown()
+      } else {
+        this.errorText = '恢复出厂设置失败，请重试'
+      }
     } catch (e) {
       this.errorText = '恢复出厂设置失败，请重试'
     }

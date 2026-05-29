@@ -1000,7 +1000,13 @@ export class ApiService {
   }
 
   async factoryReset(): Promise<string> {
-    return ''
+    try {
+      const ok = await this.client.factoryReset()
+      return ok ? 'reset_initiated' : ''
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `factoryReset err: ${String(e)}`)
+      return ''
+    }
   }
 
   async fetchAllOafUsers(): Promise<Object[]> {
@@ -1045,7 +1051,11 @@ export class ApiService {
   }
 
   async rebootDevice(): Promise<boolean> {
-    // TODO: 暂未实现后端重启 API
-    return false
+    try {
+      return await this.client.reboot()
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `rebootDevice err: ${String(e)}`)
+      return false
+    }
   }
 }

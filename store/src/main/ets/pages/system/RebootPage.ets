@@ -67,10 +67,12 @@ struct RebootPage {
     this.errorText = ''
     try {
       const api = new ApiService()
-      // 调用 API 执行系统重启
-      await api.rebootDevice()
-      // 重启命令发出后启动倒计时
-      this.startCountdown()
+      const ok = await api.rebootDevice()
+      if (ok) {
+        this.startCountdown()
+      } else {
+        this.errorText = '重启失败，请重试'
+      }
     } catch (e) {
       this.errorText = '重启失败，请重试'
     }

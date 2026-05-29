@@ -440,6 +440,20 @@ export class ApiClient {
     return this.lastError
   }
 
+  // ========== 系统操作 API ==========
+
+  /** 重启设备 */
+  async reboot(): Promise<boolean> {
+    const result = await this.request('reboot')
+    return result !== null && result.code === 0
+  }
+
+  /** 恢复出厂设置（需 confirm=yes 确认参数） */
+  async factoryReset(): Promise<boolean> {
+    const result = await this.request('factory_reset&confirm=yes')
+    return result !== null && result.code === 0
+  }
+
   // ========== 预留接口（未来扩展） ==========
 
   /** 检查路由器是否支持某项能力 */
