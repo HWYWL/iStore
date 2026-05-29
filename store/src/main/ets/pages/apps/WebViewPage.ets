@@ -20,6 +20,7 @@ struct WebViewPage {
   @State loadingProgress: number = 0
   @State isLoading: boolean = true
   @State webUrl: string = ''
+  @State pageTitle: string = 'OpenWRT 首页'
   @State errorOccurred: boolean = false
   controller: webview.WebviewController = new webview.WebviewController()
   private username: string = ''
@@ -37,14 +38,24 @@ struct WebViewPage {
 
     const activeDevice: SavedDevice | undefined = AppState.getInstance().getActiveDevice()
     if (activeDevice) {
-      this.username = activeDevice.username
-      this.password = activeDevice.password
+      this.username = activeDevice.username || 'root'
+      this.password = activeDevice.password || activeDevice.token
     }
 
     this.buildWebUrl()
   }
 
   buildWebUrl(): void {
+    // 优先使用路由参数传入的 URL
+    try {
+      const params = this.getUIContext().getRouter().getParams() as Record<string, Object>
+      if (params && params['url']) {
+        this.webUrl = params['url'] as string
+        this.pageTitle = 'iStore 应用'
+        return
+      }
+    } catch (_) {}
+
     const activeDevice: SavedDevice | undefined = AppState.getInstance().getActiveDevice()
     if (!activeDevice) {
       this.webUrl = ''
@@ -246,7 +257,7 @@ struct WebViewPage {
             Text('←')
               .fontSize(18)
               .fontColor(this.theme.primary)
-            Text(' OpenWRT 首页')
+            Text(this.pageTitle)
               .fontSize(16)
               .fontColor(this.theme.textPrimary)
               .fontWeight(FontWeight.Medium)
@@ -317,6 +328,7 @@ struct WebViewPage {
           } else {
             Web({ src: this.webUrl, controller: this.controller })
               .domStorageAccess(true)
+              .databaseAccess(true)
               .javaScriptAccess(true)
               .zoomAccess(true)
               .fileAccess(true)
