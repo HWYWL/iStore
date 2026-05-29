@@ -3,7 +3,7 @@ import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
 
-const CURRENT_VERSION = '1.1.0'
+const CURRENT_VERSION = '1.2.0'
 const PROJECT_URL = 'https://github.com/HWYWL/iStore'
 
 @Entry
