@@ -6,6 +6,10 @@ import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
  */
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { http } from '@kit.NetworkKit'
+import { util } from '@kit.ArkTS'
+
+const VERSION_URL = 'https://raw.githubusercontent.com/HWYWL/iStore/main/api/version.json'
 
 interface ToolEntry {
   emoji: string
@@ -18,6 +22,7 @@ interface ToolEntry {
 struct AppsPage {
   @State isDark: boolean = true
   @State theme: ThemePalette = DARK_THEME
+  @State itemSlides: number[] = []
   private tools: ToolEntry[] = [
     { emoji: '👨‍👩‍👧', name: '家长控制', route: 'pages/parental/ParentalControlPage' },
     { emoji: '🗺', name: '路由表', route: 'pages/network/RouteTablePage' },
@@ -26,8 +31,46 @@ struct AppsPage {
     { emoji: '🔄', name: '重启', route: 'pages/system/RebootPage' },
     { emoji: '🔙', name: '恢复出厂', route: 'pages/system/FactoryResetPage' },
     { emoji: '🌐', name: 'OpenWRT 首页', route: 'pages/apps/WebViewPage' },
-    { emoji: 'ℹ️', name: '关于', route: 'pages/other/AboutPage' }
+    { emoji: 'ℹ️', name: '关于', route: '__about__' }
   ]
+
+  async fetchVersionAndAbout(): Promise<void> {
+    let ver = '未知'
+    let req: http.HttpRequest | null = null
+    try {
+      req = http.createHttp()
+      const result = await Promise.race([
+        req.request(VERSION_URL, {
+          method: http.RequestMethod.GET,
+          expectDataType: http.HttpDataType.STRING,
+          connectTimeout: 4000,
+          readTimeout: 4000
+        }),
+        new Promise<null>(r => setTimeout(() => r(null), 5000))
+      ])
+      if (result && (result as http.HttpResponse).responseCode === 200) {
+        const resp = result as http.HttpResponse
+        let bodyStr = ''
+        if (typeof resp.result === 'string') {
+          bodyStr = resp.result as string
+        } else {
+          const decoder = new util.TextDecoder('utf-8')
+          bodyStr = decoder.decodeToString(new Uint8Array(resp.result as ArrayBuffer))
+        }
+        const body = JSON.parse(bodyStr) as Record<string, Object>
+        ver = (body['version'] as string) || '未知'
+      }
+    } catch (_) {
+    } finally {
+      try { req?.destroy() } catch (_) {}
+    }
+    try {
+      this.getUIContext().getRouter().pushUrl({
+        url: 'pages/other/AboutPage',
+        params: { latestVersion: ver }
+      })
+    } catch (_) {}
+  }
 
   aboutToAppear(): void {
     this.isDark = AppState.getInstance().isDarkMode
@@ -37,6 +80,24 @@ struct AppsPage {
       this.isDark = AppState.getInstance().isDarkMode
       this.theme = AppState.getInstance().getTheme()
     })
+
+    // 初始化每张卡片从右侧 300px 外开始
+    const slides: number[] = []
+    for (let i = 0; i < this.tools.length; i++) {
+      slides.push(300)
+    }
+    this.itemSlides = slides
+
+    // 逐卡片延迟触发从右向左滑入动画
+    for (let i = 0; i < this.tools.length; i++) {
+      setTimeout(() => {
+        this.getUIContext().animateTo({ duration: 380, curve: Curve.EaseOut }, () => {
+          const arr = [...this.itemSlides]
+          arr[i] = 0
+          this.itemSlides = arr
+        })
+      }, 60 * i)
+    }
   }
 
   build() {
@@ -96,7 +157,7 @@ struct AppsPage {
 
         Scroll() {
           Grid() {
-            ForEach(this.tools, (tool: ToolEntry) => {
+            ForEach(this.tools, (tool: ToolEntry, index: number) => {
               GridItem() {
                 Column() {
                   Text(tool.emoji)
@@ -126,9 +187,15 @@ struct AppsPage {
                 .backgroundColor(this.theme.bgCard)
                 .backdropBlur(20)
                 .border({ width: 0.5, color: this.theme.borderGlass })
+                .opacity(this.itemSlides.length > index ? (this.itemSlides[index] === 0 ? 1 : 0) : 0)
+                .translate({ x: this.itemSlides.length > index ? this.itemSlides[index] : 300 })
                 .onClick(() => {
                   try {
-                    this.getUIContext().getRouter().pushUrl({ url: tool.route })
+                    if (tool.route === '__about__') {
+                      this.fetchVersionAndAbout()
+                    } else {
+                      this.getUIContext().getRouter().pushUrl({ url: tool.route })
+                    }
                   } catch (e) {
                     hilog.error(0x0001, 'AppsPage', `pushUrl failed: ${e}`)
                   }

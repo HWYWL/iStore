@@ -1,11 +1,9 @@
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
-import { http } from '@kit.NetworkKit'
-import { BusinessError } from '@kit.BasicServicesKit'
+import { common } from '@kit.AbilityKit'
 
 const CURRENT_VERSION = '1.1.0'
-const VERSION_URL = 'https://raw.githubusercontent.com/HWYWL/iStore/main/api/version.json'
 const PROJECT_URL = 'https://github.com/HWYWL/iStore'
 
 @Entry
@@ -14,7 +12,7 @@ struct AboutPage {
   @State isDark: boolean = true
   @State theme: ThemePalette = DARK_THEME
   @State latestVersion: string = '加载中...'
-  @State isLoadingVersion: boolean = true
+  @State isReady: boolean = false
 
   aboutToAppear(): void {
     this.isDark = AppState.getInstance().isDarkMode
@@ -25,30 +23,17 @@ struct AboutPage {
       this.theme = AppState.getInstance().getTheme()
     })
 
-    this.fetchLatestVersion()
-  }
-
-  async fetchLatestVersion(): Promise<void> {
-    const req = http.createHttp()
     try {
-      const resp: http.HttpResponse = await req.request(VERSION_URL, {
-        method: http.RequestMethod.GET,
-        connectTimeout: 5000,
-        readTimeout: 5000
-      })
-      if (resp.responseCode === 200) {
-        const body = JSON.parse(resp.result as string) as Record<string, Object>
-        this.latestVersion = (body['version'] as string) || '未知'
+      const params = this.getUIContext().getRouter().getParams() as Record<string, Object>
+      if (params && params['latestVersion']) {
+        this.latestVersion = params['latestVersion'] as string
       } else {
         this.latestVersion = '未知'
       }
-    } catch (e) {
-      hilog.warn(0x0001, 'AboutPage', `version fetch failed: ${String(e)}`)
+    } catch (_) {
       this.latestVersion = '未知'
-    } finally {
-      req.destroy()
-      this.isLoadingVersion = false
     }
+    this.isReady = true
   }
 
   build() {
@@ -138,7 +123,7 @@ struct AboutPage {
                 .width('100%')
 
               this.infoRow('当前版本', CURRENT_VERSION)
-              this.infoRow('最新版本', this.isLoadingVersion ? '加载中...' : this.latestVersion,
+              this.infoRow('最新版本', this.isReady ? this.latestVersion : '加载中...',
                 this.latestVersion !== '未知' && this.latestVersion !== '加载中...' ? this.theme.success : this.theme.textSecondary)
             }
             .width('100%')
@@ -190,12 +175,10 @@ struct AboutPage {
               .width('100%')
               .onClick(() => {
                 try {
-                  this.getUIContext().getRouter().pushUrl({
-                    url: 'pages/apps/WebViewPage',
-                    params: { url: PROJECT_URL }
-                  })
+                  const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext
+                  ctx.openLink(PROJECT_URL)
                 } catch (e) {
-                  hilog.error(0x0001, 'AboutPage', `pushUrl failed: ${e}`)
+                  hilog.error(0x0001, 'AboutPage', `openLink failed: ${e}`)
                 }
               })
             }
@@ -226,7 +209,7 @@ struct AboutPage {
             .backdropBlur(20)
             .border({ width: 0.5, color: this.theme.borderGlass })
 
-            Text('© 2026 iStore 一叶秋枫')
+            Text('© 2026 iStore Team')
               .fontSize(11)
               .fontColor(this.theme.textTertiary)
               .textAlign(TextAlign.Center)
