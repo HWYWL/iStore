@@ -358,6 +358,14 @@ export class ApiClient {
     return new EmptyRecord()
   }
 
+  async getIStoreApps(): Promise<Object[]> {
+    const result = await this.request('istore_apps')
+    if (result && result.data && Array.isArray(result.data)) {
+      return [result.data]
+    }
+    return []
+  }
+
   // ========== 家长控制类 API ==========
 
   /** 获取 OAF（应用过滤引擎）运行状态 */

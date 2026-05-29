@@ -559,6 +559,66 @@ handle_factory_reset() {
     fi
 }
 
+handle_istore_apps() {
+    local meta_dir="/usr/lib/opkg/meta"
+
+    # 1. 检测 iStore 元数据目录
+    if [ ! -d "$meta_dir" ]; then
+        json_error 404 "iStore meta directory not found"
+        return
+    fi
+
+    local output="["
+    local first=1
+
+    # 2. 遍历所有 .json 文件
+    for f in "$meta_dir"/*.json; do
+        [ -f "$f" ] || continue
+
+        local name title version entry icon link
+
+        # 3. 提取字段（优先使用 jsonfilter，不可用时降级为 grep/sed）
+        if [ "$HAS_JSONFILTER" = "1" ]; then
+            name=$(jsonfilter -i "$f" -e '@.name' 2>/dev/null)
+            title=$(jsonfilter -i "$f" -e '@.title' 2>/dev/null)
+            version=$(jsonfilter -i "$f" -e '@.version' 2>/dev/null)
+            entry=$(jsonfilter -i "$f" -e '@.entry' 2>/dev/null)
+        else
+            # 降级方案（简单解析，假定字段在同一行，且值不含嵌套引号）
+            name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            title=$(grep -o '"title"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            version=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            entry=$(grep -o '"entry"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" | head -1 | sed 's/.*"\(.*\)"/\1/')
+        fi
+
+        # 没有 name 则跳过
+        [ -z "$name" ] && continue
+
+        # 4. 构造图标和应用链接
+        icon="/luci-static/resources/app-icons/${name}.png"
+        if [ -n "$entry" ]; then
+            link="$entry"
+        else
+            # 若 entry 缺失，回退到通用模式（可能无效，但保持可读）
+            link="/cgi-bin/luci/admin/services/${name}"
+        fi
+
+        # 5. 转义字符串中的特殊字符（主要针对双引号和反斜杠）
+        name_esc=$(echo "$name" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        title_esc=$(echo "${title:-}" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        version_esc=$(echo "${version:-}" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        icon_esc=$(echo "$icon" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        link_esc=$(echo "$link" | sed 's/\\/\\\\/g; s/"/\\"/g')
+
+        # 6. 拼接到数组
+        [ "$first" = "1" ] && first=0 || output="${output},"
+        output="${output}{\"name\":\"${name_esc}\",\"title\":\"${title_esc}\",\"version\":\"${version_esc}\",\"icon\":\"${icon_esc}\",\"link\":\"${link_esc}\"}"
+    done
+
+    output="${output}]"
+    printf '{"code":0,"data":%s}\n' "$output"
+}
+
 # ---- 解析请求 ----
 METHOD="${REQUEST_METHOD:-GET}"
 QUERY_STRING="${QUERY_STRING:-}"
@@ -656,6 +716,11 @@ case "$ACTION" in
     factory_reset)
         check_auth
         handle_factory_reset
+        ;;
+
+    istore_apps)
+        check_auth
+        handle_istore_apps
         ;;
 
     uci_get_all)

@@ -384,3 +384,12 @@ export interface UserListItem {
   currentUrl: string        // 当前访问的 URL
   commonApps: number[]      // 常用应用 ID 列表
 }
+
+export interface IStoreApp {
+  name: string
+  title: string
+  version: string
+  icon: string
+  link: string
+  iconBase64: string
+}

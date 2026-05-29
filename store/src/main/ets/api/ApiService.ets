@@ -17,6 +17,7 @@ import {
   RouteEntry,
   WirelessClient,
   WirelessDevice,
+  IStoreApp,
   OafStatus,
   AppFilterBase,
   AppClass,
@@ -997,6 +998,29 @@ export class ApiService {
       hilog.error(DOMAIN, TAG, 'fetchAppFilterAdv err')
     }
     return new EmptyRecord()
+  }
+
+  async fetchIStoreApps(): Promise<IStoreApp[]> {
+    try {
+      const result = await this.client.getIStoreApps()
+      const apps = result.length > 0 ? result[0] as Object[] : []
+      const list: IStoreApp[] = []
+      for (let i = 0; i < apps.length; i++) {
+        const a = apps[i]
+        list.push({
+          name: ObjectHelper.getString(a, 'name', ''),
+          title: ObjectHelper.getString(a, 'title', ''),
+          version: ObjectHelper.getString(a, 'version', ''),
+          icon: ObjectHelper.getString(a, 'icon', ''),
+          link: ObjectHelper.getString(a, 'link', ''),
+          iconBase64: ''
+        })
+      }
+      return list
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `fetchIStoreApps err: ${String(e)}`)
+    }
+    return []
   }
 
   async factoryReset(): Promise<string> {
