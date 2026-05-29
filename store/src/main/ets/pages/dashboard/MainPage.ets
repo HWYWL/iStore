@@ -1,15 +1,11 @@
 import { AppState } from '../../common/store/AppState'
-/**
- * 主仪表盘页面
- * 包含 5 个 Tab 页：首页/设备/存储/无线/日志
- * 首页 Tab 提供系统状态、网络状态、设备列表的综合概览
- * 5 秒自动刷新数据
- */
 import { ThemePalette, DARK_THEME } from '../../common/theme/ThemeColors'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 // ============================================================
 // DashboardTab - 首页
@@ -1463,10 +1459,10 @@ struct NetworkTab {
 @Entry
 @Component
 struct MainPage {
-  @State currentTab: number = 0
   @State theme: ThemePalette = DARK_THEME
   @State isDark: boolean = true
   @State deviceName: string = ''
+  private tabsController: HdsTabsController = new HdsTabsController()
 
   aboutToAppear(): void {
     this.isDark = AppState.getInstance().isDarkMode
@@ -1538,148 +1534,72 @@ struct MainPage {
         .width('100%')
         .padding({ left: 16, right: 16, top: 48, bottom: 8 })
 
-        // Tab 内容区
-        Stack() {
-          if (this.currentTab === 0) {
+        // Tab 内容区 - HdsTabs 底部悬浮导航
+        HdsTabs({ controller: this.tabsController }) {
+          TabContent() {
             DashboardTab({ theme: this.theme })
           }
-          if (this.currentTab === 1) {
+          .tabBar(new BottomTabBarStyle({
+            normal: new SymbolGlyphModifier($r('sys.symbol.house_fill')),
+            selected: new SymbolGlyphModifier($r('sys.symbol.house_fill'))
+          }, '首页'))
+
+          TabContent() {
             DeviceTab({ theme: this.theme })
           }
-          if (this.currentTab === 2) {
+          .tabBar(new BottomTabBarStyle({
+            normal: new SymbolGlyphModifier($r('sys.symbol.square_on_square_fill')),
+            selected: new SymbolGlyphModifier($r('sys.symbol.square_on_square_fill'))
+          }, '设备'))
+
+          TabContent() {
             NetworkTab({ theme: this.theme })
           }
+          .tabBar(new BottomTabBarStyle({
+            normal: new SymbolGlyphModifier($r('sys.symbol.square_on_square_fill')),
+            selected: new SymbolGlyphModifier($r('sys.symbol.square_on_square_fill'))
+          }, '网络'))
+
+          TabContent() {
+            Column() {
+              Text('🛠').fontSize(32).margin({ bottom: 12 })
+              Text('正在打开应用中心...')
+                .fontSize(14).fontColor(this.theme.textSecondary)
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.Center)
+          }
+          .tabBar(new BottomTabBarStyle({
+            normal: new SymbolGlyphModifier($r('sys.symbol.square_fill')),
+            selected: new SymbolGlyphModifier($r('sys.symbol.square_fill'))
+          }, '应用'))
         }
-        .width('100%')
-        .layoutWeight(1)
-
-        // 底部导航栏 - 5 Tab
-        Row() {
-          // 首页
-          Column() {
-            Text('📊')
-              .fontSize(18)
-              .opacity(this.currentTab === 0 ? 1 : 0.4)
-            Text('首页')
-              .fontSize(11)
-              .fontColor(this.currentTab === 0 ? this.theme.primary : this.theme.textTertiary)
-              .margin({ top: 2 })
-              .fontWeight(this.currentTab === 0 ? FontWeight.Medium : FontWeight.Normal)
-            if (this.currentTab === 0) {
-              Circle()
-                .width(4)
-                .height(4)
-                .fill(this.theme.primary)
-                .margin({ top: 4 })
-            } else {
-              Circle()
-                .width(4)
-                .height(4)
-                .fill('transparent')
-                .margin({ top: 4 })
-            }
-          }
-          .flexGrow(1)
-          .height(60)
-          .justifyContent(FlexAlign.Center)
-          .onClick(() => {
-            this.currentTab = 0
-          })
-
-          // 设备
-          Column() {
-            Text('📡')
-              .fontSize(18)
-              .opacity(this.currentTab === 1 ? 1 : 0.4)
-            Text('设备')
-              .fontSize(11)
-              .fontColor(this.currentTab === 1 ? this.theme.primary : this.theme.textTertiary)
-              .margin({ top: 2 })
-              .fontWeight(this.currentTab === 1 ? FontWeight.Medium : FontWeight.Normal)
-            if (this.currentTab === 1) {
-              Circle()
-                .width(4)
-                .height(4)
-                .fill(this.theme.primary)
-                .margin({ top: 4 })
-            } else {
-              Circle()
-                .width(4)
-                .height(4)
-                .fill('transparent')
-                .margin({ top: 4 })
-            }
-          }
-          .flexGrow(1)
-          .height(60)
-          .justifyContent(FlexAlign.Center)
-          .onClick(() => {
-            this.currentTab = 1
-          })
-
-          // 网络
-          Column() {
-            Text('🌐')
-              .fontSize(18)
-              .opacity(this.currentTab === 2 ? 1 : 0.4)
-            Text('网络')
-              .fontSize(11)
-              .fontColor(this.currentTab === 2 ? this.theme.primary : this.theme.textTertiary)
-              .margin({ top: 2 })
-              .fontWeight(this.currentTab === 2 ? FontWeight.Medium : FontWeight.Normal)
-            if (this.currentTab === 2) {
-              Circle()
-                .width(4)
-                .height(4)
-                .fill(this.theme.primary)
-                .margin({ top: 4 })
-            } else {
-              Circle()
-                .width(4)
-                .height(4)
-                .fill('transparent')
-                .margin({ top: 4 })
-            }
-          }
-          .flexGrow(1)
-          .height(60)
-          .justifyContent(FlexAlign.Center)
-          .onClick(() => {
-            this.currentTab = 2
-          })
-
-          // 应用
-          Column() {
-            Text('🛠')
-              .fontSize(18)
-              .opacity(0.4)
-            Text('应用')
-              .fontSize(11)
-              .fontColor(this.theme.textTertiary)
-              .margin({ top: 2 })
-            Circle()
-              .width(4)
-              .height(4)
-              .fill('transparent')
-              .margin({ top: 4 })
-          }
-          .flexGrow(1)
-          .height(60)
-          .justifyContent(FlexAlign.Center)
-          .onClick(() => {
+        .barOverlap(true)
+        .barPosition(BarPosition.End)
+        .vertical(false)
+        .barMode(BarMode.Fixed)
+        .scrollable(false)
+        .onChange((index: number) => {
+          if (index === 3) {
+            // 应用 Tab：跳转页面，不留在当前 Tab
             try {
               this.getUIContext().getRouter().pushUrl({ url: 'pages/apps/AppsPage' })
             } catch (e) {
               hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
             }
-          })
-        }
-        .width('100%')
-        .height(64)
-        .padding({ bottom: 8, left: 8, right: 8 })
-        .backgroundColor(this.isDark ? 'rgba(10, 14, 39, 0.85)' : 'rgba(255, 255, 255, 0.85)')
-        .backdropBlur(30)
-        .border({ width: { top: 0.5 }, color: this.theme.borderGlass })
+            this.tabsController.changeIndex(0)
+          }
+        })
+        .barFloatingStyle({
+          barWidth: { smallWidth: 260, mediumWidth: 340, largeWidth: 420 },
+          barBottomMargin: 24,
+          gradientMask: { maskColor: this.isDark ? '#22000000' : '#33E8ECF1', maskHeight: 88 },
+          systemMaterialEffect: {
+            materialType: hdsMaterial.MaterialType.IMMERSIVE,
+            materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+          }
+        })
+        .layoutWeight(1)
       }
       .width('100%')
       .height('100%')
