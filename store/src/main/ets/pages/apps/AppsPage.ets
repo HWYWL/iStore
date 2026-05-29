@@ -24,7 +24,6 @@ struct AppsPage {
   @State theme: ThemePalette = DARK_THEME
   @State itemSlides: number[] = []
   private tools: ToolEntry[] = [
-    { emoji: '👨‍👩‍👧', name: '家长控制', route: 'pages/parental/ParentalControlPage' },
     { emoji: '🗺', name: '路由表', route: 'pages/network/RouteTablePage' },
     { emoji: '⚙️', name: '系统进程', route: 'pages/process/ProcessListPage' },
     { emoji: '🚀', name: '启动项', route: 'pages/process/StartupPage' },
