@@ -71,7 +71,7 @@ export class AppState {
     try {
       this.settingsPrefs = await preferences.getPreferences(context, PREFS_NAME)
       // 恢复上次皮肤
-      const savedSkin: string = this.settingsPrefs.getSync('skinId', 'apricot') as string
+      const savedSkin: string = this.settingsPrefs.getSync('skinId', 'white') as string
       if (savedSkin && getSkinById(savedSkin).id === savedSkin) {
         this.currentSkinId = savedSkin
       }
@@ -225,8 +225,8 @@ export class AppState {
 
   // ========== 主题管理 ==========
 
-  /** 当前皮肤 id（持久化，默认 apricot 杏子暖） */
-  private currentSkinId: string = 'apricot'
+  /** 当前皮肤 id（持久化，默认 white 纯净白） */
+  private currentSkinId: string = 'white'
 
   /**
    * 获取当前皮肤定义

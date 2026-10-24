@@ -12,7 +12,7 @@ import { vibrator } from '@kit.SensorServiceKit'
 struct SkinManagePage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
-  @State currentSkinId: string = 'beige'
+  @State currentSkinId: string = 'white'
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
