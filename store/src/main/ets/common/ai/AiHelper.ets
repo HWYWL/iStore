@@ -1,14 +1,10 @@
 /**
- * AiHelper - AI 网络助手（本地规则引擎 + LLM 兜底排障）
+ * AiHelper - 网络助手（本地规则引擎）
  * 关键词匹配 → 拉取路由器实时数据 → 生成自然语言回答
- * 未知问题 → 收集"健康快照" → 交给本地 LLM 基于真实数据排障
  */
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice, SystemInfo, WanStatus, ConntrackInfo } from '../../models/Models'
 import { FormatUtils } from '../utils/FormatUtils'
-import { LlmHolder } from '../llm/LlmHolder'
-import { LLMManager, stripAnswerTags } from '../llm/LLMManager'
-import { AiHealthChecker } from '../store/AiHealthChecker'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const DOMAIN = 0x0001
@@ -55,8 +51,8 @@ export class AiHelper {
       if (AiHelper.matchAny(q, ['你是谁', '能做什么', '帮助', '怎么用', '功能', 'hello', 'hi', '你好', '在吗'])) {
         return AiHelper.answerHelp()
       }
-      // —— 默认：LLM 兜底排障（基于真实健康快照）——
-      return await AiHelper.answerByLlm(question)
+      // —— 默认：引导用户使用支持的问法 ——
+      return AiHelper.answerDefault()
     } catch (e) {
       hilog.error(DOMAIN, TAG, `ask err: ${JSON.stringify(e)}`)
       return '抱歉，查询数据时出错了，请检查设备是否已连接。'
@@ -209,36 +205,7 @@ export class AiHelper {
       '⚡ "下载速度多少？" —— 实时速率'
   }
 
-  /** 默认回答：优先本地 LLM 基于健康快照排障；无模型则引导 */
-  private static async answerByLlm(question: string): Promise<string> {
-    const mgr: LLMManager | null = LlmHolder.getInstance().get()
-    if (!mgr || !mgr.isLoaded) {
-      return AiHelper.answerDefault()
-    }
-    try {
-      // 收集路由器健康快照（真实数据）
-      const snapshot: string = await AiHealthChecker.getInstance().collectSnapshot()
-      const prompt: string =
-        `你是 iStore 路由器的网络诊断助手。以下是路由器当前实时状态快照：\n` +
-        `${snapshot}\n\n` +
-        `用户问题：${question}\n\n` +
-        `请基于快照数据用简洁中文回答（不超过 120 字），给出可能原因和实用建议。如果问题与数据无关，就正常回答。`
-      let acc: string = ''
-      await mgr.chat(prompt, (delta: string) => {
-        acc += delta
-      }, () => {})
-      acc = stripAnswerTags(acc).trim()
-      if (acc) {
-        return acc
-      }
-      return AiHelper.answerDefault()
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, `answerByLlm err: ${JSON.stringify(e)}`)
-      return AiHelper.answerDefault()
-    }
-  }
-
-  /** 默认回答（LLM 不可用时） */
+  /** 默认回答（未命中关键词时引导） */
   private static answerDefault(): string {
     return '这个问题我还不太会 😅 你可以试试问我：\n' +
       '"谁在占带宽" / "多少设备" / "网络为什么卡" / "有没有陌生设备" / "温度多少" / "下载速度"'

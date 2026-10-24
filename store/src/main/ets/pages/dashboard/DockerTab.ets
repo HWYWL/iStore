@@ -115,10 +115,10 @@ export struct DockerTab {
 
   aboutToAppear(): void {
     this.apiAvailable = this.api.hasDockerApi()
-    // 前台感知：仅当本 Tab（Docker index 4）可见时轮询
-    this.isVisible = AppState.getInstance().getCurrentTab() === 4
+    // 前台感知：仅当本 Tab（Docker index 3）可见时轮询
+    this.isVisible = AppState.getInstance().getCurrentTab() === 3
     this.tabChangeListener = (tab: number) => {
-      const visible: boolean = tab === 4
+      const visible: boolean = tab === 3
       if (visible && !this.isVisible) {
         this.isVisible = true
         this.loadData()
@@ -728,7 +728,7 @@ export struct DockerTab {
           }
         }
       }
-      .width('100%').padding({ left: 16, right: 16, bottom: 150 })
+      .width('100%').padding({ left: 16, right: 16, bottom: AppState.getInstance().getBottomNavInset() })
       }
       .width('100%').height('100%').scrollBar(BarState.Off)
       .onScroll((_x: number, y: number) => {

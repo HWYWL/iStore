@@ -26,7 +26,7 @@ export struct DashboardTab {
   @State isOnline: boolean = false
   @State whimsyShake: boolean = false
   @State whimsyFish: boolean = false
-  @State bottomInset: number = 150
+  @State bottomInset: number = 134
   @State greetText: string = ''
   @State moodText: string = ''
   @State summaryText: string = ''
@@ -1208,8 +1208,8 @@ export struct DashboardTab {
             Column() {
               Row() {
                 this.quickItem('文件', 'pages/apps/FileManagerPage', '#A8C8A0', $r('app.media.folder_file'))
-                this.quickItem('AI 助手', 'tab:1', '#B8A6E8', $r('app.media.ai_chat'))
-                this.quickItem('Docker', 'tab:4', '#9FB8E8', $r('app.media.docker'))
+                this.quickItem('网络助手', 'pages/apps/NetworkHelperPage', '#B8A6E8', $r('app.media.ai_chat'))
+                this.quickItem('Docker', 'tab:3', '#9FB8E8', $r('app.media.docker'))
                 this.quickItem('SSH', 'pages/apps/SshTerminalPage', '#A0B8D8', $r('app.media.terminal'))
                 this.quickItem('应用中心', 'pages/apps/AppsPage', '#FFB37A', $r('app.media.app_center'))
               }
@@ -1219,7 +1219,7 @@ export struct DashboardTab {
                 this.quickItem('WiFi', 'pages/apps/WifiPage', '#8FB8E8', $r('app.media.wifi_icon'))
                 this.quickItem('相册', 'pages/apps/AlbumPage', '#E8A8C0', $r('app.media.folder_file'))
                 this.quickItem('体检', 'pages/apps/NetworkCheckPage', '#8FD6A5', $r('app.media.app_health'))
-                this.quickItem('商店', 'tab:3', '#F0A8C0', $r('app.media.app_store'))
+                this.quickItem('商店', 'tab:2', '#F0A8C0', $r('app.media.app_store'))
               }
               .width('100%')
               .margin({ top: 2 })

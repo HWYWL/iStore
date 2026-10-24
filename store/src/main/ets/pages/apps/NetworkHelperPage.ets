@@ -1,7 +1,6 @@
 /**
  * NetworkHelperPage - 网络助手（快捷问答）
  * 本地规则引擎：快捷提问 + 自由输入，实时拉取路由器数据回答
- * 注：本地 AI 对话已由底部「AI」Tab 承担，本页专注网络快捷问答
  */
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'

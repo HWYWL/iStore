@@ -88,7 +88,6 @@ struct AppsPage {
         { emoji: '🚀', name: '启动项',   desc: '管理开机自启服务', route: 'pages/process/StartupPage', iconResource: $r('app.media.app_rocket') },
         { emoji: '🔔', name: '智能通知',  desc: '断网告警与新设备接入提醒', route: 'pages/apps/NotifySettingsPage', iconResource: $r('app.media.app_bell') },
         { emoji: '⏰', name: '定时任务',  desc: '定时重启与定时开关 WiFi', route: 'pages/apps/SchedulePage', iconResource: $r('app.media.schedule') },
-        { emoji: '🏪', name: '模型商店',  desc: '下载本地 AI 模型', route: 'pages/apps/ModelShopPage', iconResource: $r('app.media.shop_icon') },
         { emoji: '🎨', name: '皮肤管理',  desc: '更换应用主题皮肤', route: 'pages/apps/SkinManagePage', iconResource: $r('app.media.skin_icon') },
         { emoji: '⌨️', name: 'SSH 终端',   desc: '命令行管理路由器', route: 'pages/apps/SshTerminalPage', iconResource: $r('app.media.terminal') },
         { emoji: '📁', name: '文件管理',   desc: '浏览管理 OpenWrt 文件', route: 'pages/apps/FileManagerPage', iconResource: $r('app.media.folder_file') },

@@ -4,15 +4,25 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit'
 import { SymbolGlyphModifier, window } from '@kit.ArkUI'
 import { DashboardTab } from './DashboardTab'
-import { AiTab } from './AiTab'
 import { IStoreTabView } from './IStoreTabView'
 import { NotificationWatcher } from '../../common/store/NotificationWatcher'
 import { NotifyStore } from '../../common/store/NotifyStore'
 import { applyImmersiveBar } from '../../common/utils/WindowUtils'
 import { ScheduleStore } from '../../common/store/ScheduleStore'
 import { DockerTab } from './DockerTab'
-import { AlbumTab } from './AlbumTab'
 import { PetView } from '../pet/PetPage'
+
+// 系统导航条高度：手势导航约 24vp，三键导航约 48vp
+const NAV_BAR_GESTURE: number = 24
+const NAV_BAR_THREE_KEY: number = 48
+// 三键导航底栏高度通常 >= 40vp，用于区分导航模式
+const NAV_BAR_THREE_KEY_THRESHOLD: number = 40
+// 悬浮导航条自身高度 + 与内容的间隙
+const NAV_BAR_INSET_BASE: number = 110
+// 悬浮导航条与系统导航条之间的间距
+const NAV_BAR_BOTTOM_GAP: number = 4
+// 主 Tab 索引：首页 0 / 小管家 1 / iStore 2 / Docker 3，系统 Tab 跳转应用中心
+const TAB_SYSTEM: number = 4
 
 @Entry
 @Component
@@ -20,12 +30,13 @@ struct MainPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State deviceName: string = ''
   @State navHidden: boolean = false
-  @State bottomSafeArea: number = 20  // 默认 20vp，覆盖大部分设备的导航指示条高度
+  @State bottomSafeArea: number = NAV_BAR_GESTURE  // 系统导航条占用高度（手势 24vp / 三键 48vp）
   @State lastTabIndex: number = 0  // 进入应用中心前的 Tab（返回时恢复）
   @State tabOpacity: number = 1      // Tab 内容过渡动画：透明度
   @State tabTranslateY: number = 0   // Tab 内容过渡动画：垂直位移
   private lastScrollOffset: number = 0
   private tabsController: HdsTabsController = new HdsTabsController()
+  private mainWin: window.Window | null = null
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
@@ -55,7 +66,7 @@ struct MainPage {
 
     // 订阅外部主 Tab 切换请求（首页快捷区：iStore 商店 / Docker）
     AppState.getInstance().onTabChange((tab: number) => {
-      if (tab >= 0 && tab <= 5) {
+      if (tab >= 0 && tab < TAB_SYSTEM) {
         this.tabsController.changeIndex(tab)
       }
     })
@@ -68,40 +79,70 @@ struct MainPage {
       })
     })
 
-    // 获取系统底部导航指示条 / 手势条高度（适配各机型）
+    // 获取系统底部导航条高度（手势导航 24vp / 三键导航 48vp，适配各机型）
     try {
       const ctx = this.getUIContext().getHostContext()
       if (ctx) {
         window.getLastWindow(ctx).then((win: window.Window) => {
+          this.mainWin = win
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
-          const h: number = px2vp(avoidArea.bottomRect.height)
-          if (h > 0) {
-            this.bottomSafeArea = h
+          let bottomPx: number = avoidArea.bottomRect.height
+          // 部分机型导航指示条避让区为 0（内容未延伸到系统栏），回退取系统栏避让区
+          if (bottomPx <= 0) {
+            bottomPx = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).bottomRect.height
           }
-          // 广播悬浮主导航条占用的底部空间（手势条 + 130：悬浮边距28 + 导航条高度 + 材质/避让余量）
-          AppState.getInstance().setBottomNavInset(this.bottomSafeArea + 130)
-          hilog.info(0x0001, 'MainPage', `bottomSafeArea=${this.bottomSafeArea}, navInset=${this.bottomSafeArea + 130}`)
+          this.applyNavBarHeight(bottomPx)
+          // 导航模式切换（手势 <-> 三键）时同步刷新高度
+          try {
+            win.on('avoidAreaChange', (data: window.AvoidAreaOptions) => {
+              if (data.type === window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
+                this.applyNavBarHeight(data.area.bottomRect.height)
+              }
+            })
+          } catch (e) {}
         }).catch(() => {
-          AppState.getInstance().setBottomNavInset(this.bottomSafeArea + 130)
-          hilog.info(0x0001, 'MainPage', `getLastWindow failed, navInset=${this.bottomSafeArea + 130}`)
+          this.applyNavBarHeight(0)
+          hilog.info(0x0001, 'MainPage', 'getLastWindow failed, use default nav bar height')
         })
       } else {
-        AppState.getInstance().setBottomNavInset(this.bottomSafeArea + 130)
+        this.applyNavBarHeight(0)
       }
     } catch (_e) {
-      AppState.getInstance().setBottomNavInset(this.bottomSafeArea + 130)
+      this.applyNavBarHeight(0)
     }
+  }
+
+  /**
+   * 按导航模式更新底部安全区高度并广播
+   * 手势导航：导航条约 24vp；三键导航：底栏约 48vp（系统返回高度 >= 40vp 视为三键）
+   * @param pxHeight 系统导航指示条避让区高度（px）
+   */
+  private applyNavBarHeight(pxHeight: number): void {
+    let safe: number = NAV_BAR_GESTURE
+    if (pxHeight > 0) {
+      safe = px2vp(pxHeight) >= NAV_BAR_THREE_KEY_THRESHOLD ? NAV_BAR_THREE_KEY : NAV_BAR_GESTURE
+    }
+    this.bottomSafeArea = safe
+    // 广播悬浮主导航条占用的底部空间（系统导航条 + 悬浮间距 + 条自身高度 + 内容间隙）
+    AppState.getInstance().setBottomNavInset(safe + NAV_BAR_INSET_BASE)
+    hilog.info(0x0001, 'MainPage', `navBar=${safe}vp, navInset=${safe + NAV_BAR_INSET_BASE}`)
   }
 
   aboutToDisappear(): void {
     AppState.getInstance().offNavChange(() => {})
     NotificationWatcher.getInstance().stop()
+    try {
+      if (this.mainWin) {
+        this.mainWin.off('avoidAreaChange')
+        this.mainWin = null
+      }
+    } catch (e) {}
   }
 
   /** 页面重新可见（从应用中心返回等）：恢复进入前的 Tab */
   onPageShow(): void {
     // 从应用中心返回时，从系统占位 Tab 恢复到进入前的 Tab（设备→系统→返回→设备）
-    if (this.lastTabIndex !== 5 && this.lastTabIndex >= 0 && this.lastTabIndex <= 4) {
+    if (this.lastTabIndex !== TAB_SYSTEM && this.lastTabIndex >= 0 && this.lastTabIndex < TAB_SYSTEM) {
       this.tabsController.changeIndex(this.lastTabIndex)
       AppState.getInstance().setCurrentTab(this.lastTabIndex)
     }
@@ -147,19 +188,6 @@ struct MainPage {
             normal: new SymbolGlyphModifier($r('sys.symbol.house_fill')),
             selected: new SymbolGlyphModifier($r('sys.symbol.house_fill'))
           }, '首页'))
-
-          TabContent() {
-            Stack() {
-              AiTab({ theme: this.theme })
-            }
-            .width('100%').height('100%')
-            .opacity(this.tabOpacity)
-            .translate({ y: this.tabTranslateY })
-          }
-          .tabBar(new BottomTabBarStyle({
-            normal: new SymbolGlyphModifier($r('sys.symbol.children')),
-            selected: new SymbolGlyphModifier($r('sys.symbol.children'))
-          }, 'AI'))
 
           TabContent() {
             Stack() {
@@ -220,7 +248,7 @@ struct MainPage {
         .barMode(BarMode.Fixed)
         .scrollable(false)
         .onChange((index: number) => {
-          if (index === 5) {
+          if (index === TAB_SYSTEM) {
             // 系统 Tab：跳转应用中心，保持当前 Tab 高亮（不切回首页，避免"乱跳"）
             try {
               this.getUIContext().getRouter().pushUrl({ url: 'pages/apps/AppsPage' })
@@ -246,13 +274,13 @@ struct MainPage {
           // 广播当前 Tab，供各子页做前台感知（暂停/恢复轮询）
           AppState.getInstance().setCurrentTab(index)
           // 记录当前 Tab（点"系统"跳应用中心时记住，返回时恢复）
-          if (index >= 0 && index <= 4) {
+          if (index >= 0 && index < TAB_SYSTEM) {
             this.lastTabIndex = index
           }
         })
         .barFloatingStyle({
           barWidth: { smallWidth: 320, mediumWidth: 400, largeWidth: 480 },
-          barBottomMargin: this.navHidden ? -100 : (28 + this.bottomSafeArea),
+          barBottomMargin: this.navHidden ? -100 : (this.bottomSafeArea + NAV_BAR_BOTTOM_GAP),
           gradientMask: { maskColor: '#33F5F1EE', maskHeight: 88 },
           systemMaterialEffect: {
             materialType: hdsMaterial.MaterialType.IMMERSIVE,
@@ -263,7 +291,6 @@ struct MainPage {
       }
       .width('100%')
       .height('100%')
-      .padding({ bottom: '4%' })
     }
     .width('100%')
     .height('100%')

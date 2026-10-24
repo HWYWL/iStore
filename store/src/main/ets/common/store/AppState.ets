@@ -156,10 +156,9 @@ export class AppState {
     if (idx >= 0) this.navListeners.splice(idx, 1)
   }
 
-  // ========== 底部导航安全区（悬浮主导航条占用高度，随机型变化）==========
-  // 组成：手势条高度 + 悬浮边距 28 + HdsTabs 导航条高度 + 间隙余量
-  // 实测校准：底部到导航条顶部 ≈ 手势条 + 130（含边距/材质/避让余量）
-  private bottomNavInset: number = 150  // 默认：20(手势条) + 130
+  // ========== 底部导航安全区（悬浮主导航条占用高度，随机型/导航模式变化）==========
+  // 组成：系统导航条高度（手势 24vp / 三键 48vp）+ 悬浮间距 4 + HdsTabs 导航条高度 + 内容间隙
+  private bottomNavInset: number = 134  // 默认：24(手势导航条) + 110
   private navInsetListeners: ((inset: number) => void)[] = []
 
   /** 设置主页悬浮导航条占用的底部空间（MainPage 根据机型安全区计算后广播） */

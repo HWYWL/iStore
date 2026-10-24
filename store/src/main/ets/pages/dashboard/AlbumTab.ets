@@ -49,7 +49,7 @@ export struct AlbumTab {
   // 主视图：底部导航（0=相片 1=相册）
   @State mainTab: number = 0
   // 主页悬浮导航条占用底部空间（相对布局，随机型动态）
-  @State bottomInset: number = 150
+  @State bottomInset: number = 134
   // 全部照片（按天分组时间线，默认首页）
   @State allPhotos: ImmichAsset[] = []
   @State allPhotosLoading: boolean = false

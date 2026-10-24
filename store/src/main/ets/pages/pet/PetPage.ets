@@ -430,7 +430,7 @@ export struct PetView {
             }
             .width('100%').margin({ bottom: 6 })
             this.taskRow(0, '🩺', '完成一次安全体检', '+20 能量', 20, 'pages/security/SecurityHubPage')
-            this.taskRow(1, '💬', '和小管聊一次天', '+15 能量', 15, 'tab:1')
+            this.taskRow(1, '💬', '和小管聊一次天', '+15 能量', 15, 'pages/apps/NetworkHelperPage')
             this.taskRow(2, '📶', '查看今日流量', '+10 能量', 10, 'pages/apps/TrafficReportPage')
             this.taskRow(3, '🔋', '查看设备电量排行', '+10 能量', 10, 'pages/apps/DeviceActivityPage')
             this.taskRow(4, '🛡', '打开安全中心', '+15 能量', 15, 'pages/security/SecurityHubPage')
@@ -521,7 +521,7 @@ export struct PetView {
         .onClick(() => {
           if (this.taskFlags[idx]) return
           this.onTask(idx, energy)
-          // 跳转对应页面（tab:1 = AI Tab）
+          // 跳转对应页面（tab:N 切换主 Tab，其余为页面路由）
           try {
             if (route.startsWith('tab:')) {
               AppState.getInstance().setCurrentTab(Number(route.substring(4)))

@@ -1,9 +1,0 @@
-{
-  "name": "libmnnllm.so",
-  "version": "3.6.1",
-  "description": "MNN 3.6.1 鸿蒙桥接层（自编译，15 个 NAPI 函数）",
-  "main": "",
-  "author": "",
-  "license": "Apache-2.0",
-  "dependencies": {}
-}

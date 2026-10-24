@@ -8,14 +8,12 @@
  *  2. memory    内存占用过高（>85%）
  *  3. cpu       CPU 使用率持续过高（>90%）
  *  4. traffic   突发流量（下行速率 > 阈值，按路由器档次自适应）
- *
- * 同时暴露 collectSnapshot()：供 AI 排障兜底收集"健康快照"。
  */
 import { notificationManager } from '@kit.NotificationKit'
 import { ApiService } from '../../api/ApiService'
 import { NotifyStore } from './NotifyStore'
 import { AppState } from './AppState'
-import { SystemInfo, ConnectedDevice } from '../../models/Models'
+import { SystemInfo } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'AiHealth'
@@ -100,33 +98,6 @@ export class AiHealthChecker {
       return 0
     } catch (e) {
       return 0
-    }
-  }
-
-  // ========== 健康快照（供 AI 排障兜底） ==========
-
-  /**
-   * 收集路由器健康快照（JSON 文本），供本地 LLM 基于真实数据回答。
-   * 内容：CPU/内存/温度/存储 + 在线设备数/连接数。
-   */
-  async collectSnapshot(): Promise<string> {
-    try {
-      const sys: SystemInfo = await this.api.fetchSystemInfo()
-      const devices: ConnectedDevice[] = await this.api.fetchConnectedDevices()
-      const online: ConnectedDevice[] = devices.filter((d: ConnectedDevice) => d.isOnline)
-      const memPct: number = sys.memoryTotal > 0 ? Math.round((sys.memoryUsed / sys.memoryTotal) * 100) : 0
-      // ArkTS 限制对象字面量类型，手工拼接 JSON 字符串
-      const snap: string =
-        `{"hostname":"${sys.hostname}","model":"${sys.model}",` +
-        `"cpuUsagePct":${Math.round(sys.cpuUsage)},"cpuTempC":${Math.round(sys.cpuTemp)},` +
-        `"memoryUsedPct":${memPct},` +
-        `"storageUsedPct":${sys.storageTotal > 0 ? Math.round((sys.storageUsed / sys.storageTotal) * 100) : 0},` +
-        `"uptimeHours":${Math.round(sys.uptime / 3600)},` +
-        `"onlineDevices":${online.length},"totalDevices":${devices.length}}`
-      return snap
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, `collectSnapshot err: ${JSON.stringify(e)}`)
-      return ''
     }
   }
 

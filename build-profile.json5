@@ -5,33 +5,33 @@
         "name": "debug",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\Administrator\\.ohos\\config\\debug_iStore_JVsaF1FOT4EpNziw1_A8WYJuPhAdrKAY7zUQ8mwWAIc=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001B15CF8FD701D54C21938D4C8356A19A1BD8D83CB75BD6E838DA23B0E4D7B66EFA75EE54D923A452",
-          "profile": "C:\\Users\\Administrator\\.ohos\\config\\debug_iStore_JVsaF1FOT4EpNziw1_A8WYJuPhAdrKAY7zUQ8mwWAIc=.p7b",
+          "certpath": "F:/OpenHarmony/Key/iStore/Dev/iStoreDev.cer",
+          "keyAlias": "istore",
+          "keyPassword": "0000002237c3d7ba38164f73a5d42e0977d50e3c470d8078b87da9d0074e859c03ee415833034bfd855e57bf2c597f8ee686",
+          "profile": "F:/OpenHarmony/Key/iStore/Dev/iStoreDevDebug.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\Administrator\\.ohos\\config\\debug_iStore_JVsaF1FOT4EpNziw1_A8WYJuPhAdrKAY7zUQ8mwWAIc=.p12",
-          "storePassword": "0000001B0DC5FC74FD9FDB9365B458FC6BC7B178FA5BB6458F9DC2CFF622DC63B428F58187BD809ACB5873"
+          "storeFile": "F:/OpenHarmony/Key/iStore/Dev/iStore-release.p12",
+          "storePassword": "0000002237c3d7ba38164f73a5d42e0977d50e3c470d8078b87da9d0074e859c03ee415833034bfd855e57bf2c597f8ee686"
         }
       },
       {
         "name": "release",
         "type": "HarmonyOS",
         "material": {
-          "storeFile": "C:/Users/Administrator/.ohos/release/iStore-release-32.p12",
-          "storePassword": "00000022294D4AABC5D48BEFF23F0DA26D9E548155AB253B7CBDB8329172D72E05D44F185DD6C128738919C7A1BAC5A77C6F",
-          "keyAlias": "store-release",
-          "keyPassword": "0000002223CE085E354719557FC4E6A6E21B4569870375C57635A58C8DBFC11D708E2B382C5C246441BC14079BEEB42EA6F8",
+          "certpath": "F:/OpenHarmony/Key/iStore/Release/iStore.cer",
+          "keyAlias": "iStore",
+          "keyPassword": "000000220BC2852E6EAA31DA294A4F76C76F0BAF326693A03A7F879221900D66C0FE098E026FDF851303FF26F2F4AE23FFCD",
+          "profile": "F:/OpenHarmony/Key/iStore/Release/iStoreRelease.p7b",
           "signAlg": "SHA256withECDSA",
-          "profile": "C:/Users/Administrator/.ohos/release/ReleaseRelease.p7b",
-          "certpath": "C:/Users/Administrator/.ohos/release/Release.cer"
+          "storeFile": "F:/OpenHarmony/Key/iStore/Release/iStore-release.p12",
+          "storePassword": "00000022BB3C2EA38BF7ACA41FFFF9217A6C78928F55A9ADA30D2D078E1095C400A1C64AAF4B28F9A1FEB6554E2A770E2CB6"
         }
       }
     ],
     "products": [
       {
         "name": "default",
-        "signingConfig": "release",
+        "signingConfig": "debug",
         "targetSdkVersion": "6.1.0(23)",
         "compatibleSdkVersion": "6.1.0(23)",
         "runtimeOS": "HarmonyOS",
@@ -48,7 +48,7 @@
         "name": "debug",
       },
       {
-        "name": "release"
+        "name": "release",
       }
     ]
   },
