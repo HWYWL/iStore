@@ -20,13 +20,19 @@ struct TrafficReportPage {
   private store: TrafficStatStore = TrafficStatStore.getInstance()
 
   aboutToAppear(): void {
-this.theme = AppState.getInstance().getTheme()
-        const hostCtx = this.getUIContext().getHostContext()
-    if (hostCtx) {
-      this.store.init(hostCtx as Context)
-    }
+    this.theme = AppState.getInstance().getTheme()
     this.loadTopSafeArea()
-    this.loadData()
+    const hostCtx = this.getUIContext().getHostContext()
+    if (hostCtx) {
+      // 必须先初始化存储再读取，否则首次进入读到空数据
+      this.store.init(hostCtx as Context).then(() => {
+        this.loadData()
+      }).catch(() => {
+        this.loadData()
+      })
+    } else {
+      this.loadData()
+    }
   }
 
   loadTopSafeArea(): void {

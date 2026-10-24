@@ -35,9 +35,15 @@ export struct TrafficBillPage {
     this.loadTopSafeArea()
     const hostCtx = this.getUIContext().getHostContext() as common.UIAbilityContext
     if (hostCtx) {
-      TrafficStatStore.getInstance().init(hostCtx)
+      // 必须先初始化存储再读取，否则首次进入读到空数据
+      TrafficStatStore.getInstance().init(hostCtx).then(() => {
+        this.loadData()
+      }).catch(() => {
+        this.loadData()
+      })
+    } else {
+      this.loadData()
     }
-    this.loadData()
   }
 
   private async loadData(): Promise<void> {
@@ -90,10 +96,19 @@ export struct TrafficBillPage {
     this.loading = false
   }
 
-  /** 字节 → GB 显示 */
-  private gb(bytes: number): string {
-    if (bytes <= 0) return '0.0'
-    return (bytes / 1024 / 1024 / 1024).toFixed(1)
+  /** 字节 → 自适应数值（≥1GB 用 GB，否则 MB / KB，避免小流量被显示成 0.0） */
+  private val(bytes: number): string {
+    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1)
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1)
+    if (bytes >= 1024) return (bytes / 1024).toFixed(0)
+    return '0'
+  }
+
+  private unit(bytes: number): string {
+    if (bytes >= 1073741824) return 'GB'
+    if (bytes >= 1048576) return 'MB'
+    if (bytes >= 1024) return 'KB'
+    return 'B'
   }
 
   /** 近 7 天柱高（0~1） */
@@ -166,12 +181,12 @@ export struct TrafficBillPage {
             Column() {
               Text('本月已用流量').fontSize(12).fontColor('rgba(255,255,255,0.85)')
               Row() {
-                Text(this.gb(this.monthTotal))
+                Text(this.val(this.monthTotal))
                   .fontSize(62).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
-                Text(' GB').fontSize(18).fontColor('rgba(255,255,255,0.85)').margin({ bottom: 14 })
+                Text(` ${this.unit(this.monthTotal)}`).fontSize(18).fontColor('rgba(255,255,255,0.85)').margin({ bottom: 14 })
               }
               .alignItems(VerticalAlign.Bottom)
-              Text(this.monthDays > 0 ? `已统计 ${this.monthDays} 天 · 日均 ${this.gb(this.avgPerDay)} GB` : '本月的流量数据还在积累中')
+              Text(this.monthDays > 0 ? `已统计 ${this.monthDays} 天 · 日均 ${this.val(this.avgPerDay)} ${this.unit(this.avgPerDay)}` : '本月的流量数据还在积累中')
                 .fontSize(11).fontColor('rgba(255,255,255,0.8)').margin({ top: 2 })
             }
             .width('100%').padding({ top: 26, bottom: 24 }).borderRadius(24).margin({ top: 12 })
@@ -188,7 +203,7 @@ export struct TrafficBillPage {
                   Text('🏔 本月峰值日').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                   Text(this.peakDay).fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 8 })
                   Blank()
-                  Text(`${this.gb(this.peakTotal)} GB`).fontSize(14).fontColor(this.theme.primary).fontWeight(FontWeight.Bold).fontFamily('monospace')
+                  Text(`${this.val(this.peakTotal)} ${this.unit(this.peakTotal)}`).fontSize(14).fontColor(this.theme.primary).fontWeight(FontWeight.Bold).fontFamily('monospace')
                 }
                 .width('100%')
               }

@@ -58,6 +58,8 @@ export struct DashboardTab {
   private gaugeAnimTimer: number = -1
   // 流量统计（WAN 累计字节快照）
   private lastWanBytes: number[] | null = null
+  // 设备作息采样去重（日期_小时）
+  private lastActivityKey: string = ''
   // CPU 历史采样（处理器卡片折线图，最多 30 点）
   @State cpuHistory: number[] = []
   // 处理器折线图画布
@@ -202,6 +204,8 @@ export struct DashboardTab {
       this.isOnline = true
       // 流量统计：累计字节增量记入当天
       this.recordTraffic()
+      // 设备作息采样：每整点记录一次在线设备，供 24h 热力图使用
+      this.recordDeviceActivity(results[4] as ConnectedDevice[])
       // 桌面小组件数据同步（下载/上传速率 + 在线设备数）
       this.syncWidgetData()
       // CPU 历史采样（处理器卡片折线图）
@@ -327,6 +331,9 @@ export struct DashboardTab {
     try {
       const api = new ApiService()
       const bytes: number[] = await api.fetchWanTrafficBytes()
+      if (bytes[0] === 0 && bytes[1] === 0) {
+        hilog.info(0x0001, 'Dashboard', 'recordTraffic: 累计字节为 0（数据源不可用）')
+      }
       if (this.lastWanBytes) {
         const drx: number = bytes[0] - this.lastWanBytes[0]
         const dtx: number = bytes[1] - this.lastWanBytes[1]
@@ -338,6 +345,28 @@ export struct DashboardTab {
       this.lastWanBytes = bytes
     } catch (e) {
       // 统计失败不影响主流程
+    }
+  }
+
+  /** 设备作息采样：每小时记录一次在线设备，供 24h 活跃热力图使用 */
+  private recordDeviceActivity(devs: ConnectedDevice[]): void {
+    try {
+      const now: Date = new Date()
+      const key: string = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}_${now.getHours()}`
+      if (key === this.lastActivityKey) {
+        return
+      }
+      const macs: string[] = []
+      for (let i = 0; i < devs.length; i++) {
+        const d: ConnectedDevice = devs[i]
+        if (d.mac && d.isOnline) {
+          macs.push(d.mac)
+        }
+      }
+      FunStore.getInstance().addActivity(macs)
+      this.lastActivityKey = key
+    } catch (e) {
+      // 采样失败不影响主流程
     }
   }
 

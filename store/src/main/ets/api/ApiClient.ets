@@ -1737,20 +1737,41 @@ export class ApiClient {
       const stats: Map<string, number[]> = await this.fetchDevStats()
       if (stats.size === 0) return [0, 0]
       const names: string[] = Array.from(stats.keys())
-      // 1. 优先 wan 接口（wan / wan6 等）
+      // 1. 优先 wan 类接口（wan / wan6 / pppoe-wan / wwan）；
+      //    注意：逻辑接口 wan 的计数可能恒为 0，必须跳过，否则会一直返回 0 导致统计永远为空
       for (let i = 0; i < names.length; i++) {
         const n: string = names[i]
-        if (n.startsWith('wan')) {
+        const lower: string = n.toLowerCase()
+        if (lower === 'wan' || lower.startsWith('wan') || lower.startsWith('pppoe') ||
+          lower.startsWith('wwan')) {
           const v: number[] | undefined = stats.get(n)
-          return v ? [v[0], v[1]] : [0, 0]
+          if (v && (v[0] > 0 || v[1] > 0)) {
+            return [v[0], v[1]]
+          }
         }
       }
-      // 2. 回退：第一个非 lo / 非 br 的物理接口
+      // 2. 回退：累计字节最大的非虚拟接口（排除 lo / 网桥 / 容器网卡）
+      let best: number[] = [0, 0]
+      let bestSum: number = 0
       for (let i = 0; i < names.length; i++) {
         const n: string = names[i]
-        if (n === 'lo' || n.startsWith('br')) continue
+        const lower: string = n.toLowerCase()
+        if (n === 'lo' || lower.startsWith('br') || lower.startsWith('docker') ||
+          lower.startsWith('veth') || lower.startsWith('tun') || lower.startsWith('tap')) {
+          continue
+        }
         const v: number[] | undefined = stats.get(n)
-        return v ? [v[0], v[1]] : [0, 0]
+        if (!v) {
+          continue
+        }
+        const sum: number = v[0] + v[1]
+        if (sum > bestSum) {
+          bestSum = sum
+          best = v
+        }
+      }
+      if (bestSum > 0) {
+        return [best[0], best[1]]
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, `getWanTrafficBytes err: ${JSON.stringify(e)}`)

@@ -155,7 +155,7 @@ this.theme = AppState.getInstance().getTheme()
                       .fontSize(18).fontColor(this.theme.textPrimary).margin({ right: 10 })
 
                     Column() {
-                      Text(item.hostname || item.ip || '--')
+                      Text(item.hostname || '未知设备')
                         .fontSize(13).fontColor(this.theme.textPrimary)
                         .fontWeight(FontWeight.Medium).maxLines(1)
                       if (item.mac) {

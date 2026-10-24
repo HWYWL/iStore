@@ -18,8 +18,9 @@ export struct NetworkReportPage {
   @State generating: boolean = false
   @State generated: boolean = false
   @State totalGb: number = 0
+  @State totalText: string = '0 B'
   @State peakDay: string = ''
-  @State peakGb: number = 0
+  @State peakText: string = '--'
   @State deviceCount: number = 0
   @State topDevices: string[] = []
   @State comment: string = ''
@@ -30,9 +31,12 @@ export struct NetworkReportPage {
     this.theme = AppState.getInstance().getTheme()
   }
 
-  /** 字节 → 可读 GB */
-  private fmtGb(b: number): string {
-    return (b / (1024 * 1024 * 1024)).toFixed(1)
+  /** 字节 → 自适应大小（≥1GB 用 GB，否则 MB / KB，避免小流量显示成 0.0） */
+  private fmtSize(b: number): string {
+    if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' GB'
+    if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB'
+    if (b >= 1024) return (b / 1024).toFixed(0) + ' KB'
+    return '0 B'
   }
 
   async generate(): Promise<void> {
@@ -70,8 +74,9 @@ export struct NetworkReportPage {
           peakDate = days[i].date
         }
       }
-      this.totalGb = Number(this.fmtGb(total))
-      this.peakGb = Number(this.fmtGb(peak))
+      this.totalGb = total / 1073741824
+      this.totalText = this.fmtSize(total)
+      this.peakText = peak > 0 ? this.fmtSize(peak) : '--'
       this.peakDay = peakDate
       // 在线设备
       try {
@@ -146,10 +151,8 @@ export struct NetworkReportPage {
 
               // 总流量
               Row() {
-                Text(this.totalGb.toFixed(1))
+                Text(this.totalText)
                   .fontSize(30).fontColor('#FF8A3D').fontWeight(FontWeight.Bold).fontFamily('monospace')
-                Text(' GB')
-                  .fontSize(14).fontColor(this.theme.textSecondary).margin({ left: 2 })
                 Text('总流量')
                   .fontSize(11).fontColor(this.theme.textTertiary).margin({ left: 8 })
               }
@@ -159,7 +162,7 @@ export struct NetworkReportPage {
               Column() {
                 Text('最忙的一天')
                   .fontSize(11).fontColor(this.theme.textTertiary)
-                Text(this.peakDay ? `${this.peakDay}（${this.peakGb} GB）` : '--')
+                Text(this.peakDay ? `${this.peakDay}（${this.peakText}）` : '--')
                   .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                   .margin({ top: 4 })
               }

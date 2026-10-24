@@ -54,7 +54,7 @@ export struct DeviceTab {
 
   /** 设备显示名（优先备注） */
   deviceDisplayName(device: ConnectedDevice): string {
-    return this.noteMap.get(device.mac.toUpperCase()) || device.hostname || 'Unknown'
+    return this.noteMap.get(device.mac.toUpperCase()) || device.hostname || device.ip || '未知设备'
   }
 
   async loadDevices(): Promise<void> {

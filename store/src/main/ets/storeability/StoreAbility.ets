@@ -6,6 +6,9 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.Ab
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { window } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { TrafficStatStore } from '../common/store/TrafficStatStore'
+import { FunStore } from '../common/store/FunStore'
+import { DiaryStore } from '../common/store/DiaryStore'
 
 const DOMAIN = 0x0000
 
@@ -16,6 +19,17 @@ export default class StoreAbility extends UIAbility {
     } catch (err) {
       hilog.error(DOMAIN, 'StoreAbility', 'Failed to set colorMode: %{public}s', JSON.stringify(err))
     }
+    // 统一初始化本地持久化存储：页面内 getUIContext().getHostContext() 可能拿不到上下文，
+    // 一旦初始化失败，流量统计 / 设备作息 / 日记等会一直是空数据
+    TrafficStatStore.getInstance().init(this.context).catch((e: BusinessError) => {
+      hilog.error(DOMAIN, 'StoreAbility', 'TrafficStatStore init failed: %{public}s', JSON.stringify(e))
+    })
+    FunStore.getInstance().init(this.context).catch((e: BusinessError) => {
+      hilog.error(DOMAIN, 'StoreAbility', 'FunStore init failed: %{public}s', JSON.stringify(e))
+    })
+    DiaryStore.getInstance().init(this.context).catch((e: BusinessError) => {
+      hilog.error(DOMAIN, 'StoreAbility', 'DiaryStore init failed: %{public}s', JSON.stringify(e))
+    })
     hilog.info(DOMAIN, 'StoreAbility', 'Ability onCreate')
   }
 

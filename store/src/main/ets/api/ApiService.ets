@@ -416,8 +416,17 @@ export class ApiService {
         const lookupDev: string = ObjectHelper.getString(iface, 'device', '') || ''
         const byteStats: number[] | undefined = this.statsCache.get(displayName) ||
           this.statsCache.get(ifName) || this.statsCache.get(name) || this.statsCache.get(lookupDev)
-        const rxBytes: number = byteStats ? byteStats[0] : 0
-        const txBytes: number = byteStats ? byteStats[1] : 0
+        let rxBytes: number = byteStats ? byteStats[0] : 0
+        let txBytes: number = byteStats ? byteStats[1] : 0
+        // 兜底：部分固件的 network.interface dump 自带 statistics 字段
+        if (rxBytes === 0 && txBytes === 0) {
+          const stObj: Object | undefined = (iface as Record<string, Object>)['statistics']
+          if (stObj && typeof stObj === 'object') {
+            const st: Record<string, Object> = stObj as Record<string, Object>
+            rxBytes = ObjectHelper.getNumber(st, 'rx_bytes', 0)
+            txBytes = ObjectHelper.getNumber(st, 'tx_bytes', 0)
+          }
+        }
 
         // 速率优先从 rateMap 查找（真实计算值），fallback 到 ubus 返回的字段
         const devName = ObjectHelper.getString(iface, 'device', '') || ''
@@ -512,11 +521,13 @@ export class ApiService {
         const rxRate: number = wc ? (wc.rxRate || 0) : 0
         const txRate: number = wc ? (wc.txRate || 0) : 0
 
+        // 厂商识别不到时置空，避免页面出现无意义的 "Unknown" 占位
+        const vendorName: string = FormatUtils.getVendorName(mac)
         const item: ConnectedDevice = {
           mac: mac,
           ip: ip,
           hostname: hostname,
-          vendor: FormatUtils.getVendorName(mac),
+          vendor: vendorName === 'Unknown' ? '' : vendorName,
           interface: interfaceName,
           onlineTime: displayOnlineTime,
           signalStrength: signalStrength,
@@ -1298,14 +1309,107 @@ export class ApiService {
     return false
   }
 
-  /** 获取 WAN 接口累计收发字节数（流量统计用，返回 [rx, tx]） */
+  /**
+   * 获取 WAN 接口累计收发字节数（流量统计用，返回 [rx, tx]）
+   * 数据源按可靠性依次降级：
+   *   1. network.interface dump 的 statistics（netifd 提供，ACL 最宽松，与网口流量页同一次请求）
+   *   2. luci-rpc getNetworkDevices 的 stats 缓存
+   *   3. ubus luci-rpc / /proc/net/dev
+   * 之前只用了第 3 条，在 luci-rpc 被 ACL 拒绝的固件上恒为 [0,0]，导致所有流量统计页永远为空
+   */
   async fetchWanTrafficBytes(): Promise<number[]> {
+    try {
+      await this.getNetworkData()
+      const list: Object[] = ObjectHelper.getArray(this.interfacesCache!, 'interface')
+      // 1. 优先 network.interface dump 自带的 statistics
+      const fromDump: number[] = this.pickWanBytes(list, true)
+      if (fromDump[0] > 0 || fromDump[1] > 0) {
+        return fromDump
+      }
+      // 2. 次选 luci-rpc 的设备统计缓存
+      const fromCache: number[] = this.pickWanBytes(list, false)
+      if (fromCache[0] > 0 || fromCache[1] > 0) {
+        return fromCache
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `fetchWanTrafficBytes err: ${String(e)}`)
+    }
+    // 3. 最终回退：ubus 通道（部分固件只有这条可用）
     try {
       return await this.client.getWanTrafficBytes()
     } catch (e) {
-      hilog.error(DOMAIN, TAG, 'fetchWanTrafficBytes err')
+      return [0, 0]
     }
-    return [0, 0]
+  }
+
+  /**
+   * 从接口列表中挑出 WAN 的累计收发字节
+   * @param useDump true=读接口对象的 statistics 字段；false=读 luci-rpc stats 缓存
+   */
+  private pickWanBytes(list: Object[], useDump: boolean): number[] {
+    // 1. WAN 逻辑接口
+    for (let i = 0; i < list.length; i++) {
+      const it: Object = list[i]
+      const type: string = ObjectHelper.getString(it, 'type', '')
+      const name: string = ObjectHelper.getString(it, 'interface', '') ||
+        ObjectHelper.getString(it, 'name', '')
+      const dev: string = ObjectHelper.getString(it, 'l3_device', '') ||
+        ObjectHelper.getString(it, 'device', '')
+      const isWan: boolean = type === 'wan' || name === 'wan' || name.startsWith('wan') ||
+        name.startsWith('pppoe')
+      if (!isWan) {
+        continue
+      }
+      const v: number[] = this.bytesOf(it, dev, name, useDump)
+      if (v[0] > 0 || v[1] > 0) {
+        return v
+      }
+    }
+    // 2. 回退：累计字节最大的非虚拟接口（排除 lo / 网桥 / 容器虚拟网卡）
+    let best: number[] = [0, 0]
+    let bestSum: number = 0
+    for (let i = 0; i < list.length; i++) {
+      const it: Object = list[i]
+      const name: string = ObjectHelper.getString(it, 'interface', '') ||
+        ObjectHelper.getString(it, 'name', '')
+      const dev: string = ObjectHelper.getString(it, 'l3_device', '') ||
+        ObjectHelper.getString(it, 'device', '')
+      const target: string = dev ? dev : name
+      if (!target || this.isVirtualIface(target)) {
+        continue
+      }
+      const v: number[] = this.bytesOf(it, dev, name, useDump)
+      const sum: number = v[0] + v[1]
+      if (sum > bestSum) {
+        bestSum = sum
+        best = v
+      }
+    }
+    return best
+  }
+
+  /** 读取单个接口的累计字节（[rx, tx]） */
+  private bytesOf(it: Object, dev: string, logicalName: string, useDump: boolean): number[] {
+    if (useDump) {
+      const stObj: Object | undefined = (it as Record<string, Object>)['statistics']
+      if (stObj && typeof stObj === 'object') {
+        const st: Record<string, Object> = stObj as Record<string, Object>
+        return [
+          ObjectHelper.getNumber(st, 'rx_bytes', 0),
+          ObjectHelper.getNumber(st, 'tx_bytes', 0)
+        ]
+      }
+      return [0, 0]
+    }
+    const byDev: number[] | undefined = dev ? this.statsCache.get(dev) : undefined
+    return byDev || this.statsCache.get(logicalName) || this.statsCache.get(dev) || [0, 0]
+  }
+
+  /** 是否虚拟接口（不计入 WAN 流量回退） */
+  private isVirtualIface(name: string): boolean {
+    return name === 'lo' || name.startsWith('br-') || name.startsWith('docker') ||
+      name.startsWith('veth') || name.startsWith('virbr') || name.startsWith('tun') ||
+      name.startsWith('tap') || name.startsWith('wg')
   }
 
   /**

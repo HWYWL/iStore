@@ -14,7 +14,7 @@ import { common } from '@kit.AbilityKit'
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
-import { SystemInfo, WanStatus, ConnectedDevice } from '../../models/Models'
+import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface } from '../../models/Models'
 
 const DOMAIN = 0x0001
 const TAG = 'ShareCard'
@@ -54,14 +54,37 @@ export struct ShareCardPage {
       this.sys = r[0] as SystemInfo
       const devs: ConnectedDevice[] = r[1] as ConnectedDevice[]
       this.onlineCount = devs.filter((d: ConnectedDevice) => d.isOnline).length
-      // 速率双采样：LuCI 首次请求无历史速率（恒 0），间隔 1.2s 后第二次才返回真实速率
-      const api1 = new ApiService()
-      await api1.fetchLanStatus()
-      await this.sleep(1200)
+      // 网速取 WAN 接口实时速率（LAN 速率在多数场景恒为 0），
+      // fetchNetworkInterfaces 内部首次采样会自动补一次 1s 间隔，无需页面再等
       const api2 = new ApiService()
-      const wan: WanStatus = await api2.fetchLanStatus()
-      this.rxMbps = wan.rxRate > 0 ? (wan.rxRate * 8) / 1000000 : 0
-      this.txMbps = wan.txRate > 0 ? (wan.txRate * 8) / 1000000 : 0
+      const ifaces: NetworkInterface[] = await api2.fetchNetworkInterfaces()
+      let rx: number = 0
+      let tx: number = 0
+      let wanFound: boolean = false
+      for (let i = 0; i < ifaces.length; i++) {
+        const n: NetworkInterface = ifaces[i]
+        const lower: string = n.name.toLowerCase()
+        if (n.type === 'wan' || lower.startsWith('wan') || lower.startsWith('pppoe')) {
+          rx = n.rxRate
+          tx = n.txRate
+          wanFound = true
+          break
+        }
+      }
+      if (!wanFound || (rx === 0 && tx === 0)) {
+        // 回退：所有非回环接口速率合计
+        rx = 0
+        tx = 0
+        for (let i = 0; i < ifaces.length; i++) {
+          const n: NetworkInterface = ifaces[i]
+          if (n.name !== 'lo') {
+            rx += n.rxRate
+            tx += n.txRate
+          }
+        }
+      }
+      this.rxMbps = rx > 0 ? (rx * 8) / 1000000 : 0
+      this.txMbps = tx > 0 ? (tx * 8) / 1000000 : 0
     } catch (e) {
       this.errText = '获取数据失败，请确认设备已连接'
     }

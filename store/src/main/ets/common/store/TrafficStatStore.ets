@@ -55,6 +55,7 @@ export class TrafficStatStore {
       // 清理过期数据（保留最近 MAX_DAYS 天）
       this.cleanup()
       this.prefs.flush()
+      hilog.info(DOMAIN, TAG, `addToday +${rx}/+${tx} => ${date} total=${rec.rx}/${rec.tx}`)
     } catch (e) {
       hilog.error(DOMAIN, TAG, `addToday err: ${JSON.stringify(e)}`)
     }
