@@ -58,13 +58,23 @@
 
 ## 🖥️ 界面长这样
 
-| 系统监控 | iStore | 应用 |
-|:---:|:---:|:---:|
-| ![系统监控](images/dashboard.jpg) | ![iStore](images/iStore.jpg) | ![应用](images/apps.jpg) |
+<p align="center">
+  <img src="images/dashboard.jpg" width="235" alt="网络仪表盘" />
+  &nbsp;&nbsp;
+  <img src="images/pet.jpg" width="235" alt="网络小管家" />
+  &nbsp;&nbsp;
+  <img src="images/store.jpg" width="235" alt="应用商店" />
+</p>
 
-| Docker 管理 |相册管理| 群聊沟通 |
-|:---:|:-----------------------:|:---:|
-| ![Docker](images/docker.jpg) | ![相册](images/photo.jpg) | ![群聊](images/qrcode.jpg) |
+<p align="center">
+  <img src="images/docker.jpg" width="235" alt="容器管理" />
+  &nbsp;&nbsp;
+  <img src="images/apps.jpg" width="235" alt="全能工具箱" />
+</p>
+
+<p align="center">
+  <sub>网络仪表盘 · 网络小管家 · 应用商店 · 容器管理 · 全能工具箱</sub>
+</p>
 
 ---
 
