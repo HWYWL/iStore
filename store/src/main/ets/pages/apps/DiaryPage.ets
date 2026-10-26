@@ -12,10 +12,11 @@ import { ConnectedDevice, TrafficHistory } from '../../models/Models'
 import { NotifyStore } from '../../common/store/NotifyStore'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct DiaryPage {
+export struct DiaryPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
   @State day: DayDiary = { date: '', onlineCount: 0, newCount: 0, trafficGb: 0, abnormalCount: 0, events: [] }
   @State dateLabel: string = '今天'
@@ -180,7 +181,7 @@ struct DiaryPage {
           .textAlign(TextAlign.Center)
           .shadow({ radius: 8, color: 'rgba(180,160,120,0.15)', offsetY: 3 })
           .margin({ right: 8 })
-          .onClick(() => { this.getUIContext().getRouter().back() })
+          .onClick(() => { AppNav.getInstance().back() })
         Text('‹')
           .fontSize(18).fontColor(this.theme.textSecondary).fontWeight(FontWeight.Bold)
           .width(34).height(34).borderRadius(11)
@@ -213,10 +214,13 @@ struct DiaryPage {
         Column() {
           // 小管点评卡
           Row() {
-            Text('🤖')
-              .fontSize(19).width(38).height(38).borderRadius(13)
-              .backgroundColor(this.theme.primary)
-              .textAlign(TextAlign.Center)
+            Row() {
+              SymbolGlyph($r('sys.symbol.face_smiling'))
+                .fontSize(19).fontColor(['#FFFFFF'])
+            }
+            .width(38).height(38).borderRadius(13)
+            .backgroundColor(this.theme.primary)
+            .justifyContent(FlexAlign.Center)
             Column() {
               Text('小管今日点评')
                 .fontSize(11).fontWeight(FontWeight.Bold).fontColor('#B0567A')
@@ -308,7 +312,7 @@ struct DiaryPage {
           } else {
             // 空状态
             Column() {
-              Text('📭').fontSize(36)
+              SymbolGlyph($r('sys.symbol.archivebox')).fontSize(36).fontColor(['#94A3B8'])
               Text('这一天没有记录到事件')
                 .fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 10 })
               Text('连接路由器后会自动记录设备/流量/异常')

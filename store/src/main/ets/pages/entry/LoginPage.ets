@@ -41,6 +41,11 @@ struct LoginPage {
   @State formVersion: number = 0
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44  // 状态栏高度（默认 44vp，覆盖大部分设备）
+  // ========== 设备列表：搜索 / 分组 / 自动重连 ==========
+  @State searchText: string = ''
+  @State groupFilter: string = ''      // 空串表示「全部」
+  @State groupInput: string = ''       // 编辑弹窗中的分组名
+  @State autoReconnect: boolean = true
   private appState: AppState = AppState.getInstance()
   private connectTimerId: number = -1  // 连接超时定时器 ID
 
@@ -86,14 +91,83 @@ struct LoginPage {
       this.theme = this.appState.getTheme()
     })
 
+    this.autoReconnect = this.appState.isAutoReconnectEnabled()
+
+    // 从主页面主动「切换设备」进来：不做任何自动跳转/自动重连
+    const switching: boolean = this.appState.consumeSwitchRequest()
+    if (switching) {
+      this.savedDevices = this.appState.devices
+      return
+    }
+
     // 如果已有活动连接，直接跳转到仪表盘
     if (this.appState.getActiveDeviceId()) {
-      try {
-        this.getUIContext().getRouter().replaceUrl({ url: 'pages/dashboard/MainPage' })
-      } catch (e) {
-        hilog.error(0x0001, 'LoginPage', `replaceUrl failed: ${e}`)
+      this.enterMain()
+      return
+    }
+
+    // 冷启动：自动重连上次使用的设备
+    if (this.autoReconnect) {
+      const lastId: string = this.appState.getLastDeviceId()
+      if (lastId) {
+        this.isConnecting = true
+        this.connectingId = lastId
+        const ok: boolean = await this.appState.connectLastDevice()
+        this.isConnecting = false
+        this.connectingId = ''
+        this.savedDevices = this.appState.devices
+        if (ok) {
+          this.enterMain()
+          return
+        }
+        this.errorMessage = this.appState.getLastError() || '上次设备连接失败，请手动选择'
       }
     }
+  }
+
+  /** 跳转主页面 */
+  private enterMain(): void {
+    try {
+      this.getUIContext().getRouter().replaceUrl({ url: 'pages/dashboard/MainPage' })
+    } catch (e) {
+      hilog.error(0x0001, 'LoginPage', `replaceUrl failed: ${e}`)
+    }
+  }
+
+  /** 设备列表：按搜索词 + 分组过滤（收藏已在存储层置顶排序） */
+  visibleDevices(): SavedDevice[] {
+    const kw: string = this.searchText.trim().toLowerCase()
+    return this.savedDevices.filter((d: SavedDevice) => {
+      if (this.groupFilter && (d.group || '') !== this.groupFilter) {
+        return false
+      }
+      if (!kw) {
+        return true
+      }
+      const label: string = (d.label || '').toLowerCase()
+      const host: string = (d.host || '').toLowerCase()
+      const group: string = (d.group || '').toLowerCase()
+      return label.includes(kw) || host.includes(kw) || group.includes(kw)
+    })
+  }
+
+  /** 已有分组（去重，按名称排序） */
+  deviceGroups(): string[] {
+    const set: string[] = []
+    for (let i = 0; i < this.savedDevices.length; i++) {
+      const g: string = this.savedDevices[i].group || ''
+      if (g && !set.includes(g)) {
+        set.push(g)
+      }
+    }
+    set.sort()
+    return set
+  }
+
+  /** 切换收藏 */
+  async toggleFavorite(device: SavedDevice): Promise<void> {
+    await this.appState.toggleFavorite(device.id)
+    this.savedDevices = this.appState.devices
   }
 
   /** 从表单输入构造连接配置 */
@@ -141,7 +215,9 @@ struct LoginPage {
           lastConnected: existing ? existing.lastConnected : Date.now(),
           version: existing ? existing.version : 0,
           username: keepLegacyToken ? '' : config.username!,
-          password: keepLegacyToken ? '' : config.password!
+          password: keepLegacyToken ? '' : config.password!,
+          favorite: existing ? existing.favorite : false,
+          group: this.groupInput.trim()
         }
         this.editingId = ''
       } else {
@@ -156,7 +232,9 @@ struct LoginPage {
           lastConnected: Date.now(),
           version: 0,
           username: config.username!,
-          password: config.password!
+          password: config.password!,
+          favorite: false,
+          group: this.groupInput.trim()
         }
       }
 
@@ -223,7 +301,9 @@ struct LoginPage {
           lastConnected: existing ? existing.lastConnected : Date.now(),
           version: existing ? existing.version : 0,
           username: keepLegacyToken ? '' : config.username!,
-          password: keepLegacyToken ? '' : config.password!
+          password: keepLegacyToken ? '' : config.password!,
+          favorite: existing ? existing.favorite : false,
+          group: existing ? (existing.group || '') : ''
         }
         await this.appState.saveDevice(upd)
         savedDevice = upd
@@ -240,7 +320,9 @@ struct LoginPage {
           lastConnected: Date.now(),
           version: 0,
           username: config.username!,
-          password: config.password!
+          password: config.password!,
+          favorite: false,
+          group: ''
         }
         await this.appState.saveDevice(device)
         savedDevice = device
@@ -312,6 +394,7 @@ struct LoginPage {
     this.label = ''
     this.editingId = ''
     this.errorMessage = ''
+    this.groupInput = ''
     this.formVersion = 0
   }
 
@@ -323,6 +406,7 @@ struct LoginPage {
     this.password = device.password || ''
     this.label = device.label
     this.editingId = device.id
+    this.groupInput = device.group || ''
     this.formVersion++
     this.errorMessage = ''
     this.showAddSheet = true
@@ -409,11 +493,75 @@ struct LoginPage {
         Scroll() {
           Column() {
             if (this.savedDevices.length > 0) {
-              Text('我的设备')
-                .fontSize(12).fontColor(this.theme.textTertiary)
-                .width('100%').padding({ left: 4, bottom: 8 })
+              // 标题 + 启动自动重连开关
+              Row() {
+                Text('我的设备')
+                  .fontSize(12).fontColor(this.theme.textTertiary)
+                  .layoutWeight(1)
+                Text('启动自动连接')
+                  .fontSize(11).fontColor(this.theme.textTertiary)
+                  .margin({ right: 6 })
+                Toggle({ type: ToggleType.Switch, isOn: this.autoReconnect })
+                  .width(38).height(22)
+                  .selectedColor(this.theme.primary)
+                  .onChange((on: boolean) => {
+                    this.autoReconnect = on
+                    this.appState.setAutoReconnect(on)
+                  })
+              }
+              .width('100%').padding({ left: 4, right: 4, bottom: 8 })
 
-              ForEach(this.savedDevices, (device: SavedDevice) => {
+              // 搜索（设备较多时才显示）
+              if (this.savedDevices.length > 2) {
+                Row() {
+                  Text('🔍')
+                    .fontSize(12).margin({ right: 6 })
+                  TextInput({ placeholder: '搜索名称 / 地址 / 分组', text: this.searchText })
+                    .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
+                    .backgroundColor('transparent').fontSize(13)
+                    .onChange((v: string) => { this.searchText = v })
+                    .layoutWeight(1).height(40)
+                }
+                .width('100%').height(40).borderRadius(20)
+                .backgroundColor(this.theme.bgCard)
+                .border({ width: 0.5, color: this.theme.borderGlass })
+                .padding({ left: 12, right: 12 }).margin({ bottom: 10 })
+              }
+
+              // 分组筛选
+              if (this.deviceGroups().length > 0) {
+                Row() {
+                  Text('全部')
+                    .fontSize(11)
+                    .fontColor(this.groupFilter === '' ? '#FFFFFF' : this.theme.textSecondary)
+                    .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                    .borderRadius(10)
+                    .backgroundColor(this.groupFilter === '' ? this.theme.primary : this.theme.bgGlassLight)
+                    .margin({ right: 8 })
+                    .onClick(() => { this.groupFilter = '' })
+                  ForEach(this.deviceGroups(), (g: string) => {
+                    Text(g)
+                      .fontSize(11)
+                      .fontColor(this.groupFilter === g ? '#FFFFFF' : this.theme.textSecondary)
+                      .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                      .borderRadius(10)
+                      .backgroundColor(this.groupFilter === g ? this.theme.primary : this.theme.bgGlassLight)
+                      .margin({ right: 8 })
+                      .onClick(() => { this.groupFilter = this.groupFilter === g ? '' : g })
+                  }, (g: string): string => g)
+                }
+                .width('100%').margin({ bottom: 6 })
+              }
+
+              // 空结果提示
+              if (this.visibleDevices().length === 0) {
+                Text('没有匹配的设备')
+                  .fontSize(12).fontColor(this.theme.textTertiary)
+                  .width('100%').textAlign(TextAlign.Center)
+                  .padding({ top: 16, bottom: 8 })
+              }
+
+              ForEach(this.visibleDevices(), (device: SavedDevice) => {
                 Column() {
                   Row() {
                     Stack() {
@@ -441,9 +589,28 @@ struct LoginPage {
                           Text(' · 连接中...')
                             .fontSize(10).fontColor(this.theme.primary)
                         }
+                        if (device.group) {
+                          Text(device.group)
+                            .fontSize(9).fontColor(this.theme.textSecondary)
+                            .padding({ left: 6, right: 6, top: 1, bottom: 1 })
+                            .borderRadius(6).margin({ left: 6 })
+                            .backgroundColor(this.theme.bgGlassLight)
+                        }
                       }
                     }
                     .margin({ left: 10 }).alignItems(HorizontalAlign.Start).layoutWeight(1)
+
+                    // 收藏（置顶）
+                    Row() {
+                      Text(device.favorite ? '★' : '☆')
+                        .fontSize(16)
+                        .fontColor(device.favorite ? this.theme.primary : this.theme.textTertiary)
+                    }
+                    .width(30).height(30).borderRadius(15)
+                    .backgroundColor(device.favorite ? 'rgba(255,138,61,0.14)' : 'transparent')
+                    .justifyContent(FlexAlign.Center)
+                    .margin({ right: 6 })
+                    .onClick(() => { this.toggleFavorite(device) })
 
                     Row() {
                       Image($r('app.media.app_edit'))
@@ -539,6 +706,19 @@ struct LoginPage {
           .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
           .backgroundColor('transparent')
           .onChange((v: string) => { this.label = v })
+          .layoutWeight(1).height(52)
+      }
+      .width('100%').height(52).borderRadius(24)
+      .backgroundColor(this.theme.bgCard).backdropBlur(10)
+      .border({ width: 0.5, color: this.theme.borderGlass })
+      .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
+
+      // 分组（可选，用于设备较多时筛选）
+      Row() {
+        TextInput({ placeholder: '分组（可选，如 家里 / 公司）', text: this.groupInput })
+          .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
+          .backgroundColor('transparent')
+          .onChange((v: string) => { this.groupInput = v })
           .layoutWeight(1).height(52)
       }
       .width('100%').height(52).borderRadius(24)

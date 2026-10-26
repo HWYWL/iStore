@@ -7,10 +7,32 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ConnectedDevice } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
+
+/** 拓扑节点（胶囊）布局信息 */
+interface TopoNode {
+  dev: ConnectedDevice
+  isWifi: boolean
+  x: number
+  y: number
+  sx: number
+  sy: number
+  w: number
+  h: number
+  fs: number
+  text: string
+}
+
+/** 胶囊尺寸测量结果 */
+interface CapMetrics {
+  w: number
+  fs: number
+  text: string
+}
 
 @Entry
 @Component
-struct TopologyPage {
+export struct TopologyPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
   @State isLoading: boolean = true
@@ -71,6 +93,83 @@ this.theme = AppState.getInstance().getTheme()
     return this.wifiMacs.indexOf(m) >= 0
   }
 
+  /** 按最大宽度裁剪文本（超出加省略号） */
+  private fitText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string {
+    if (ctx.measureText(text).width <= maxW) {
+      return text
+    }
+    let s: string = text
+    while (s.length > 1 && ctx.measureText(s + '…').width > maxW) {
+      s = s.substring(0, s.length - 1)
+    }
+    return s + '…'
+  }
+
+  /** 椭圆胶囊路径 */
+  private capsulePath(ctx: CanvasRenderingContext2D, x0: number, y0: number, cw: number, ch: number, r: number): void {
+    ctx.beginPath()
+    ctx.moveTo(x0 + r, y0)
+    ctx.lineTo(x0 + cw - r, y0)
+    ctx.arc(x0 + cw - r, y0 + r, r, Math.PI * 1.5, Math.PI * 0.5)
+    ctx.lineTo(x0 + r, y0 + ch)
+    ctx.arc(x0 + r, y0 + r, r, Math.PI * 0.5, Math.PI * 1.5)
+    ctx.closePath()
+  }
+
+  /** 测量胶囊尺寸：优先缩小字号以完整容纳设备名 */
+  private capsuleMetrics(ctx: CanvasRenderingContext2D, name: string): CapMetrics {
+    const maxW: number = Math.min(this.canvasW * 0.52, 176)
+    const padX: number = 9
+    const innerW: number = maxW - padX * 2
+    let fs: number = 9
+    ctx.font = fs.toString() + 'vp sans-serif'
+    let text: string = name
+    let tw: number = ctx.measureText(text).width
+    if (tw > innerW) {
+      fs = 8
+      ctx.font = fs.toString() + 'vp sans-serif'
+      tw = ctx.measureText(text).width
+    }
+    if (tw > innerW) {
+      fs = 7
+      ctx.font = fs.toString() + 'vp sans-serif'
+      tw = ctx.measureText(text).width
+    }
+    if (tw > innerW) {
+      text = this.fitText(ctx, text, innerW)
+      tw = ctx.measureText(text).width
+    }
+    const capW: number = Math.min(maxW, tw + padX * 2)
+    const m: CapMetrics = { w: capW, fs: fs, text: text }
+    return m
+  }
+
+  /**
+   * 环形节点坐标
+   * side: 0=上半圆（有线） 1=下半圆（无线） 2=整圈（某一类为空时避免半边空洞）
+   * 返回 [x, y, 角度]
+   */
+  private nodePos(i: number, n: number, side: number): number[] {
+    const w: number = this.canvasW
+    const h: number = this.canvasH
+    const cx: number = w / 2
+    const cy: number = h / 2
+    const rx: number = Math.min(w * 0.40, 165)
+    const ry: number = Math.min(h * 0.34, 155)
+    let a: number = 0
+    if (side === 2) {
+      a = -Math.PI / 2 + (i * Math.PI * 2) / Math.max(n, 1)
+    } else {
+      const span: number = Math.PI * 0.94
+      const start: number = Math.PI / 2 - span / 2
+      a = n === 1 ? Math.PI / 2 : start + (i * span) / (n - 1)
+    }
+    const x: number = cx + Math.cos(a) * rx
+    const y: number = side === 0 ? cy - Math.sin(a) * ry
+      : (side === 1 ? cy + Math.sin(a) * ry : cy + Math.sin(a) * ry)
+    return [x, y, a]
+  }
+
   /** 绘制拓扑图（中心路由器 + 无线/有线半圆分布） */
   draw(): void {
     const ctx: CanvasRenderingContext2D = this.canvasCtx
@@ -78,7 +177,9 @@ this.theme = AppState.getInstance().getTheme()
     const h: number = this.canvasH
     const cx: number = w / 2
     const cy: number = h / 2
-
+    if (w <= 0 || h <= 0) {
+      return
+    }
     ctx.clearRect(0, 0, w, h)
 
     // 无线设备（下半区）与有线设备（上半区）分组
@@ -93,93 +194,192 @@ this.theme = AppState.getInstance().getTheme()
         wiredDevs.push(d)
       }
     }
-    const showWifi: ConnectedDevice[] = wifiDevs.slice(0, 12)
-    const showWired: ConnectedDevice[] = wiredDevs.slice(0, 12)
+    // 两类都有 → 上下半圆；只有一类 → 整圈排布，避免半边空洞
+    const bothSides: boolean = wifiDevs.length > 0 && wiredDevs.length > 0
+    const showWifi: ConnectedDevice[] = bothSides ? wifiDevs.slice(0, 8) : []
+    const showWired: ConnectedDevice[] = bothSides ? wiredDevs.slice(0, 8) : []
+    const singleRing: ConnectedDevice[] = bothSides ? [] : wifiDevs.concat(wiredDevs).slice(0, 12)
+    const ringRx: number = Math.min(w * 0.40, 165)
+    const ringRy: number = Math.min(h * 0.34, 155)
+    const glowR: number = Math.max(ringRx, ringRy)
 
-    // ---- 连线（先画线，节点覆盖在上面）----
-    ctx.lineWidth = 1.2
-    ctx.strokeStyle = this.theme.borderGlassFocus
+    // ---- 背景光晕 ----
+    const glow = ctx.createRadialGradient(cx, cy, 8, cx, cy, glowR + 60)
+    glow.addColorStop(0, 'rgba(59,130,246,0.12)')
+    glow.addColorStop(1, 'rgba(59,130,246,0)')
+    ctx.fillStyle = glow
+    ctx.beginPath()
+    ctx.arc(cx, cy, glowR + 60, 0, Math.PI * 2)
+    ctx.fill()
 
-    const wifiCount: number = showWifi.length
-    for (let i = 0; i < wifiCount; i++) {
-      const a: number = Math.PI + (i + 1) * Math.PI / (wifiCount + 1)  // 180°~360°
-      const r: number = 150
-      const x: number = cx + Math.cos(a) * r
-      const y: number = cy + Math.sin(a) * r
+    // ---- 虚线同心圆 ----
+    ctx.save()
+    ctx.setLineDash([4, 7])
+    ctx.lineWidth = 1
+    ctx.strokeStyle = 'rgba(148,163,184,0.34)'
+    for (let i = 1; i <= 2; i++) {
       ctx.beginPath()
-      ctx.moveTo(cx, cy - 10)
-      ctx.lineTo(x, y)
+      ctx.ellipse(cx, cy, ringRx * (i === 1 ? 0.55 : 1), ringRy * (i === 1 ? 0.55 : 1), 0, 0, Math.PI * 2)
       ctx.stroke()
     }
-    const wiredCount: number = showWired.length
-    for (let i = 0; i < wiredCount; i++) {
-      const a: number = (i + 1) * Math.PI / (wiredCount + 1)  // 0°~180°
-      const r: number = 150
-      const x: number = cx + Math.cos(a) * r
-      const y: number = cy - Math.sin(a) * r
+    ctx.restore()
+
+    // ---- 测量胶囊尺寸并计算布局（完整名称 + 互不遮挡）----
+    const capH: number = 22
+    const nodes: TopoNode[] = []
+    const addNodes = (list: ConnectedDevice[], side: number, wifiMode: number): void => {
+      for (let i = 0; i < list.length; i++) {
+        const dev: ConnectedDevice = list[i]
+        const name: string = dev.hostname || dev.mac || '未知设备'
+        const m: CapMetrics = this.capsuleMetrics(ctx, name)
+        const p: number[] = this.nodePos(i, list.length, side)
+        const isWifiDev: boolean = wifiMode === 1 ? true : (wifiMode === 0 ? false : this.isWifiDevice(dev))
+        const node: TopoNode = {
+          dev: dev, isWifi: isWifiDev, x: p[0], y: p[1], sx: p[0], sy: p[1],
+          w: m.w, h: capH, fs: m.fs, text: m.text
+        }
+        nodes.push(node)
+      }
+    }
+    if (bothSides) {
+      addNodes(showWired, 0, 0)
+      addNodes(showWifi, 1, 1)
+    } else {
+      addNodes(singleRing, 2, 2)
+    }
+
+    // 迭代消解重叠：沿重叠较小的一侧把两个胶囊对推开
+    const gap: number = 6
+    for (let iter = 0; iter < 60; iter++) {
+      let moved: boolean = false
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a: TopoNode = nodes[i]
+          const b: TopoNode = nodes[j]
+          const ox: number = (a.w + b.w) / 2 + gap - Math.abs(a.x - b.x)
+          const oy: number = (a.h + b.h) / 2 + gap - Math.abs(a.y - b.y)
+          if (ox <= 0 || oy <= 0) {
+            continue
+          }
+          moved = true
+          if (ox <= oy) {
+            const dir: number = a.x <= b.x ? -1 : 1
+            a.x += dir * ox / 2
+            b.x -= dir * ox / 2
+          } else {
+            const dir: number = a.y <= b.y ? -1 : 1
+            a.y += dir * oy / 2
+            b.y -= dir * oy / 2
+          }
+        }
+      }
+      // 约束在画布内，并避开中心路由器及其名称
+      for (let k = 0; k < nodes.length; k++) {
+        const n: TopoNode = nodes[k]
+        n.x = Math.max(n.w / 2 + 4, Math.min(w - n.w / 2 - 4, n.x))
+        n.y = Math.max(n.h / 2 + 4, Math.min(h - n.h / 2 - 4, n.y))
+        const limitX: number = 30 + n.w / 2
+        const limitY: number = 56 + n.h / 2
+        if (Math.abs(n.x - cx) < limitX && Math.abs(n.y - cy) < limitY) {
+          const dirY: number = n.y <= cy ? -1 : 1
+          n.y = cy + dirY * limitY
+          n.y = Math.max(n.h / 2 + 4, Math.min(h - n.h / 2 - 4, n.y))
+        }
+      }
+      if (!moved) {
+        break
+      }
+    }
+
+    // ---- 连线（贝塞尔，先画线，胶囊覆盖其上）----
+    ctx.lineWidth = 1.2
+    const drawLink = (x1: number, y1: number, x2: number, y2: number, color: string): void => {
+      const mx: number = (x1 + x2) / 2
+      const my: number = (y1 + y2) / 2
+      const bend: number = y2 < y1 ? 12 : -12
+      const grad = ctx.createLinearGradient(x1, y1, x2, y2)
+      grad.addColorStop(0, color)
+      grad.addColorStop(1, 'rgba(148,163,184,0.18)')
+      ctx.strokeStyle = grad
       ctx.beginPath()
-      ctx.moveTo(cx, cy - 10)
-      ctx.lineTo(x, y)
+      ctx.moveTo(x1, y1)
+      ctx.quadraticCurveTo(mx + bend * 0.4, my + bend, x2, y2)
       ctx.stroke()
+    }
+
+    const centerEdge: number = 30
+    for (let i = 0; i < nodes.length; i++) {
+      const n: TopoNode = nodes[i]
+      const color: string = n.isWifi ? 'rgba(16,185,129,0.45)' : 'rgba(59,130,246,0.45)'
+      const dx: number = n.x - cx
+      const dy: number = n.y - cy
+      const len: number = Math.sqrt(dx * dx + dy * dy) || 1
+      drawLink(cx + (dx / len) * centerEdge, cy + (dy / len) * centerEdge, n.x, n.y, color)
     }
 
     // ---- 中心路由器节点 ----
+    ctx.save()
+    ctx.shadowColor = 'rgba(37,99,235,0.35)'
+    ctx.shadowBlur = 18
+    ctx.shadowOffsetY = 6
     ctx.beginPath()
-    ctx.arc(cx, cy, 34, 0, Math.PI * 2)
-    ctx.fillStyle = this.theme.primary
+    ctx.arc(cx, cy, 30, 0, Math.PI * 2)
+    ctx.fillStyle = '#2563EB'
     ctx.fill()
-    ctx.beginPath()
-    ctx.arc(cx, cy, 27, 0, Math.PI * 2)
+    ctx.restore()
+
+    // 白色 WiFi 波纹
+    ctx.strokeStyle = '#FFFFFF'
     ctx.fillStyle = '#FFFFFF'
-    ctx.fill()
-    ctx.fillStyle = this.theme.primary
-    ctx.font = '22vp sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('📡', cx, cy)
-    // 设备名
-    ctx.fillStyle = this.theme.textPrimary
-    ctx.font = '12vp sans-serif'
-    ctx.fillText(this.deviceName, cx, cy + 52)
-
-    // ---- 设备节点 ----
-    ctx.font = '10vp sans-serif'
-    const drawNode = (dev: ConnectedDevice, x: number, y: number, isWifi: boolean): void => {
+    ctx.lineCap = 'round'
+    for (let i = 1; i <= 2; i++) {
+      ctx.lineWidth = 2.4
       ctx.beginPath()
-      ctx.arc(x, y, 17, 0, Math.PI * 2)
-      ctx.fillStyle = isWifi ? '#1D9E75' : '#185FA5'
-      ctx.fill()
+      ctx.arc(cx, cy + 7, 6.5 * i, Math.PI * 1.16, Math.PI * 1.84)
+      ctx.stroke()
+    }
+    ctx.beginPath()
+    ctx.arc(cx, cy + 7, 2.1, 0, Math.PI * 2)
+    ctx.fill()
+
+    // 路由器名称（圆环下方，按画布宽度截断）
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
+    ctx.fillStyle = this.theme.textPrimary
+    ctx.font = 'bold 13vp sans-serif'
+    ctx.fillText(this.fitText(ctx, this.deviceName, Math.min(w - 80, 220)), cx, cy + 36)
+
+    // ---- 设备节点（椭圆胶囊，完整名称居中）----
+    for (let i = 0; i < nodes.length; i++) {
+      const n: TopoNode = nodes[i]
+      const color: string = n.isWifi ? '#10B981' : '#3B82F6'
+      const x0: number = n.x - n.w / 2
+      const y0: number = n.y - n.h / 2
+      const r: number = n.h / 2
+
+      // 白色胶囊底 + 同色投影
+      ctx.save()
+      ctx.shadowColor = n.isWifi ? 'rgba(16,185,129,0.28)' : 'rgba(59,130,246,0.28)'
+      ctx.shadowBlur = 8
+      ctx.shadowOffsetY = 3
+      this.capsulePath(ctx, x0, y0, n.w, n.h, r)
       ctx.fillStyle = '#FFFFFF'
-      ctx.font = '9vp sans-serif'
-      ctx.fillText(dev.hostname || '设备', x, y)
-      // 名称标签（节点下方）
-      ctx.fillStyle = this.theme.textSecondary
-      ctx.font = '9vp sans-serif'
-      const label: string = (dev.hostname || dev.mac).length > 6
-        ? (dev.hostname || dev.mac).substring(0, 6) : (dev.hostname || dev.mac)
-      ctx.fillText(label, x, y + 28)
-    }
+      ctx.fill()
+      ctx.restore()
 
-    for (let i = 0; i < wifiCount; i++) {
-      const a: number = Math.PI + (i + 1) * Math.PI / (wifiCount + 1)
-      const r: number = 150
-      drawNode(showWifi[i], cx + Math.cos(a) * r, cy + Math.sin(a) * r, true)
-    }
-    for (let i = 0; i < wiredCount; i++) {
-      const a: number = (i + 1) * Math.PI / (wiredCount + 1)
-      const r: number = 150
-      drawNode(showWired[i], cx - Math.cos(a) * r, cy - Math.sin(a) * r, false)
-    }
+      // 彩色胶囊描边
+      this.capsulePath(ctx, x0, y0, n.w, n.h, r)
+      ctx.lineWidth = 1.8
+      ctx.strokeStyle = color
+      ctx.stroke()
 
-    // ---- 图例 ----
-    ctx.fillStyle = '#1D9E75'
-    ctx.font = '10vp sans-serif'
-    ctx.textAlign = 'left'
-    ctx.fillText('● 无线设备', 20, h - 18)
-    ctx.fillStyle = '#185FA5'
-    ctx.fillText('● 有线设备', 120, h - 18)
-    ctx.fillStyle = this.theme.textTertiary
-    ctx.fillText(`共 ${this.devices.length} 台在线`, w - 110, h - 18)
+      // 设备名称：完整居中塞进胶囊
+      ctx.fillStyle = color
+      ctx.font = n.fs.toString() + 'vp sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(n.text, n.x, n.y + 0.5)
+    }
   }
 
   build() {
@@ -187,9 +387,9 @@ this.theme = AppState.getInstance().getTheme()
       // 标题栏
       Row() {
         Row() {
-          Image($r('app.media.topology'))
-            .width(16)
-            .height(16)
+          SymbolGlyph($r('sys.symbol.circle_grid_2x2'))
+            .fontSize(15)
+            .fontColor(['#8B5CF6'])
           Text(' 网络拓扑')
             .fontSize(16)
             .fontColor(this.theme.textPrimary)
@@ -200,13 +400,13 @@ this.theme = AppState.getInstance().getTheme()
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
         .onClick(() => {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         })
         Blank()
         Row() {
-          Image($r('app.media.app_restart'))
-            .width(13)
-            .height(13)
+          SymbolGlyph($r('sys.symbol.arrow_clockwise'))
+            .fontSize(13)
+            .fontColor([this.theme.primary])
           Text('刷新')
             .fontSize(12).fontColor(this.theme.primary)
             .margin({ left: 4 })
@@ -227,8 +427,11 @@ this.theme = AppState.getInstance().getTheme()
         .width('100%').padding(40).alignItems(HorizontalAlign.Center).margin({ top: 60 })
       } else if (this.devices.length === 0) {
         Column() {
-          Text('还没看到在线设备，大家可能都在午休 😴')
-            .fontSize(13).fontColor(this.theme.textTertiary)
+          SymbolGlyph($r('sys.symbol.moon'))
+            .fontSize(34)
+            .fontColor(['#94A3B8'])
+          Text('还没看到在线设备，大家可能都在午休')
+            .fontSize(13).fontColor(this.theme.textTertiary).margin({ top: 10 })
           if (this.errorText) {
             Text(this.errorText)
               .fontSize(12).fontColor(this.theme.warning).margin({ top: 8 })
@@ -236,37 +439,49 @@ this.theme = AppState.getInstance().getTheme()
         }
         .width('100%').alignItems(HorizontalAlign.Center).margin({ top: 120 })
       } else {
-        // 拓扑画布
+        // 拓扑画布（尺寸随容器变化，避免固定宽度导致错位）
         Canvas(this.canvasCtx)
           .width('100%')
-          .height(440)
+          .height(460)
           .onReady(() => {
-            this.canvasW = 360
-            this.canvasH = 440
             this.draw()
+          })
+          .onAreaChange((oldValue: Area, newValue: Area) => {
+            const w: number = Number.parseFloat(newValue.width.toString())
+            const h: number = Number.parseFloat(newValue.height.toString())
+            if (w > 0 && h > 0) {
+              this.canvasW = w
+              this.canvasH = h
+              this.draw()
+            }
           })
           .backgroundColor('transparent')
 
         // 拓扑说明
         Column() {
           Row() {
-            Image($r('app.media.wifi_icon'))
-              .width(14)
-              .height(14)
-            Text('绿色节点 = 无线连接（WiFi）')
-              .fontSize(11).fontColor(this.theme.textSecondary)
-              .margin({ left: 5 })
+            Row() {
+              Circle({ width: 8, height: 8 }).fill('#10B981')
+              Text(' 无线连接').fontSize(11).fontColor(this.theme.textSecondary)
+            }
+            Row() {
+              Circle({ width: 8, height: 8 }).fill('#3B82F6')
+              Text(' 有线连接').fontSize(11).fontColor(this.theme.textSecondary)
+            }
+            .margin({ left: 18 })
+            Blank()
+            Text(`共 ${this.devices.length} 台`)
+              .fontSize(11).fontColor(this.theme.textTertiary)
           }
+          .width('100%')
+
           Row() {
-            Image($r('app.media.green_network_port'))
-              .width(14)
-              .height(14)
-            Text('蓝色节点 = 有线连接（网线）')
-              .fontSize(11).fontColor(this.theme.textSecondary)
-              .margin({ left: 5, top: 4 })
+            SymbolGlyph($r('sys.symbol.info_circle'))
+              .fontSize(11).fontColor([this.theme.textTertiary])
+            Text(' 每侧最多展示 8 台，名称过长自动省略')
+              .fontSize(10).fontColor(this.theme.textTertiary)
           }
-          Text('最多展示前 12 台无线 + 12 台有线设备')
-            .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 4 })
+          .margin({ top: 8 })
         }
         .width('100%')
         .padding(16)

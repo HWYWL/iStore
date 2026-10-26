@@ -7,10 +7,11 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct FactoryResetPage {
+export struct FactoryResetPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State errorText: string = ''
@@ -50,7 +51,7 @@ this.theme = AppState.getInstance().getTheme()
         this.countdownTimer = -1
         this.isResetting = false
         try {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         } catch (e) {
           hilog.error(0x0001, 'FactoryResetPage', `router.back failed: ${e}`)
         }
@@ -98,7 +99,7 @@ this.theme = AppState.getInstance().getTheme()
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              this.getUIContext().getRouter().back()
+              AppNav.getInstance().back()
             } catch (e) {
               hilog.error(0x0001, 'FactoryResetPage', `router.back failed: ${e}`)
             }
@@ -273,7 +274,7 @@ this.theme = AppState.getInstance().getTheme()
 }
 
 @CustomDialog
-struct FactoryResetConfirmDialog {
+export struct FactoryResetConfirmDialog {
   controller: CustomDialogController
   theme: ThemePalette = LIGHT_THEME
   onConfirm: () => void = () => {}

@@ -17,6 +17,13 @@ export interface DayTraffic {
   tx: number         // 上传字节
 }
 
+/** 小时粒度流量（0~23 点），用于 24 小时分布 / 历史曲线 */
+export interface HourTraffic {
+  hour: number       // 0~23
+  rx: number         // 下载字节
+  tx: number         // 上传字节
+}
+
 export class TrafficStatStore {
   private static instance: TrafficStatStore
   private prefs: preferences.Preferences | null = null
@@ -52,6 +59,13 @@ export class TrafficStatStore {
         tx: cur.tx + tx
       }
       this.prefs.putSync(key, JSON.stringify(rec))
+
+      // 同时写入小时桶（24 点分布 / 历史曲线用）
+      const hour: number = new Date().getHours()
+      const hours: number[][] = this.loadHourArray(date)
+      const curHour: number[] = hours[hour]
+      hours[hour] = [(curHour[0] || 0) + rx, (curHour[1] || 0) + tx]
+      this.prefs.putSync(`hour_${date}`, JSON.stringify(hours))
       // 清理过期数据（保留最近 MAX_DAYS 天）
       this.cleanup()
       this.prefs.flush()
@@ -90,16 +104,87 @@ export class TrafficStatStore {
     return result
   }
 
-  /** 清理超出保留天数的旧数据 */
+  /** 今日累计流量（下载 + 上传，字节） */
+  getTodayTotal(): number {
+    const d: DayTraffic = this.getDay(this.today())
+    return d.rx + d.tx
+  }
+
+  /** 读取某天的小时桶（固定 24 个 [rx,tx]，缺失补 0） */
+  private loadHourArray(date: string): number[][] {
+    const arr: number[][] = []
+    for (let h = 0; h < 24; h++) {
+      arr.push([0, 0])
+    }
+    if (!this.prefs) return arr
+    try {
+      const v: string = this.prefs.getSync(`hour_${date}`, '') as string
+      if (!v) return arr
+      const parsed = JSON.parse(v) as number[][]
+      for (let h = 0; h < 24 && h < parsed.length; h++) {
+        const pair = parsed[h]
+        if (Array.isArray(pair) && pair.length >= 2) {
+          arr[h] = [Number(pair[0]) || 0, Number(pair[1]) || 0]
+        }
+      }
+    } catch (e) {
+      // 解析失败按空数据处理，不影响主流程
+      hilog.warn(DOMAIN, TAG, `loadHourArray err: ${JSON.stringify(e)}`)
+    }
+    return arr
+  }
+
+  /**
+   * 获取某天 24 小时流量分布
+   * @param date YYYY-MM-DD，默认今天
+   */
+  getHourly(date?: string): HourTraffic[] {
+    const key: string = date ? date : this.today()
+    const arr: number[][] = this.loadHourArray(key)
+    const out: HourTraffic[] = []
+    for (let h = 0; h < 24; h++) {
+      out.push({ hour: h, rx: arr[h][0], tx: arr[h][1] })
+    }
+    return out
+  }
+
+  /** 今日 24 小时流量分布 */
+  getTodayHourly(): HourTraffic[] {
+    return this.getHourly(this.today())
+  }
+
+  /**
+   * 区间内的分时趋势：把最近 N 天的小时桶按小时累加，得到 24 点分布
+   * @param days 天数（如 7 = 近 7 天最活跃时段）
+   */
+  getHourlyTrend(days: number): HourTraffic[] {
+    const out: HourTraffic[] = []
+    for (let h = 0; h < 24; h++) {
+      out.push({ hour: h, rx: 0, tx: 0 })
+    }
+    const list: DayTraffic[] = this.getDays(days)
+    for (let i = 0; i < list.length; i++) {
+      const arr: number[][] = this.loadHourArray(list[i].date)
+      for (let h = 0; h < 24; h++) {
+        out[h].rx += arr[h][0]
+        out[h].tx += arr[h][1]
+      }
+    }
+    return out
+  }
+
+  /** 清理超出保留天数的旧数据（天桶 + 小时桶） */
   private cleanup(): void {
     if (!this.prefs) return
     try {
       const cutoff: Date = new Date(Date.now() - MAX_DAYS * 86400000)
-      const cutoffKey: string = `day_${this.dateKey(cutoff)}`
+      const cutoffDate: string = this.dateKey(cutoff)
       const allKeys: string[] = this.prefs.getAllSync() ? Object.keys(this.prefs.getAllSync() as Object) : []
       for (let i = 0; i < allKeys.length; i++) {
         const k: string = allKeys[i]
-        if (k.startsWith('day_') && k < cutoffKey) {
+        if (k.startsWith('day_') && k < `day_${cutoffDate}`) {
+          this.prefs.deleteSync(k)
+        } else if (k.startsWith('hour_') && k < `hour_${cutoffDate}`) {
           this.prefs.deleteSync(k)
         }
       }

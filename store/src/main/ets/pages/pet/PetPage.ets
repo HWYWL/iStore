@@ -8,6 +8,7 @@ import { SKINS, SkinDef } from '../../common/theme/ThemeColors'
 import { PetStore, PetState } from '../../common/store/PetStore'
 import { common } from '@kit.AbilityKit'
 import { promptAction } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 
 /** 皮肤 → 小管家配色（HTML 原型同款） */
 interface PetSkinColor {
@@ -296,9 +297,15 @@ export struct PetView {
             Column().width('100%').height(74)
               .linearGradient({ angle: 180, colors: [['#C9E4C0', 0], ['#B5D8AA', 1]] })
               .position({ x: 0, y: 226 })
-            // 小管固定阴影（不随 bob 动画移动；居中在宠物脚下）
-            Ellipse().width(120).height(18).fill('rgba(90,80,60,0.2)')
-              .position({ x: 115, y: 242 })
+            // 小管固定阴影（不随 bob 动画移动；与宠物同一套居中 + 底部对齐，保证始终在脚下）
+            Column() {
+              Ellipse().width(120).height(18).fill('rgba(90,80,60,0.2)')
+            }
+            .width('100%').height('100%')
+            .justifyContent(FlexAlign.End)
+            .alignItems(HorizontalAlign.Center)
+            .padding({ bottom: 74 })
+            .hitTestBehavior(HitTestMode.None)
             // 小管（居中 + 底部 70；bob/jump/tilt 动画在组件层；点击跳网络日记）
             Column() {
               Column() {
@@ -309,21 +316,28 @@ export struct PetView {
               .rotate({ angle: this.tilting ? -12 : 0 })
               .animation({ duration: 1100, curve: Curve.EaseInOut })
               .onClick(() => {
-                this.getUIContext().getRouter().pushUrl({ url: 'pages/apps/DiaryPage' })
+                AppNav.getInstance().open('pages/apps/DiaryPage')
               })
             }
             .width('100%').height('100%')
             .justifyContent(FlexAlign.End)
             .alignItems(HorizontalAlign.Center)
             .padding({ bottom: 74 })
-            // 心情小字条（仿首页副标题：无背景小字，嵌在草坪上）
-            Text(this.moodText)
-              .fontSize(11)
-              .fontColor('rgba(43,42,38,0.55)')
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .constraintSize({ maxWidth: 200 })
-              .position({ x: 95, y: 228 })
+            // 心情小字条（仿首页副标题：无背景小字，嵌在草坪上；居中于宠物脚下）
+            Column() {
+              Text(this.moodText)
+                .fontSize(11)
+                .fontColor('rgba(43,42,38,0.55)')
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .constraintSize({ maxWidth: 200 })
+                .textAlign(TextAlign.Center)
+            }
+            .width('100%').height('100%')
+            .justifyContent(FlexAlign.End)
+            .alignItems(HorizontalAlign.Center)
+            .padding({ bottom: 50 })
+            .hitTestBehavior(HitTestMode.None)
             // 粒子层
             ForEach(this.particles, (p: Particle) => {
               Text(p.emoji)
@@ -383,21 +397,21 @@ export struct PetView {
           // 互动按钮
           Row() {
             Column() {
-              Text('🍚').fontSize(20)
+              SymbolGlyph($r('sys.symbol.fork_knife')).fontSize(20).fontColor(['#0F766E'])
               Text('喂数据').fontSize(13).fontWeight(FontWeight.Bold).fontColor('#1B7A6A').margin({ top: 4 })
             }
             .layoutWeight(1).padding({ top: 13, bottom: 13 }).borderRadius(16)
             .backgroundColor('#E4F3EE')
             .onClick(() => { this.onFeed() })
             Column() {
-              Text('🖐').fontSize(20)
+              SymbolGlyph($r('sys.symbol.hand_tap')).fontSize(20).fontColor(['#BE185D'])
               Text('摸摸头').fontSize(13).fontWeight(FontWeight.Bold).fontColor('#B0567A').margin({ top: 4 })
             }
             .layoutWeight(1).padding({ top: 13, bottom: 13 }).borderRadius(16).margin({ left: 10 })
             .backgroundColor('#FBEAF0')
             .onClick(() => { this.onPat() })
             Column() {
-              Text('🎽').fontSize(20)
+              SymbolGlyph($r('sys.symbol.shirt')).fontSize(20).fontColor(['#B45309'])
               Text('换装扮').fontSize(13).fontWeight(FontWeight.Bold).fontColor('#8A5A00').margin({ top: 4 })
             }
             .layoutWeight(1).padding({ top: 13, bottom: 13 }).borderRadius(16).margin({ left: 10 })
@@ -429,11 +443,11 @@ export struct PetView {
               Text(`${this.doneCount()} / 5 完成`).fontSize(11).fontColor('#2FBFA8').fontWeight(FontWeight.Bold)
             }
             .width('100%').margin({ bottom: 6 })
-            this.taskRow(0, '🩺', '完成一次安全体检', '+20 能量', 20, 'pages/security/SecurityHubPage')
-            this.taskRow(1, '💬', '和小管聊一次天', '+15 能量', 15, 'pages/apps/NetworkHelperPage')
-            this.taskRow(2, '📶', '查看今日流量', '+10 能量', 10, 'pages/apps/TrafficReportPage')
-            this.taskRow(3, '🔋', '查看设备电量排行', '+10 能量', 10, 'pages/apps/DeviceActivityPage')
-            this.taskRow(4, '🛡', '打开安全中心', '+15 能量', 15, 'pages/security/SecurityHubPage')
+            this.taskRow(0, $r('sys.symbol.staroflife'), '完成一次安全体检', '+20 能量', 20, 'pages/security/SecurityHubPage')
+            this.taskRow(1, $r('sys.symbol.message'), '和小管聊一次天', '+15 能量', 15, 'pages/apps/NetworkHelperPage')
+            this.taskRow(2, $r('sys.symbol.wifi'), '查看今日流量', '+10 能量', 10, 'pages/apps/TrafficReportPage')
+            this.taskRow(3, $r('sys.symbol.battery'), '查看设备电量排行', '+10 能量', 10, 'pages/apps/DeviceActivityPage')
+            this.taskRow(4, $r('sys.symbol.security_shield'), '打开安全中心', '+15 能量', 15, 'pages/security/SecurityHubPage')
           }
           .width('100%').padding(16).borderRadius(22).margin({ top: 12 })
           .backgroundColor(this.theme.bgCard)
@@ -502,12 +516,28 @@ export struct PetView {
     .linearGradient({ angle: 135, colors: this.theme.pageGradient })
   }
 
+  /** 任务图标配色（同一套柔和底 + 主题色） */
+  private taskPalette(idx: number): string[] {
+    const pairs: string[][] = [
+      ['#DCFCE7', '#10B981'],
+      ['#EDE9FE', '#8B5CF6'],
+      ['#E0F2FE', '#0EA5E9'],
+      ['#FEF3C7', '#F59E0B'],
+      ['#FEE2E2', '#EF4444']
+    ]
+    return pairs[Math.abs(idx) % pairs.length]
+  }
+
   /** 任务行 */
   @Builder
-  taskRow(idx: number, ico: string, name: string, reward: string, energy: number, route: string) {
+  taskRow(idx: number, ico: Resource, name: string, reward: string, energy: number, route: string) {
     Row() {
-      Text(ico).fontSize(16).width(34).height(34).borderRadius(11)
-        .backgroundColor('#F0EBE0').textAlign(TextAlign.Center)
+      Row() {
+        SymbolGlyph(ico).fontSize(17).fontColor([this.taskPalette(idx)[1]])
+      }
+      .width(34).height(34).borderRadius(11)
+      .backgroundColor(this.taskPalette(idx)[0])
+      .justifyContent(FlexAlign.Center)
       Text(name).fontSize(13).fontWeight(FontWeight.Medium).fontColor(this.theme.textPrimary)
         .layoutWeight(1).margin({ left: 10 })
       Text(reward).fontSize(11).fontColor('#E6A800').fontWeight(FontWeight.Bold)
@@ -526,7 +556,7 @@ export struct PetView {
             if (route.startsWith('tab:')) {
               AppState.getInstance().setCurrentTab(Number(route.substring(4)))
             } else {
-              this.getUIContext().getRouter().pushUrl({ url: route })
+              AppNav.getInstance().open(route)
             }
           } catch (e) {}
         })
@@ -536,10 +566,10 @@ export struct PetView {
   }
 }
 
-/** 独立路由页（应用中心进入） */
+/** 独立路由页（应用中心进入，也可作为组件挂到宽屏应用面板） */
 @Entry
 @Component
-struct PetPage {
+export struct PetPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
   @State topSafeArea: number = 44
 
@@ -555,17 +585,18 @@ struct PetPage {
   build() {
     Column() {
       Row() {
-        Row() {
-          Text('🤖').fontSize(20)
-          Text(' 小管家').fontSize(20).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
-        }
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        // 返回胶囊（页面标题由 PetView 内部提供，避免重复）
+        Text('‹ 返回')
+          .fontSize(14)
+          .fontColor(this.theme.textPrimary)
+          .padding({ left: 10, right: 14, top: 5, bottom: 5 })
+          .borderRadius(100)
+          .border({ width: 0.5, color: this.theme.borderGlass })
+          .onClick(() => { AppNav.getInstance().back() })
         Blank()
-        Text('返回').fontSize(12).fontColor(this.theme.primary)
-          .onClick(() => { this.getUIContext().getRouter().back() })
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 8 })
+      .padding({ left: 16, right: 16, top: 48, bottom: 6 })
       PetView({ theme: this.theme })
         .layoutWeight(1)
     }

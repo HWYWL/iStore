@@ -9,6 +9,7 @@ import { SshService } from '../../common/ssh/SshService'
 import { SavedDevice } from '../../common/store/DeviceStore'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 const DOMAIN = 0x0001
 const TAG = 'SshTerminal'
@@ -35,7 +36,7 @@ interface CmdRecord {
 
 @Entry
 @Component
-struct SshTerminalPage {
+export struct SshTerminalPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
   @State connecting: boolean = true
@@ -252,7 +253,7 @@ this.theme = AppState.getInstance().getTheme()
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
         .onClick(() => {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         })
         Blank()
         if (this.connected) {

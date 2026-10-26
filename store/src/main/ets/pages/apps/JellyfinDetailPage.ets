@@ -10,6 +10,7 @@ import { JellyfinClient, JellyfinDetail, PlaybackInfo } from '../../api/Jellyfin
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
@@ -161,7 +162,7 @@ struct JellyfinDetailPage {
             .backgroundColor('rgba(255,255,255,0.16)')
             .borderRadius(19)
             .textAlign(TextAlign.Center)
-            .onClick(() => { this.getUIContext().getRouter().back() })
+            .onClick(() => { AppNav.getInstance().back() })
         }
         .width('100%')
         .padding({ left: 16, top: this.topSafeArea + 8 })

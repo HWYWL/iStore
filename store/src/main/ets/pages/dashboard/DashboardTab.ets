@@ -10,6 +10,8 @@ import { promptAction } from '@kit.ArkUI'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 import { Whimsy } from '../../common/utils/WhimsyUtil'
 import { FunStore } from '../../common/store/FunStore'
+import { AppNav } from '../../common/utils/AppNav'
+import { Poller } from '../../common/utils/Poller'
 
 // ============================================================
 // DashboardTab - 首页
@@ -40,7 +42,7 @@ export struct DashboardTab {
   private lastBoomTime: number = 0     // 上次彩蛋时间（冷却）
   @State onlineClientCount: number = 0
   private lastScrollY: number = 0
-  private timerId: number = -1
+  private poller: Poller | null = null
   private isVisible: boolean = false
   private tabChangeListener: ((tab: number) => void) | null = null
   private navInsetListener: ((inset: number) => void) | null = null
@@ -80,37 +82,36 @@ export struct DashboardTab {
     }
     // 前台感知：仅当本 Tab（首页 index 0）可见时轮询
     this.isVisible = AppState.getInstance().getCurrentTab() === 0
+    // 统一轮询器：自带「上轮未回来则跳过」保护，避免弱网下请求叠加
+    this.poller = new Poller((): Promise<void> => this.refreshData(), 5000)
     this.tabChangeListener = (tab: number) => {
       const visible: boolean = tab === 0
       if (visible && !this.isVisible) {
         this.isVisible = true
         // 回到本 Tab 时立即刷新一次，然后恢复轮询
-        this.refreshData()
-        if (this.timerId === -1) {
-          this.timerId = setInterval(() => { this.refreshData() }, 5000)
+        if (this.poller) {
+          this.poller.trigger()
+          this.poller.start()
         }
       } else if (!visible && this.isVisible) {
         this.isVisible = false
-        if (this.timerId !== -1) {
-          clearInterval(this.timerId)
-          this.timerId = -1
+        if (this.poller) {
+          this.poller.stop()
         }
       }
     }
     AppState.getInstance().onTabChange(this.tabChangeListener)
     // 首次加载数据，然后启动 5 秒轮询刷新
     this.loadData()
-    if (this.isVisible) {
-      this.timerId = setInterval(() => {
-        this.refreshData()
-      }, 5000)
+    if (this.isVisible && this.poller) {
+      this.poller.start()
     }
   }
 
   aboutToDisappear(): void {
-    if (this.timerId !== -1) {
-      clearInterval(this.timerId)
-      this.timerId = -1
+    if (this.poller) {
+      this.poller.dispose()
+      this.poller = null
     }
     if (this.gaugeAnimTimer !== -1) {
       clearInterval(this.gaugeAnimTimer)
@@ -136,7 +137,7 @@ export struct DashboardTab {
         this.isLoading = false
         return
       }
-      const api = new ApiService()
+      const api: ApiService = ApiService.getInstance()
       // 并行请求，减少总加载时间
       const results = await Promise.all([
         api.fetchSystemInfo(),
@@ -187,7 +188,7 @@ export struct DashboardTab {
       if (!AppState.getInstance().isConnected()) {
         return
       }
-      const api = new ApiService()
+      const api: ApiService = ApiService.getInstance()
       const results = await Promise.all([
         api.fetchSystemInfo(),
         api.fetchLanStatus(),
@@ -212,7 +213,8 @@ export struct DashboardTab {
       this.recordCpuHistory()
       this.handleConnectMoments()
     } catch (refErr) {
-      // 刷新失败静默处理，不打断用户操作
+      // 静默刷新失败不打断用户操作，但要留痕便于排查（弱网/权限问题）
+      hilog.warn(0x0001, 'DashboardTab', `refresh failed: ${String(refErr)} lastError=${ApiService.getInstance().getLastError()}`)
     }
     this.updateTimestamp()
     this.redrawGauges()
@@ -319,7 +321,8 @@ export struct DashboardTab {
         deviceName: device ? (device.label || device.host) : 'iStore 路由管家',
         cpuUsage: this.systemInfo.cpuUsage,
         memPercent: memPct,
-        ip: this.wanStatus.ipAddress
+        ip: this.wanStatus.ipAddress,
+        todayTraffic: TrafficStatStore.getInstance().getTodayTotal()
       })
     } catch (e) {
       // 同步失败不影响主流程
@@ -329,7 +332,7 @@ export struct DashboardTab {
   /** 累计当日流量（WAN 累计字节差值） */
   private async recordTraffic(): Promise<void> {
     try {
-      const api = new ApiService()
+      const api: ApiService = ApiService.getInstance()
       const bytes: number[] = await api.fetchWanTrafficBytes()
       if (bytes[0] === 0 && bytes[1] === 0) {
         hilog.info(0x0001, 'Dashboard', 'recordTraffic: 累计字节为 0（数据源不可用）')
@@ -630,6 +633,34 @@ export struct DashboardTab {
     return `rgba(${r},${g},${b},${alpha})`
   }
 
+  /** 由主色生成更深的同色系颜色（渐变底色用） */
+  deepTint(hex: string): string {
+    let c: string = hex
+    if (c.startsWith('#')) {
+      c = c.substring(1)
+    }
+    if (c.length === 3) {
+      c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2]
+    }
+    let r: number = 0
+    let g: number = 0
+    let b: number = 0
+    try {
+      r = parseInt(c.substring(0, 2), 16)
+      g = parseInt(c.substring(2, 4), 16)
+      b = parseInt(c.substring(4, 6), 16)
+    } catch (e) {
+      return hex
+    }
+    const k: number = 0.72
+    return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`
+  }
+
+  /** 图标投影色（同色系淡投影） */
+  shadowTint(hex: string): string {
+    return this.tint(hex, 0.32)
+  }
+
   getMemColor(usage: number): string {
     if (usage < 60) return this.theme.info
     if (usage < 85) return this.theme.warning
@@ -869,19 +900,20 @@ export struct DashboardTab {
     return this.lanStatus.ipAddress !== '0.0.0.0' ? this.lanStatus.ipAddress : '--'
   }
 
-  /** 快捷功能图标项（2 行 5 列，圆形马卡龙色底 + 白色线性图标） */
+  /** 快捷功能图标项（2 行 5 列，彩色渐变圆底 + 白色系统符号图标） */
   @Builder
   quickItem(name: string, route: string, bg: string, icon: Resource) {
     Column() {
       Row() {
-        Image(icon)
-          .width(24)
-          .height(24)
+        SymbolGlyph(icon)
+          .fontSize(23)
+          .fontColor(['#FFFFFF'])
       }
       .width(48)
       .height(48)
       .borderRadius(24)
-      .backgroundColor(bg)
+      .linearGradient({ angle: 140, colors: [[bg, 0], [this.deepTint(bg), 1]] })
+      .shadow({ radius: 8, color: this.shadowTint(bg), offsetY: 3 })
       .justifyContent(FlexAlign.Center)
       Text(name)
         .fontSize(10)
@@ -892,12 +924,11 @@ export struct DashboardTab {
     .justifyContent(FlexAlign.Center)
     .padding({ top: 4, bottom: 4 })
     .onClick(() => {
-      if (route.startsWith('tab:')) {
-        // 切换主 Tab（iStore 商店 / Docker）
-        const idx: number = Number(route.substring(4))
-        AppState.getInstance().setCurrentTab(idx)
+      if (route === 'apps:') {
+        // 应用中心：分栏常驻中栏，点击即收起右侧应用；手机端全屏打开
+        AppNav.getInstance().showApps()
       } else {
-        this.getUIContext().getRouter().pushUrl({ url: route })
+        AppNav.getInstance().open(route)
       }
     })
   }
@@ -1035,11 +1066,11 @@ export struct DashboardTab {
     Column() {
       // ========== 顶部标题栏（仪表盘 + 副标题 + 铃铛角标） ==========
       Row() {
-        // 左侧仪表盘图标（AppScope SVG）
+        // 左侧仪表盘图标（系统符号，统一线稿风格）
         Row() {
-          Image($r('app.media.dashboard'))
-            .width(22)
-            .height(22)
+          SymbolGlyph($r('sys.symbol.gauge_with_dots_needle_33percent'))
+            .fontSize(21)
+            .fontColor([this.theme.primary])
         }
         .width(40)
         .height(40)
@@ -1075,9 +1106,9 @@ export struct DashboardTab {
 
         // 右侧：铃铛（无角标）
         Stack() {
-          Image($r('app.media.app_bell'))
-            .width(22)
-            .height(22)
+          SymbolGlyph($r('sys.symbol.bell'))
+            .fontSize(21)
+            .fontColor([this.theme.primary])
         }
         .width(36)
         .height(36)
@@ -1085,14 +1116,14 @@ export struct DashboardTab {
         .backgroundColor(this.theme.accentSoft)
         .alignContent(Alignment.Center)
         .onClick(() => {
-          this.getUIContext().getRouter().pushUrl({ url: 'pages/apps/NotifySettingsPage' })
+          AppNav.getInstance().open('pages/apps/NotifySettingsPage')
         })
 
         // 右侧：皮肤管理
         Stack() {
-          Image($r('app.media.skin_icon'))
-            .width(22)
-            .height(22)
+          SymbolGlyph($r('sys.symbol.paintbrush'))
+            .fontSize(21)
+            .fontColor([this.theme.primary])
         }
         .width(36)
         .height(36)
@@ -1101,7 +1132,7 @@ export struct DashboardTab {
         .alignContent(Alignment.Center)
         .margin({ left: 8 })
         .onClick(() => {
-          this.getUIContext().getRouter().pushUrl({ url: 'pages/apps/SkinManagePage' })
+          AppNav.getInstance().open('pages/apps/SkinManagePage')
         })
       }
       .width('100%')
@@ -1236,19 +1267,19 @@ export struct DashboardTab {
             // ============ 2 快捷功能区（2 行 5 列，直接浮在主背景上，无卡片框） ============
             Column() {
               Row() {
-                this.quickItem('文件', 'pages/apps/FileManagerPage', '#A8C8A0', $r('app.media.folder_file'))
-                this.quickItem('网络助手', 'pages/apps/NetworkHelperPage', '#B8A6E8', $r('app.media.ai_chat'))
-                this.quickItem('Docker', 'tab:3', '#9FB8E8', $r('app.media.docker'))
-                this.quickItem('SSH', 'pages/apps/SshTerminalPage', '#A0B8D8', $r('app.media.terminal'))
-                this.quickItem('应用中心', 'pages/apps/AppsPage', '#FFB37A', $r('app.media.app_center'))
+                this.quickItem('文件', 'pages/apps/FileManagerPage', '#34D399', $r('sys.symbol.folder'))
+                this.quickItem('网络助手', 'pages/apps/NetworkHelperPage', '#A78BFA', $r('sys.symbol.AI_help_write'))
+                this.quickItem('Docker', 'pages/apps/DockerPage', '#60A5FA', $r('sys.symbol.square_stack_3d'))
+                this.quickItem('SSH', 'pages/apps/SshTerminalPage', '#38BDF8', $r('sys.symbol.code_square'))
+                this.quickItem('应用中心', 'apps:', '#FB923C', $r('sys.symbol.square_grid_2x2'))
               }
               .width('100%')
               Row() {
-                this.quickItem('排行', 'pages/apps/TrafficRankPage', '#F2D08A', $r('app.media.ranking'))
-                this.quickItem('WiFi', 'pages/apps/WifiPage', '#8FB8E8', $r('app.media.wifi_icon'))
-                this.quickItem('相册', 'pages/apps/AlbumPage', '#E8A8C0', $r('app.media.folder_file'))
-                this.quickItem('体检', 'pages/apps/NetworkCheckPage', '#8FD6A5', $r('app.media.app_health'))
-                this.quickItem('商店', 'tab:2', '#F0A8C0', $r('app.media.app_store'))
+                this.quickItem('排行', 'pages/apps/TrafficRankPage', '#FBBF24', $r('sys.symbol.arrow_up_right'))
+                this.quickItem('WiFi', 'pages/apps/WifiPage', '#3B82F6', $r('sys.symbol.wifi'))
+                this.quickItem('相册', 'pages/apps/AlbumPage', '#F472B6', $r('sys.symbol.ohos_photo'))
+                this.quickItem('体检', 'pages/apps/NetworkCheckPage', '#10B981', $r('sys.symbol.staroflife'))
+                this.quickItem('商店', 'pages/apps/StorePage', '#EC4899', $r('sys.symbol.bag'))
               }
               .width('100%')
               .margin({ top: 2 })
@@ -1261,7 +1292,7 @@ export struct DashboardTab {
               // 卡片1：处理器（大字 CPU% + 折线趋势 + 型号）
               Column() {
                 Row() {
-                  Image($r('app.media.cpu')).width(16).height(16)
+                  SymbolGlyph($r('sys.symbol.gearshape')).fontSize(15).fontColor(['#3B82F6'])
                   Text('处理器').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                   Text('›').fontSize(14).fontColor(this.theme.textTertiary)
@@ -1310,7 +1341,7 @@ export struct DashboardTab {
               // 卡片2：系统资源（进度条列表：内存/硬盘/存储/日志）
               Column() {
                 Row() {
-                  Image($r('app.media.system_resources')).width(16).height(16)
+                  SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(15).fontColor(['#8B5CF6'])
                   Text('系统资源').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                   Text('›').fontSize(14).fontColor(this.theme.textTertiary)
@@ -1336,7 +1367,7 @@ export struct DashboardTab {
               // 卡片3：主板（型号大字 + 制造商/版本键值）
               Column() {
                 Row() {
-                  Image($r('app.media.motherboard')).width(16).height(16)
+                  SymbolGlyph($r('sys.symbol.rectangle_on_rectangle')).fontSize(15).fontColor(['#F59E0B'])
                   Text('主板').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                   Text('›').fontSize(14).fontColor(this.theme.textTertiary)
@@ -1365,7 +1396,7 @@ export struct DashboardTab {
               // 卡片4：网络（状态 + 实时速率）
               Column() {
                 Row() {
-                  Image($r('app.media.network')).width(16).height(16)
+                  SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right')).fontSize(15).fontColor(['#10B981'])
                   Text('网络').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                   Text('›').fontSize(14).fontColor(this.theme.textTertiary)
@@ -1419,7 +1450,7 @@ export struct DashboardTab {
             Row() {
               Column() {
                 Row() {
-                  Image($r('app.media.online_devices')).width(16).height(16)
+                  SymbolGlyph($r('sys.symbol.person_2')).fontSize(15).fontColor(['#06B6D4'])
                   Text('在线设备').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                 }
@@ -1446,7 +1477,7 @@ export struct DashboardTab {
 
               Column() {
                 Row() {
-                  Image($r('app.media.active_connections')).width(16).height(16)
+                  SymbolGlyph($r('sys.symbol.link')).fontSize(15).fontColor(['#EC4899'])
                   Text('连接数').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                 }
@@ -1478,9 +1509,9 @@ export struct DashboardTab {
             // ============ 磁盘详情 ============
             Column() {
               Row() {
-                Image($r('app.media.disk'))
-                  .width(16)
-                  .height(16)
+                SymbolGlyph($r('sys.symbol.externaldrive'))
+                  .fontSize(15)
+                  .fontColor(['#F97316'])
                 Text('磁盘使用')
                   .fontSize(13)
                   .fontColor(this.theme.textPrimary)

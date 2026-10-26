@@ -9,10 +9,11 @@ import { SshService } from '../../common/ssh/SshService'
 import { promptAction } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct SecurityHubPage {
+export struct SecurityHubPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
   @State score: number = -1
   @State scoreText: string = '点击开始体检'
@@ -114,15 +115,16 @@ struct SecurityHubPage {
       // 标题栏
       Row() {
         Row() {
-          Text('🛡')
+          SymbolGlyph($r('sys.symbol.security_shield'))
             .fontSize(20)
+            .fontColor(['#10B981'])
           Text(' 安全中心')
             .fontSize(20)
             .fontColor(this.theme.textPrimary)
             .fontWeight(FontWeight.Bold)
         }
         .onClick(() => {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         })
         Blank()
         Text(this.sshOk ? 'SSH 已连接' : 'SSH 未连接')
@@ -185,8 +187,9 @@ struct SecurityHubPage {
             Column() {
               ForEach(this.items, (item: SecurityItem) => {
                 Row() {
-                  Text(this.itemIcon(item.level))
+                  SymbolGlyph(this.itemIcon(item.level))
                     .fontSize(20)
+                    .fontColor([this.itemColor(item.level)])
                   Column() {
                     Text(item.name)
                       .fontSize(14)
@@ -269,11 +272,19 @@ struct SecurityHubPage {
     .linearGradient({ angle: 135, colors: this.theme.pageGradient })
   }
 
-  itemIcon(level: string): string {
-    if (level === 'safe') return '✅'
-    if (level === 'risk') return '⚠️'
-    if (level === 'checking') return '⏳'
-    return '❓'
+  itemIcon(level: string): Resource {
+    if (level === 'safe') return $r('sys.symbol.checkmark_circle')
+    if (level === 'risk') return $r('sys.symbol.warning')
+    if (level === 'checking') return $r('sys.symbol.clock')
+    return $r('sys.symbol.info_circle')
+  }
+
+  /** 等级配色 */
+  itemColor(level: string): string {
+    if (level === 'safe') return '#10B981'
+    if (level === 'risk') return '#EF4444'
+    if (level === 'checking') return '#F59E0B'
+    return '#64748B'
   }
 
   historyTime(t: number): string {

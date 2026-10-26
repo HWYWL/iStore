@@ -15,12 +15,13 @@ import { fileUri } from '@kit.CoreFileKit'
 import { systemShare } from '@kit.ShareKit'
 import { util } from '@kit.ArkTS'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 const DOMAIN = 0x0001
 
 @Entry
 @Component
-struct FileManagerPage {
+export struct FileManagerPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
   @State connected: boolean = false
@@ -469,16 +470,50 @@ struct FileManagerPage {
 
   // ========== UI ==========
 
-  /** 文件图标 */
-  entryIcon(entry: FsEntry): string {
-    if (entry.isDir) return '📁'
+  /** 文件类型图标（统一符号族） */
+  entrySymbol(entry: FsEntry): Resource {
+    if (entry.isDir) return $r('sys.symbol.folder')
     const lower: string = entry.name.toLowerCase()
-    if (FileManagerService.isTextFile(entry.name)) return '📄'
-    if (lower.endsWith('.gz') || lower.endsWith('.tar') || lower.endsWith('.zip') || lower.endsWith('.xz')) return '📦'
-    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return '🖼'
-    if (lower.endsWith('.mp3') || lower.endsWith('.wav')) return '🎵'
-    if (lower.endsWith('.mp4') || lower.endsWith('.mkv')) return '🎬'
-    return '📃'
+    if (FileManagerService.isTextFile(entry.name)) return $r('sys.symbol.doc_text')
+    if (lower.endsWith('.gz') || lower.endsWith('.tar') || lower.endsWith('.zip') || lower.endsWith('.xz')) return $r('sys.symbol.doc_zipper')
+    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return $r('sys.symbol.ohos_photo')
+    if (lower.endsWith('.mp3') || lower.endsWith('.wav')) return $r('sys.symbol.speaker_wave_1')
+    if (lower.endsWith('.mp4') || lower.endsWith('.mkv')) return $r('sys.symbol.film')
+    return $r('sys.symbol.doc_plaintext')
+  }
+
+  /** 文件类型配色 */
+  entryColor(entry: FsEntry): string {
+    if (entry.isDir) return '#F59E0B'
+    const lower: string = entry.name.toLowerCase()
+    if (FileManagerService.isTextFile(entry.name)) return '#3B82F6'
+    if (lower.endsWith('.gz') || lower.endsWith('.tar') || lower.endsWith('.zip') || lower.endsWith('.xz')) return '#8B5CF6'
+    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return '#EC4899'
+    if (lower.endsWith('.mp3') || lower.endsWith('.wav')) return '#06B6D4'
+    if (lower.endsWith('.mp4') || lower.endsWith('.mkv')) return '#F97316'
+    return '#64748B'
+  }
+
+  /** 主色 → 同色系浅底 */
+  tint(hex: string, alpha: number): string {
+    let c: string = hex
+    if (c.startsWith('#')) {
+      c = c.substring(1)
+    }
+    if (c.length === 3) {
+      c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2]
+    }
+    let r: number = 0
+    let g: number = 0
+    let b: number = 0
+    try {
+      r = parseInt(c.substring(0, 2), 16)
+      g = parseInt(c.substring(2, 4), 16)
+      b = parseInt(c.substring(4, 6), 16)
+    } catch (e) {
+      return 'rgba(0,0,0,0.08)'
+    }
+    return `rgba(${r},${g},${b},${alpha})`
   }
 
   build() {
@@ -486,7 +521,11 @@ struct FileManagerPage {
       Column() {
       // 顶部：文件管理标题 + 当前路径
       Row() {
-        Text('文件管理')
+        Text('‹')
+          .fontSize(20).fontColor(this.theme.textPrimary)
+          .width(28).height(28).textAlign(TextAlign.Center)
+          .onClick(() => AppNav.getInstance().back())
+        Text(' 文件管理')
           .fontSize(17).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
         Blank()
         if (this.clipboard.length > 0) {
@@ -591,7 +630,17 @@ struct FileManagerPage {
                       .strokeWidth(1.5)
                       .margin({ right: 10 })
                   }
-                  Text(this.entryIcon(entry)).fontSize(22)
+                  Row() {
+                    SymbolGlyph(this.entrySymbol(entry))
+                      .fontSize(18)
+                      .fontColor([this.entryColor(entry)])
+                  }
+                  .width(32)
+                  .height(32)
+                  .borderRadius(10)
+                  .backgroundColor(this.tint(this.entryColor(entry), 0.12))
+                  .justifyContent(FlexAlign.Center)
+                  .margin({ right: 10 })
                   Column() {
                     Text(entry.name)
                       .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)

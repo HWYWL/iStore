@@ -8,24 +8,28 @@ import { FunStore } from '../../common/store/FunStore'
 import { TrafficStatStore } from '../../common/store/TrafficStatStore'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 interface AchDef {
   id: string
-  icon: string
+  icon: Resource
+  color: string
   name: string
   desc: string
   hint: string
 }
 
 const ACHS: AchDef[] = [
-  { id: 'health', icon: '🩺', name: '体检卫士', desc: '完成一次智能网络体检', hint: '去应用中心跑一次体检' },
-  { id: 'stable', icon: '🏅', name: '稳如泰山', desc: '路由器连续运行 7 天以上', hint: '别重启，继续跑' },
-  { id: 'owl', icon: '🌙', name: '夜猫子', desc: '凌晨 0~4 点还在用 App', hint: '今晚熬个夜试试' },
-  { id: 'giant', icon: '📈', name: '流量之王', desc: '某天流量超过 100GB', hint: '下一个大文件冲一冲' },
-  { id: 'crowd', icon: '🎪', name: '门庭若市', desc: '同时在线设备 15 台以上', hint: '家里人多时解锁' },
-  { id: 'week', icon: '🔥', name: '七日全勤', desc: '最近 7 天使用 App 5 天以上', hint: '每天打开一次' },
-  { id: 'refresh_master', icon: '🔄', name: '数据狂人', desc: '累计下拉刷新 50 次', hint: '首页多下拉几次' },
-  { id: 'archaeologist', icon: '🔍', name: '数据考古学家', desc: '翻看 3 天前的历史数据', hint: '查看历史流量/排名页' }
+  { id: 'health', icon: $r('sys.symbol.staroflife'), color: '#10B981', name: '体检卫士', desc: '完成一次智能网络体检', hint: '去应用中心跑一次体检' },
+  { id: 'stable', icon: $r('sys.symbol.medal'), color: '#F59E0B', name: '稳如泰山', desc: '路由器连续运行 7 天以上', hint: '别重启，继续跑' },
+  { id: 'owl', icon: $r('sys.symbol.clock'), color: '#6366F1', name: '夜猫子', desc: '凌晨 0~4 点还在用 App', hint: '今晚熬个夜试试' },
+  { id: 'giant', icon: $r('sys.symbol.arrow_up_right'), color: '#3B82F6', name: '流量之王', desc: '某天流量超过 100GB', hint: '下一个大文件冲一冲' },
+  { id: 'crowd', icon: $r('sys.symbol.person_3'), color: '#EC4899', name: '门庭若市', desc: '同时在线设备 15 台以上', hint: '家里人多时解锁' },
+  { id: 'week', icon: $r('sys.symbol.flame'), color: '#F97316', name: '七日全勤', desc: '最近 7 天使用 App 5 天以上', hint: '每天打开一次' },
+  { id: 'refresh_master', icon: $r('sys.symbol.arrow_clockwise'), color: '#8B5CF6', name: '数据狂人', desc: '累计下拉刷新 50 次', hint: '首页多下拉几次' },
+  { id: 'archaeologist', icon: $r('sys.symbol.magnifyingglass'), color: '#0891B2', name: '数据考古学家', desc: '翻看 3 天前的历史数据', hint: '查看历史流量/排名页' },
+  { id: 'midnight_flow', icon: $r('sys.symbol.waveform'), color: '#14B8A6', name: '午夜洪流', desc: '凌晨 0~5 点单小时流量超 1GB', hint: '深夜下个大文件' },
+  { id: 'peak_master', icon: $r('sys.symbol.calendar'), color: '#EF4444', name: '准点下班', desc: '18~20 点单小时流量超 2GB', hint: '下班回家刷剧试试' }
 ]
 
 @Entry
@@ -82,6 +86,19 @@ export struct AchievementPage {
           }
         }
       } catch (e) {}
+      // 小时级成就：基于本地小时桶（近 7 天累加）
+      try {
+        const trend = this.traffic.getHourlyTrend(7)
+        for (let h = 0; h < trend.length; h++) {
+          const sum: number = trend[h].rx + trend[h].tx
+          if (h <= 5 && sum >= 1073741824) {
+            this.unlock(map, 'midnight_flow', '午夜洪流')
+          }
+          if (h >= 18 && h <= 20 && sum >= 2147483648) {
+            this.unlock(map, 'peak_master', '准点下班')
+          }
+        }
+      } catch (e) {}
       // 门庭若市：在线设备 >= 15
       try {
         const devs = await this.api.fetchConnectedDevices()
@@ -129,7 +146,7 @@ export struct AchievementPage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
         Text(`${this.doneCount}/${ACHS.length}`)
           .fontSize(13).fontColor(this.theme.primary).fontWeight(FontWeight.Bold)
@@ -154,10 +171,17 @@ export struct AchievementPage {
         Column() {
           ForEach(ACHS, (a: AchDef) => {
             Row() {
-              Text(a.icon)
-                .fontSize(30)
-                .opacity(this.doneMap[a.id] ? 1 : 0.3)
-                .width(48)
+              Row() {
+                SymbolGlyph(a.icon)
+                  .fontSize(21)
+                  .fontColor([this.doneMap[a.id] ? a.color : '#94A3B8'])
+              }
+              .width(42)
+              .height(42)
+              .borderRadius(13)
+              .backgroundColor('#1F' + a.color.substring(1))
+              .justifyContent(FlexAlign.Center)
+              .opacity(this.doneMap[a.id] ? 1 : 0.55)
               Column() {
                 Row() {
                   Text(a.name)
@@ -178,8 +202,10 @@ export struct AchievementPage {
                   .fontSize(20)
                   .fontColor(['#00C853', '#7CE495'])
               } else {
-                Text('🔒')
-                  .fontSize(16).opacity(0.5)
+                SymbolGlyph($r('sys.symbol.lock'))
+                  .fontSize(16)
+                  .fontColor(['#94A3B8'])
+                  .opacity(0.7)
               }
             }
             .width('100%')

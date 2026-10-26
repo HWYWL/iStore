@@ -26,6 +26,16 @@ import { ApiUtils } from './ApiUtils'
 const TAG = 'iStoreApi'
 const DOMAIN = 0x0001
 
+// ========== 统一请求超时（毫秒） ==========
+/** 建连超时：局域网内 5s 足够，避免弱网下长时间卡住 */
+const CONNECT_TIMEOUT_MS = 5000
+/** 普通读请求超时 */
+const READ_TIMEOUT_MS = 10000
+/** 重请求超时（LuCI 页面渲染、Docker 统计等） */
+const READ_TIMEOUT_LONG_MS = 15000
+/** 只读请求传输失败后的重试退避 */
+const RETRY_BACKOFF_MS = 250
+
 /** ubus 未登录时使用的空会话 ID */
 const NULL_SESSION = '00000000000000000000000000000000'
 
@@ -399,8 +409,8 @@ export class ApiClient {
         method: http.RequestMethod.POST,
         header: { 'Content-Type': 'application/json' },
         extraData: bodyStr,
-        connectTimeout: 5000,
-        readTimeout: 10000
+        connectTimeout: CONNECT_TIMEOUT_MS,
+        readTimeout: READ_TIMEOUT_MS
       })
       resp.httpCode = r.responseCode
       if (r.responseCode === 200) {
@@ -506,16 +516,28 @@ export class ApiClient {
 
   /**
    * 调用 ubus 对象方法
-   * @returns 成功时返回数据对象，失败返回 null；会话失效会自动重登并重试一次
+   * @returns 成功时返回数据对象，失败返回 null（失败原因写入 lastError）
+   *
+   * 统一失败处理：
+   * - 传输失败（超时/断网）：只对只读请求做一次短退避重试，避免写操作重复执行
+   * - 会话失效（-32002/-32004）：重登后重试一次
+   * - 其它 RPC 错误 / 非零 ubus 状态码：翻译成用户可读文案写入 lastError
    */
   private async ubusCall(obj: string, method: string, params: Object, allowRetry: boolean = true): Promise<Object | null> {
     const loggedIn: boolean = await this.ensureSession()
     if (!loggedIn) {
       return null
     }
-    const res: RpcResponse = await this.jsonRpc(this.ubusUrl, 'call', [this.sessionId, obj, method, params])
+    let res: RpcResponse = await this.jsonRpc(this.ubusUrl, 'call', [this.sessionId, obj, method, params])
+
+    if (!res.transportOk && allowRetry && ApiClient.isReadonlyCall(method)) {
+      await ApiClient.sleep(RETRY_BACKOFF_MS)
+      res = await this.jsonRpc(this.ubusUrl, 'call', [this.sessionId, obj, method, params])
+    }
 
     if (!res.transportOk) {
+      this.lastError = ApiClient.describeTransport(res.httpCode)
+      hilog.warn(DOMAIN, TAG, `ubus ${obj}.${method} transport fail http=${res.httpCode} -> ${this.lastError}`)
       return null
     }
     if (res.hasError) {
@@ -528,6 +550,7 @@ export class ApiClient {
           return this.ubusCall(obj, method, params, false)
         }
       }
+      this.lastError = ApiClient.describeRpcError(res.errorCode)
       hilog.warn(DOMAIN, TAG, `ubus ${obj}.${method} rpc error ${res.errorCode}: ${res.errorMessage}`)
       return null
     }
@@ -542,9 +565,63 @@ export class ApiClient {
         // 无数据但调用成功（如 reboot / rc init）
         return new EmptyRecord()
       }
+      this.lastError = `设备拒绝该操作（状态码 ${code}），可能是权限不足或接口不支持`
       hilog.warn(DOMAIN, TAG, `ubus ${obj}.${method} status ${code}`)
+    } else {
+      this.lastError = '设备返回数据格式异常'
+      hilog.warn(DOMAIN, TAG, `ubus ${obj}.${method} empty result`)
     }
     return null
+  }
+
+  /** 只读方法判定：仅这类请求允许在传输失败后自动重试，防止写操作被执行两次 */
+  private static isReadonlyCall(method: string): boolean {
+    const m: string = method.toLowerCase()
+    return m.startsWith('get') || m.startsWith('info') || m.startsWith('dump') ||
+      m.startsWith('list') || m.startsWith('status') || m.startsWith('board') ||
+      m.startsWith('read') || m.startsWith('assoclist') || m === 'login'
+  }
+
+  /** 传输层失败 → 用户可读文案 */
+  private static describeTransport(httpCode: number): string {
+    if (httpCode === 401) {
+      return '认证失败：账号或密码不正确'
+    }
+    if (httpCode === 403) {
+      return '权限被拒绝：路由器 rpcd 未授权该接口'
+    }
+    if (httpCode === 404) {
+      return '接口不存在：该设备可能未启用 LuCI 管理界面'
+    }
+    if (httpCode >= 500) {
+      return `路由器内部错误（HTTP ${httpCode}）`
+    }
+    if (httpCode > 0) {
+      return `请求失败（HTTP ${httpCode}）`
+    }
+    return '设备无响应：请检查设备是否在线、管理地址是否正确'
+  }
+
+  /** ubus RPC 错误码 → 用户可读文案 */
+  private static describeRpcError(code: number): string {
+    if (code === -32002 || code === -32004) {
+      return '登录会话已失效，请重新连接设备'
+    }
+    if (code === -32601) {
+      return '该设备不支持此接口（方法不存在）'
+    }
+    if (code === -32602) {
+      return '请求参数不被设备接受'
+    }
+    return `设备返回错误（RPC ${code}）`
+  }
+
+  private static sleep(ms: number): Promise<void> {
+    return new Promise<void>((resolve: () => void) => {
+      setTimeout(() => {
+        resolve()
+      }, ms)
+    })
   }
 
   /**
@@ -609,8 +686,8 @@ export class ApiClient {
         method: http.RequestMethod.POST,
         header: { 'Content-Type': 'application/x-www-form-urlencoded' },
         extraData: body,
-        connectTimeout: 5000,
-        readTimeout: 10000
+        connectTimeout: CONNECT_TIMEOUT_MS,
+        readTimeout: READ_TIMEOUT_MS
       })
       // 登录成功：302 跳转（或直接 200），从 Set-Cookie 中提取 sysauth* 值
       const cookie: string = ApiClient.extractSysauthCookie(r.header)
@@ -727,8 +804,8 @@ export class ApiClient {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         extraData: method === 'POST' ? encodedBody : undefined,
-        connectTimeout: 5000,
-        readTimeout: 15000
+        connectTimeout: CONNECT_TIMEOUT_MS,
+        readTimeout: READ_TIMEOUT_LONG_MS
       })
       result.status = r.responseCode
       const data = r.result
@@ -1042,7 +1119,8 @@ export class ApiClient {
       const device: SavedDevice = {
         id: '', label: host, host: host, port: '22', token: '',
         useHttps: false, lastConnected: 0, version: 0,
-        username: this.username, password: this.password
+        username: this.username, password: this.password,
+        favorite: false, group: ''
       }
       const connOk: boolean = await sshSvc.connect(device)
       if (!connOk) {

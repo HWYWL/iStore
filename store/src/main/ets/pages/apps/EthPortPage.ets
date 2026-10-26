@@ -2,6 +2,7 @@ import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
+import { AppNav } from '../../common/utils/AppNav'
 
 /** 物理网口信息 */
 class EthPort {
@@ -15,7 +16,7 @@ class EthPort {
 
 @Entry
 @Component
-struct EthPortPage {
+export struct EthPortPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State ports: EthPort[] = []
@@ -90,13 +91,15 @@ this.theme = AppState.getInstance().getTheme()
         // 顶栏
         Row() {
           Row() {
+            SymbolGlyph($r('sys.symbol.square_grid_3x1_below_line_grid_1x2'))
+              .fontSize(15).fontColor(['#3B82F6'])
             Text(' 物理网口').fontSize(16).fontColor(this.theme.textPrimary)
               .fontWeight(FontWeight.Medium)
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
           .border({ width: 0.5, color: this.theme.borderGlass })
-          .onClick(() => this.getUIContext().getRouter().back())
+          .onClick(() => AppNav.getInstance().back())
 
           Blank()
           Text(`共 ${this.ports.length} 个`).fontSize(11).fontColor(this.theme.textTertiary)
@@ -109,7 +112,11 @@ this.theme = AppState.getInstance().getTheme()
           }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else if (this.errorText) {
           Column() {
-            Text('⚠ ' + this.errorText).fontSize(14).fontColor(this.theme.warning).margin({ bottom: 12 })
+            Row() {
+              SymbolGlyph($r('sys.symbol.warning')).fontSize(14).fontColor([this.theme.warning])
+              Text(' ' + this.errorText).fontSize(14).fontColor(this.theme.warning)
+            }
+            .margin({ bottom: 12 })
             Text('点击重试').fontSize(14).fontColor(this.theme.primary)
               .onClick(() => this.loadData())
           }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
@@ -117,9 +124,12 @@ this.theme = AppState.getInstance().getTheme()
           Scroll() {
             Column() {
               // 说明
-              Text('🔌 以 eth0 → eth1 → ... 顺序展示物理网口状态')
-                .fontSize(11).fontColor(this.theme.textTertiary)
-                .width('100%').padding({ left: 16, right: 16, top: 4, bottom: 8 })
+              Row() {
+                SymbolGlyph($r('sys.symbol.link')).fontSize(12).fontColor([this.theme.textTertiary])
+                Text(' 以 eth0 → eth1 → ... 顺序展示物理网口状态')
+                  .fontSize(11).fontColor(this.theme.textTertiary).layoutWeight(1)
+              }
+              .width('100%').padding({ left: 16, right: 16, top: 4, bottom: 8 })
 
               ForEach(this.ports, (port: EthPort, idx: number) => {
                 Column() {

@@ -8,6 +8,7 @@ import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 interface ActRow {
   name: string
@@ -113,7 +114,7 @@ export struct DeviceActivityPage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
       .width('100%')

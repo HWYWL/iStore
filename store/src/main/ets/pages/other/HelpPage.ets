@@ -5,6 +5,7 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
  */
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 interface FaqItem {
   question: string
@@ -69,7 +70,7 @@ this.theme = AppState.getInstance().getTheme()
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              this.getUIContext().getRouter().back()
+              AppNav.getInstance().back()
             } catch (e) {
               hilog.error(0x0001, 'HelpPage', `router.back failed: ${e}`)
             }

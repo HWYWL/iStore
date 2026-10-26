@@ -13,6 +13,7 @@ import { window } from '@kit.ArkUI'
 import { promptAction } from '@kit.ArkUI'
 import { http } from '@kit.NetworkKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 // 设计 Token（小花创意 DesignSystemManifest）
 const NIGHT_1: string = '#3A3F6E'
@@ -23,7 +24,13 @@ const WARN_DEEP: string = '#B7791F'
 const DANGER_DEEP: string = '#C0392B'
 
 const TABS: string[] = ['预言家', '侦探', '值班员', '一句话', '周报']
-const TAB_ICONS: string[] = ['🔮', '🕵️', '🌙', '⚡', '📊']
+const TAB_ICONS: Resource[] = [
+  $r('sys.symbol.wand_and_stars'),
+  $r('sys.symbol.magnifyingglass'),
+  $r('sys.symbol.moon'),
+  $r('sys.symbol.bolt'),
+  $r('sys.symbol.circle_grid_2x2')
+]
 
 interface Forecast {
   peakHour: number
@@ -40,7 +47,7 @@ interface DetectItem {
 
 @Entry
 @Component
-struct SmartHubPage {
+export struct SmartHubPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
   @State topSafeArea: number = 44
   @State tab: number = 0
@@ -457,7 +464,7 @@ struct SmartHubPage {
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
         .shadow({ radius: 8, color: 'rgba(180,160,120,0.14)', offsetY: 3 })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
         Text('预知 · 守护 · 执行')
           .fontSize(11).fontColor(this.theme.textTertiary)
@@ -469,12 +476,18 @@ struct SmartHubPage {
       // 5 Tab 分段导航
       Row() {
         ForEach(TABS, (t: string, idx: number) => {
-          Text(`${TAB_ICONS[idx]} ${t}`)
-            .fontSize(11).fontWeight(this.tab === idx ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.tab === idx ? '#FFFFFF' : this.theme.textSecondary)
-            .textAlign(TextAlign.Center)
-            .layoutWeight(1)
-            .padding({ top: 9, bottom: 9 })
+          Column() {
+            SymbolGlyph(TAB_ICONS[idx])
+              .fontSize(13)
+              .fontColor([this.tab === idx ? '#FFFFFF' : this.theme.textSecondary])
+            Text(t)
+              .fontSize(10)
+              .fontWeight(this.tab === idx ? FontWeight.Bold : FontWeight.Normal)
+              .fontColor(this.tab === idx ? '#FFFFFF' : this.theme.textSecondary)
+              .margin({ top: 2 })
+          }
+          .layoutWeight(1)
+          .padding({ top: 7, bottom: 7 })
             .borderRadius(14)
             .backgroundColor(this.tab === idx ? this.theme.primary : Color.Transparent)
             .shadow(this.tab === idx ? { radius: 6, color: 'rgba(255,138,61,0.3)', offsetY: 2 } : { radius: 0 })
@@ -626,7 +639,7 @@ struct SmartHubPage {
         })
       } else {
         Column() {
-          Text('📡').fontSize(36)
+          SymbolGlyph($r('sys.symbol.wifi')).fontSize(36).fontColor(['#94A3B8'])
           Text(this.forecast.advice).fontSize(12).fontColor(this.theme.textSecondary).margin({ top: 10 })
         }
         .width('100%')
@@ -646,7 +659,7 @@ struct SmartHubPage {
     Column() {
       // 说明卡
       Row() {
-        Text('🕵️').fontSize(22)
+        SymbolGlyph($r('sys.symbol.magnifyingglass')).fontSize(22).fontColor(['#8B5CF6'])
         Column() {
           Text('AI 网络侦探').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
           Text('断网/卡顿时一键排查，自动生成案发报告').fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 2 })
@@ -669,7 +682,7 @@ struct SmartHubPage {
 
       if (this.detectItems.length === 0) {
         Column() {
-          Text('🛡').fontSize(40)
+          SymbolGlyph($r('sys.symbol.security_shield')).fontSize(40).fontColor(['#10B981'])
           Text('一切正常时也会安静待命').fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
         }
         .width('100%').padding({ top: 40, bottom: 40 }).alignItems(HorizontalAlign.Center)
@@ -709,7 +722,7 @@ struct SmartHubPage {
 
         if (this.detectDone) {
           Row() {
-            Text('✓').fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+            SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(14).fontColor(['#FFFFFF'])
             Text('排查完成，可根据结果判断问题').fontSize(12).fontColor('#FFFFFF').margin({ left: 8 })
           }
           .width('100%')
@@ -746,7 +759,7 @@ struct SmartHubPage {
         }, (i: number) => `s${i}`)
 
         Row() {
-          Text('🌙').fontSize(22)
+          SymbolGlyph($r('sys.symbol.moon')).fontSize(22).fontColor(['#FFFFFF'])
           Column() {
             Text('深夜值班员').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
             Text('你在睡觉，路由器在守夜').fontSize(10).fontColor('rgba(255,255,255,0.7)').margin({ top: 2 })
@@ -774,8 +787,11 @@ struct SmartHubPage {
         ForEach(this.nightEvents, (ev: NightEvent, idx: number) => {
           Row() {
             Column() {
-              Text(ev.type === 'summary' ? '🌙' : (ev.type === 'new_device' ? '🆕' : (ev.type === 'attack' ? '🛡' : '😴')))
+              SymbolGlyph(ev.type === 'summary' ? $r('sys.symbol.moon')
+                : (ev.type === 'new_device' ? $r('sys.symbol.plus_circle')
+                : (ev.type === 'attack' ? $r('sys.symbol.security_shield') : $r('sys.symbol.moon'))))
                 .fontSize(18)
+                .fontColor([ev.type === 'attack' ? '#EF4444' : '#6366F1'])
               Text(ev.time).fontSize(9).fontColor(this.theme.textTertiary).margin({ top: 3 })
             }
             .width(44).alignItems(HorizontalAlign.Center)
@@ -803,7 +819,7 @@ struct SmartHubPage {
     Column() {
       Column() {
         Row() {
-          Text('⚡').fontSize(22)
+          SymbolGlyph($r('sys.symbol.bolt')).fontSize(22).fontColor(['#F59E0B'])
           Text('一句话搞定网络').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 8 })
         }
         .width('100%')
@@ -871,7 +887,7 @@ struct SmartHubPage {
     Column() {
       Column() {
         Row() {
-          Text('📊').fontSize(22)
+          SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(22).fontColor(['#3B82F6'])
           Text('家庭健康周报').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 8 })
           Blank()
           Text('生成今日')

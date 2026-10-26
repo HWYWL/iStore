@@ -14,6 +14,7 @@ import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { fileUri } from '@kit.CoreFileKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 // 固定大小测速文件：完整下载后从响应体取字节数（不依赖 dataReceive 事件）
 interface TestFile {
@@ -38,7 +39,7 @@ export struct SpeedTestPage {
   @State done: boolean = false
   @State mbps: number = 0
   @State rankText: string = ''
-  @State rankEmoji: string = ''
+  @State rankKey: string = 'bolt'
   @State note: string = ''
   @State countdown: number = 0      // 测速倒计时（秒）
   @State showCard: boolean = false  // 小红书风分享卡
@@ -202,27 +203,38 @@ export struct SpeedTestPage {
     }
   }
 
+  /** 段位图标（统一符号族） */
+  rankSymbol(): Resource {
+    if (this.rankKey === 'crown') return $r('sys.symbol.crown')
+    if (this.rankKey === 'rocket') return $r('sys.symbol.star')
+    if (this.rankKey === 'bolt') return $r('sys.symbol.bolt')
+    if (this.rankKey === 'smile') return $r('sys.symbol.face_smiling')
+    if (this.rankKey === 'calm') return $r('sys.symbol.heart')
+    if (this.rankKey === 'clock') return $r('sys.symbol.clock')
+    return $r('sys.symbol.battery')
+  }
+
   private rank(mbps: number): void {
     if (mbps >= 900) {
-      this.rankEmoji = '👑'
+      this.rankKey = 'crown'
       this.rankText = '击败全国 99% 的用户，宽带界的天花板！'
     } else if (mbps >= 300) {
-      this.rankEmoji = '🚀'
+      this.rankKey = 'rocket'
       this.rankText = '击败全国 95% 的用户，飞一般的速度！'
     } else if (mbps >= 100) {
-      this.rankEmoji = '⚡'
+      this.rankKey = 'bolt'
       this.rankText = '击败全国 80% 的用户，网速很能打！'
     } else if (mbps >= 50) {
-      this.rankEmoji = '😎'
+      this.rankKey = 'smile'
       this.rankText = '击败全国 60% 的用户，中上水平。'
     } else if (mbps >= 20) {
-      this.rankEmoji = '🙂'
+      this.rankKey = 'calm'
       this.rankText = '击败全国 40% 的用户，够用就行。'
     } else if (mbps >= 5) {
-      this.rankEmoji = '🐢'
+      this.rankKey = 'clock'
       this.rankText = '击败全国 10% 的用户…嗯，慢工出细活。'
     } else {
-      this.rankEmoji = '🪫'
+      this.rankKey = 'battery'
       this.rankText = '网速比蜗牛快一点点，建议检查网络。'
     }
   }
@@ -242,7 +254,7 @@ export struct SpeedTestPage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
       .width('100%')
@@ -256,8 +268,10 @@ export struct SpeedTestPage {
               Column() {
                 Text('⚡ 网速排位赛')
                   .fontSize(12).fontColor('rgba(255,255,255,0.85)')
-                Text(this.rankEmoji)
-                  .fontSize(46).margin({ top: 10 })
+                SymbolGlyph(this.rankSymbol())
+                  .fontSize(44)
+                  .fontColor(['#FFFFFF'])
+                  .margin({ top: 10 })
                 Text(this.mbps.toFixed(1))
                   .fontSize(58).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
                   .margin({ top: 4 })

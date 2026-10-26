@@ -1,4 +1,5 @@
 import localUnitTest from './LocalUnit.test';
+import formatUtilsTest from './FormatUtils.test';
 
 /**
  * 测试套件入口
@@ -6,4 +7,5 @@ import localUnitTest from './LocalUnit.test';
  */
 export default function testsuite() {
   localUnitTest();
+  formatUtilsTest();
 }

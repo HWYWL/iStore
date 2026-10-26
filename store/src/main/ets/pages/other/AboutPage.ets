@@ -7,6 +7,7 @@ import { promptAction } from '@kit.ArkUI'
 import { http } from '@kit.NetworkKit'
 import { util } from '@kit.ArkTS'
 import { getAppVersion } from '../../common/utils/AppVersion'
+import { AppNav } from '../../common/utils/AppNav'
 
 const VERSION_URL = 'https://raw.githubusercontent.com/HWYWL/iStore/main/api/version.json'
 const PROJECT_URL = 'https://github.com/HWYWL/iStore'
@@ -14,7 +15,7 @@ const QQ_GROUP = '1101685827'
 
 @Entry
 @Component
-struct AboutPage {
+export struct AboutPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State latestVersion: string = '点击下方按钮检查'
   @State isReady: boolean = false
@@ -153,7 +154,7 @@ struct AboutPage {
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              this.getUIContext().getRouter().back()
+              AppNav.getInstance().back()
             } catch (e) {
               hilog.error(0x0001, 'AboutPage', `router.back failed: ${e}`)
             }

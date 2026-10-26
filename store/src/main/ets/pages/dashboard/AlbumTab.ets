@@ -992,21 +992,29 @@ this.theme = AppState.getInstance().getTheme()
 
       // 顶部关闭（全屏时隐藏）
       if (!this.videoFullscreen) {
-        Text('✕')
-          .fontSize(22).fontColor('#FFFFFF')
+        SymbolGlyph($r('sys.symbol.xmark'))
+          .fontSize(20).fontColor(['#FFFFFF'])
           .padding(12)
           .position({ x: 16, y: 16 })
           .onClick(() => { this.closeViewer() })
 
         // 顶部分享按钮（下载中状态显示文字，右移避免被边缘裁剪）
-        Text(this.sharing ? '下载中…' : '📤')
-          .fontSize(this.sharing ? 13 : 18)
-          .fontColor('#FFFFFF')
-          .padding(10)
-          .borderRadius(16)
-          .backgroundColor(this.sharing ? 'rgba(0,0,0,0.4)' : 'transparent')
-          .position({ x: '72%', y: 16 })
-          .onClick(() => { this.shareCurrentAsset() })
+        Row() {
+          if (this.sharing) {
+            Text('下载中…')
+              .fontSize(13)
+              .fontColor('#FFFFFF')
+          } else {
+            SymbolGlyph($r('sys.symbol.share'))
+              .fontSize(18)
+              .fontColor(['#FFFFFF'])
+          }
+        }
+        .padding(10)
+        .borderRadius(16)
+        .backgroundColor(this.sharing ? 'rgba(0,0,0,0.4)' : 'transparent')
+        .position({ x: '72%', y: 16 })
+        .onClick(() => { this.shareCurrentAsset() })
 
         // 顶部索引指示
         Text(`${this.viewerIndex + 1} / ${this.viewerList.length}`)
@@ -1042,12 +1050,16 @@ this.theme = AppState.getInstance().getTheme()
       }
       // 图片：加载原图按钮；视频：提示
       if (this.currentViewerAsset() && this.currentViewerAsset()!.type === 'VIDEO') {
-        Text('🎬 视频 · 点击 ▶ 播放')
-          .fontSize(11).fontColor('#BBBBBB')
-          .margin({ top: 10 })
+        Row() {
+          SymbolGlyph($r('sys.symbol.film')).fontSize(12).fontColor(['#BBBBBB'])
+          Text(' 视频 · 点击播放').fontSize(11).fontColor('#BBBBBB')
+        }
+        .margin({ top: 10 })
       } else if (!this.isOriginalLoaded(this.viewerIndex)) {
-        Text('⚡ 加载原图')
-          .fontSize(12).fontColor('#FFFFFF')
+        Row() {
+          SymbolGlyph($r('sys.symbol.bolt')).fontSize(13).fontColor(['#FFFFFF'])
+          Text(' 加载原图').fontSize(12).fontColor('#FFFFFF')
+        }
           .padding({ left: 16, right: 16, top: 8, bottom: 8 })
           .borderRadius(16)
           .backgroundColor('rgba(255,255,255,0.2)')
@@ -1290,11 +1302,16 @@ this.theme = AppState.getInstance().getTheme()
   configView(): void {
     Scroll() {
       Column() {
-        Text('📷 Immich 相册')
-          .fontSize(22)
-          .fontColor(this.theme.textPrimary)
-          .fontWeight(FontWeight.Bold)
-          .margin({ top: 30 })
+        Row() {
+          SymbolGlyph($r('sys.symbol.ohos_photo'))
+            .fontSize(22)
+            .fontColor(['#EC4899'])
+          Text(' Immich 相册')
+            .fontSize(22)
+            .fontColor(this.theme.textPrimary)
+            .fontWeight(FontWeight.Bold)
+        }
+        .margin({ top: 30 })
 
         Text('连接你的自托管相册服务')
           .fontSize(13)
@@ -1320,20 +1337,30 @@ this.theme = AppState.getInstance().getTheme()
 
         // 检测本机 Immich
         Row() {
-          Text(this.isProbing ? '检测中…' : '🔍 检测本机安装的immich')
-            .fontSize(13)
-            .fontColor(this.theme.primary)
-            .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-            .borderRadius(14)
-            .backgroundColor('rgba(68,138,255,0.08)')
-            .border({ width: 0.5, color: '#448AFF33' })
-            .onClick(() => this.probeLocalImmich())
+          Row() {
+            SymbolGlyph($r('sys.symbol.magnifyingglass'))
+              .fontSize(13)
+              .fontColor([this.theme.primary])
+            Text(this.isProbing ? ' 检测中…' : ' 检测本机安装的immich')
+              .fontSize(13)
+              .fontColor(this.theme.primary)
+          }
+          .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+          .borderRadius(14)
+          .backgroundColor('rgba(68,138,255,0.08)')
+          .border({ width: 0.5, color: '#448AFF33' })
+          .onClick(() => this.probeLocalImmich())
 
           if (this.probeResult === 'found') {
-            Text('✓ 已填入上方地址')
-              .fontSize(11)
-              .fontColor(this.theme.success)
-              .margin({ left: 10 })
+            Row() {
+              SymbolGlyph($r('sys.symbol.checkmark_circle'))
+                .fontSize(12)
+                .fontColor([this.theme.success])
+              Text(' 已填入上方地址')
+                .fontSize(11)
+                .fontColor(this.theme.success)
+            }
+            .margin({ left: 10 })
           }
         }
         .width('100%')
@@ -1373,9 +1400,14 @@ this.theme = AppState.getInstance().getTheme()
           .margin({ bottom: 20 })
 
         if (this.configError) {
-          Text('⚠ ' + this.configError)
-            .fontSize(12).fontColor(this.theme.danger)
-            .width('100%').margin({ bottom: 12 })
+          Row() {
+            SymbolGlyph($r('sys.symbol.warning'))
+              .fontSize(13).fontColor([this.theme.danger])
+            Text(' ' + this.configError)
+              .fontSize(12).fontColor(this.theme.danger)
+              .layoutWeight(1)
+          }
+          .width('100%').margin({ bottom: 12 })
         }
 
         Button() {

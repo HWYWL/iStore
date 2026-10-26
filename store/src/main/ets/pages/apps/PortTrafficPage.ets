@@ -4,6 +4,8 @@ import { NetworkInterface, ConnectedDevice } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
+import { AppNav } from '../../common/utils/AppNav'
+import { Poller } from '../../common/utils/Poller'
 
 /** 接口类型图标 */
 function getTypeIcon(t: string): string {
@@ -20,25 +22,27 @@ function getTypeColor(t: string): string {
 
 @Entry
 @Component
-struct PortTrafficPage {
+export struct PortTrafficPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State interfaces: NetworkInterface[] = []
   @State errorText: string = ''
   @State maxRate: number = 1  // 用于进度条比例尺
-  private timerId: number = -1
+  private poller: Poller | null = null
   private rankGolds: string[] = ['🥇', '🥈', '🥉']
 
   aboutToAppear(): void {
 this.theme = AppState.getInstance().getTheme()
         this.loadData()
-    this.timerId = setInterval(() => this.loadData(), 3000)
+    // 统一轮询器：3s 高频刷新，上轮未返回则跳过，避免请求堆积
+    this.poller = new Poller((): Promise<void> => this.loadData(), 3000)
+    this.poller.start()
   }
 
   aboutToDisappear(): void {
-    if (this.timerId !== -1) {
-      clearInterval(this.timerId)
-      this.timerId = -1
+    if (this.poller) {
+      this.poller.dispose()
+      this.poller = null
     }
   }
 
@@ -108,7 +112,7 @@ this.theme = AppState.getInstance().getTheme()
           .backgroundColor(this.theme.bgCard)
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
-          .onClick(() => this.getUIContext().getRouter().back())
+          .onClick(() => AppNav.getInstance().back())
 
           Blank()
           Text(`共 ${this.interfaces.length} 个接口`)

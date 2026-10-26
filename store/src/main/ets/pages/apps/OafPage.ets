@@ -4,13 +4,14 @@ import { OafStatus, AppFilterBase, AppClass, AppItem, AppFilterTime, AppFilterUs
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
+import { AppNav } from '../../common/utils/AppNav'
 
 /** 星期常量映射 */
 const WEEKDAYS: string[] = ['日', '一', '二', '三', '四', '五', '六']
 
 @Entry
 @Component
-struct OafPage {
+export struct OafPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State errorText: string = ''
@@ -179,7 +180,7 @@ this.theme = AppState.getInstance().getTheme()
           .backgroundColor(this.theme.bgCard)
           .backdropBlur(20)
           .border({ width: 0.5, color: this.theme.borderGlass })
-          .onClick(() => this.getUIContext().getRouter().back())
+          .onClick(() => AppNav.getInstance().back())
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 48, bottom: 8 })
@@ -206,9 +207,12 @@ this.theme = AppState.getInstance().getTheme()
             Column() {
               // ======== 引擎状态卡片 ========
               Column() {
-                Text('🔧 OAF 引擎状态')
-                  .fontSize(14).fontColor(this.theme.textPrimary)
-                  .fontWeight(FontWeight.Medium).margin({ bottom: 12 })
+                Row() {
+                  SymbolGlyph($r('sys.symbol.gearshape')).fontSize(15).fontColor(['#3B82F6'])
+                  Text(' OAF 引擎状态')
+                    .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
+                }
+                .margin({ bottom: 12 })
                 this.statRow('插件版本', this.oafStatus?.pluginVersion || '--')
                 this.statRow('引擎版本', this.oafStatus?.engineVersion || '--')
                 this.statRow('内核版本', this.oafStatus?.kernelVersion || '--')
@@ -226,7 +230,8 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 基础配置卡片 ========
               Column() {
                 Row() {
-                  Text('⚙️ 基础配置')
+                  SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(15).fontColor(['#8B5CF6'])
+                  Text(' 基础配置')
                     .fontSize(14).fontColor(this.theme.textPrimary)
                     .fontWeight(FontWeight.Medium)
                   Blank()
@@ -254,7 +259,8 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 应用分类管控 ========
               Column() {
                 Row() {
-                  Text('📱 应用管控')
+                  SymbolGlyph($r('sys.symbol.square_grid_2x2')).fontSize(15).fontColor(['#EC4899'])
+                  Text(' 应用管控')
                     .fontSize(14).fontColor(this.theme.textPrimary)
                     .fontWeight(FontWeight.Medium)
                   Text(`  ${this.appClasses.length} 类`)
@@ -339,9 +345,12 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 时间段配置 ========
               if (this.appTime) {
                 Column() {
-                  Text('🕐 时间段配置')
-                    .fontSize(14).fontColor(this.theme.textPrimary)
-                    .fontWeight(FontWeight.Medium).margin({ bottom: 10 })
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.clock')).fontSize(15).fontColor(['#F59E0B'])
+                    Text(' 时间段配置')
+                      .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
+                  }
+                  .margin({ bottom: 10 })
 
                   // 生效星期
                   this.statRow('生效日期', this.fmtWeekdays(this.appTime.weekdays))
@@ -375,9 +384,12 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 管控用户 ========
               if (this.appUser) {
                 Column() {
-                  Text('👥 管控用户')
-                    .fontSize(14).fontColor(this.theme.textPrimary)
-                    .fontWeight(FontWeight.Medium).margin({ bottom: 10 })
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.person_2')).fontSize(15).fontColor(['#06B6D4'])
+                    Text(' 管控用户')
+                      .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
+                  }
+                  .margin({ bottom: 10 })
                   this.statRow('模式', this.appUser.mode === 'auto' ? '自动' : '手动')
                 }
                 .width('100%').padding(16).borderRadius(14).margin({ top: 10, left: 16, right: 16 })

@@ -2,11 +2,13 @@
  * SystemLogPage - 系统日志查看器
  * SSH logread 实时查看 + 关键字过滤 + 自动刷新（OpenWrt 24.x/25.x 通用）
  */
-import { router, window } from '@kit.ArkUI'
+import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
+import { Poller } from '../../common/utils/Poller'
 
 const DOMAIN = 0x0001
 const TAG = 'SysLog'
@@ -23,24 +25,21 @@ export struct SystemLogPage {
   @State errorText: string = ''
   private ssh: SshService = SshService.getInstance()
   private sshTried: boolean = false
-  private refreshTimer: number = -1
+  private poller: Poller | null = null
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
     this.loadTopSafeArea()
     this.loadLogs()
-    // 每 3 秒自动刷新
-    this.refreshTimer = setInterval(() => {
-      if (this.autoRefresh) {
-        this.loadLogs()
-      }
-    }, 3000)
+    // 每 3 秒自动刷新：autoRefresh 关闭时由 Poller 的可见性回调直接跳过
+    this.poller = new Poller((): Promise<void> => this.loadLogs(), 3000, (): boolean => this.autoRefresh)
+    this.poller.start()
   }
 
   aboutToDisappear(): void {
-    if (this.refreshTimer !== -1) {
-      clearInterval(this.refreshTimer)
-      this.refreshTimer = -1
+    if (this.poller) {
+      this.poller.dispose()
+      this.poller = null
     }
   }
 
@@ -137,7 +136,7 @@ export struct SystemLogPage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
           .backgroundColor('rgba(255,138,61,0.1)')
-          .onClick(() => { router.back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
 

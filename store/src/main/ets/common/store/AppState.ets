@@ -33,6 +33,7 @@ export class AppState {
   // ========== 公开状态（会被 UI 组件绑定） ==========
   devices: SavedDevice[] = []          // 设备列表
   activeDeviceId: string = ''          // 当前活动设备 ID
+  lastDeviceId: string = ''            // 上次使用的设备 ID（持久化，供自动重连）
 
   // ========== 内部状态 ==========
   private connected: boolean = false   // 当前是否已连接
@@ -81,9 +82,11 @@ export class AppState {
 
     // 从持久化存储加载设备列表
     await this.loadDevices()
+    // 恢复「上次使用的设备」，供冷启动自动重连
+    this.lastDeviceId = this.deviceStore.loadActiveId()
 
     this.initialized = true
-    hilog.info(DOMAIN, TAG, `Initialized: ${this.devices.length} devices`)
+    hilog.info(DOMAIN, TAG, `Initialized: ${this.devices.length} devices, last=${this.lastDeviceId}`)
   }
 
   private navHidden: boolean = false
@@ -187,6 +190,37 @@ export class AppState {
   offBottomNavInsetChange(listener: (inset: number) => void): void {
     const idx = this.navInsetListeners.indexOf(listener)
     if (idx >= 0) this.navInsetListeners.splice(idx, 1)
+  }
+
+  // ========== 大屏（平板/折叠展开）断点状态 ==========
+  // 宽度 >= 600vp 视为大屏：主界面缩到左侧，功能页展开到右侧面板
+  private wideScreen: boolean = false
+  private wideListeners: ((wide: boolean) => void)[] = []
+
+  /** 设置是否为大屏（MainPage 监听窗口尺寸后广播） */
+  setWideScreen(wide: boolean): void {
+    if (this.wideScreen !== wide) {
+      this.wideScreen = wide
+      for (const l of this.wideListeners) {
+        try { l(wide) } catch (_e) {}
+      }
+    }
+  }
+
+  /** 当前是否大屏双栏模式 */
+  isWideScreen(): boolean {
+    return this.wideScreen
+  }
+
+  onWideScreenChange(listener: (wide: boolean) => void): void {
+    if (!this.wideListeners.includes(listener)) {
+      this.wideListeners.push(listener)
+    }
+  }
+
+  offWideScreenChange(listener: (wide: boolean) => void): void {
+    const idx: number = this.wideListeners.indexOf(listener)
+    if (idx >= 0) this.wideListeners.splice(idx, 1)
   }
 
   // ========== 相册子视图状态（供 MainPage 拦截返回手势） ==========
@@ -374,9 +408,11 @@ export class AppState {
     if (connected) {
       this.connected = true
       this.activeDeviceId = deviceId
+      this.lastDeviceId = deviceId
       this.lastError = ''
-      // 记录最近连接时间
+      // 记录最近连接时间 + 记住「上次使用的设备」
       this.deviceStore.recordConnect(deviceId)
+      this.deviceStore.saveActiveId(deviceId)
       this.notifyDeviceListeners()
       return true
     } else {
@@ -406,6 +442,85 @@ export class AppState {
     this.connected = false
     this.activeDeviceId = ''
     this.lastError = ''
+    // 主动断开（如删除设备）后不再自动重连
+    this.lastDeviceId = ''
+    this.deviceStore.clearActiveId()
+  }
+
+  // ========== 主动切换设备 ==========
+
+  private switchingDevice: boolean = false
+
+  /**
+   * 请求切换到设备列表：断开当前连接但不忘记上次设备，
+   * 登录页据此跳过自动重连，避免"点切换又被弹回主页面"
+   */
+  requestSwitchDevice(): void {
+    this.switchingDevice = true
+    this.connected = false
+    this.activeDeviceId = ''
+    this.lastError = ''
+  }
+
+  /** 登录页消费一次切换请求（消费后自动复位） */
+  consumeSwitchRequest(): boolean {
+    const v: boolean = this.switchingDevice
+    this.switchingDevice = false
+    return v
+  }
+
+  // ========== 冷启动自动重连 ==========
+
+  /** 上次使用的设备 ID（无则空串） */
+  getLastDeviceId(): string {
+    return this.lastDeviceId
+  }
+
+  /** 是否开启「启动自动重连」 */
+  isAutoReconnectEnabled(): boolean {
+    return this.deviceStore.isAutoReconnect()
+  }
+
+  async setAutoReconnect(enabled: boolean): Promise<void> {
+    await this.deviceStore.setAutoReconnect(enabled)
+  }
+
+  /**
+   * 自动重连上次设备（登录页冷启动时调用）
+   * @returns 连接成功返回 true；未开启开关 / 无记录 / 连接失败返回 false
+   */
+  async connectLastDevice(): Promise<boolean> {
+    if (this.connected && this.activeDeviceId) {
+      return true
+    }
+    if (!this.isAutoReconnectEnabled()) {
+      return false
+    }
+    const id: string = this.lastDeviceId || this.deviceStore.loadActiveId()
+    if (!id) {
+      return false
+    }
+    if (!this.getDeviceById(id)) {
+      // 设备已被删除，清掉记录避免反复尝试
+      this.lastDeviceId = ''
+      await this.deviceStore.clearActiveId()
+      return false
+    }
+    return this.connectToDevice(id)
+  }
+
+  // ========== 设备收藏 / 分组 ==========
+
+  /** 切换收藏（收藏置顶） */
+  async toggleFavorite(id: string): Promise<void> {
+    await this.deviceStore.toggleFavorite(id)
+    await this.loadDevices()
+  }
+
+  /** 设置分组（传空串取消分组） */
+  async setDeviceGroup(id: string, group: string): Promise<void> {
+    await this.deviceStore.setGroup(id, group)
+    await this.loadDevices()
   }
 
   /**

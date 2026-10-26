@@ -8,33 +8,33 @@ import { ApiService } from '../../api/ApiService'
 import { ProcessInfo } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
+import { Poller } from '../../common/utils/Poller'
 
 @Entry
 @Component
-struct ProcessListPage {
+export struct ProcessListPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State errorText: string = ''
   @State processes: ProcessInfo[] = []
   @State expandedPid: number = -1
-  private refreshTimerId: number = -1
+  private poller: Poller | null = null
 
   aboutToAppear(): void {
 this.theme = AppState.getInstance().getTheme()
 
     
     this.loadData()
-    // 进程列表每 3 秒自动刷新
-    this.refreshTimerId = setInterval(() => {
-      this.loadData()
-    }, 3000)
+    // 进程列表每 3 秒自动刷新（上轮未返回则跳过）
+    this.poller = new Poller((): Promise<void> => this.loadData(), 3000)
+    this.poller.start()
   }
 
   aboutToDisappear(): void {
-    // 停止自动刷新定时器
-    if (this.refreshTimerId !== -1) {
-      clearInterval(this.refreshTimerId)
-      this.refreshTimerId = -1
+    if (this.poller) {
+      this.poller.dispose()
+      this.poller = null
     }
   }
 
@@ -67,6 +67,9 @@ this.theme = AppState.getInstance().getTheme()
       Column() {
         Row() {
           Row() {
+            SymbolGlyph($r('sys.symbol.gearshape'))
+              .fontSize(15)
+              .fontColor(['#8B5CF6'])
             Text(' 系统进程')
               .fontSize(16)
               .fontColor(this.theme.textPrimary)
@@ -79,7 +82,7 @@ this.theme = AppState.getInstance().getTheme()
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              this.getUIContext().getRouter().back()
+              AppNav.getInstance().back()
             } catch (e) {
               hilog.error(0x0001, 'ProcessListPage', `router.back failed: ${e}`)
             }

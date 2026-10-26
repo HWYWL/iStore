@@ -6,10 +6,11 @@ import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette, SKINS, SkinDef } from '../../common/theme/ThemeColors'
 import { promptAction, window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct SkinManagePage {
+export struct SkinManagePage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
   @State currentSkinId: string = 'white'
@@ -112,12 +113,13 @@ struct SkinManagePage {
 
         // 选中标记
         if (skin.id === this.currentSkinId) {
-          Text('✓ 使用中')
-            .fontSize(11)
-            .fontColor(Color.White)
-            .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .borderRadius(12)
-            .backgroundColor(this.theme.primary)
+          Row() {
+            SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(12).fontColor([Color.White])
+            Text(' 使用中').fontSize(11).fontColor(Color.White)
+          }
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          .borderRadius(12)
+          .backgroundColor(this.theme.primary)
         }
       }
       .width('100%')
@@ -146,7 +148,7 @@ struct SkinManagePage {
             .padding({ left: 4, right: 12, top: 2, bottom: 2 })
         }
         .onClick(() => {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         })
         Text('皮肤管理')
           .fontSize(17)
@@ -189,9 +191,11 @@ struct SkinManagePage {
           .padding({ left: 14, right: 14, top: 4 })
 
           Row() {
-            Text('💡 切换后立即生效，选择会自动保存')
+            SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(13).fontColor(['#F59E0B'])
+            Text(' 切换后立即生效，选择会自动保存')
               .fontSize(11)
               .fontColor(this.theme.textTertiary)
+              .layoutWeight(1)
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 8, bottom: 30 })

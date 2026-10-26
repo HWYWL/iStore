@@ -10,6 +10,14 @@ const TAG = 'NotifyStore'
 const DOMAIN = 0x0001
 const STORE_NAME = 'iStore_notify'
 
+/** 一条告警历史记录 */
+export interface NotifyRecord {
+  t: number       // 时间戳
+  type: string    // offline / recover / newDevice / temp / memory / cpu / traffic
+  title: string
+  text: string
+}
+
 export class NotifyStore {
   private static instance: NotifyStore
   private prefs: preferences.Preferences | null = null
@@ -27,7 +35,9 @@ export class NotifyStore {
     try {
       this.prefs = await preferences.getPreferences(context, STORE_NAME)
       // 预热缓存
-      const keys: string[] = ['enabled', 'offlineAlert', 'newDeviceAlert', 'aiHealthAlert', 'lastOnline', 'lastMacs', 'lastCheckedDate', 'lastAiAlerts']
+      const keys: string[] = ['enabled', 'offlineAlert', 'newDeviceAlert', 'aiHealthAlert', 'lastOnline', 'lastMacs',
+        'lastCheckedDate', 'lastAiAlerts', 'quietEnabled', 'quietStart', 'quietEnd',
+        'thTemp', 'thMem', 'thCpu', 'history']
       for (let i = 0; i < keys.length; i++) {
         this.cache.set(keys[i], this.prefs.getSync(keys[i], '') as string)
       }
@@ -38,7 +48,9 @@ export class NotifyStore {
 
   private getStr(key: string, def: string): string {
     const v: string | undefined = this.cache.get(key)
-    if (v !== undefined) return v
+    // 预热时未写入过的键统一是空串，此时回落到调用方给的默认值，
+    // 否则数值型配置（阈值/起始小时）会被 Number('') 解析成 0
+    if (v !== undefined && v !== '') return v
     return def
   }
 
@@ -142,5 +154,106 @@ export class NotifyStore {
 
   setLastAiAlerts(map: Record<string, string>): void {
     this.setStr('lastAiAlerts', JSON.stringify(map))
+  }
+
+  // ========== 免打扰时段 ==========
+
+  isQuietEnabled(): boolean {
+    return this.getStr('quietEnabled', '') === '1'
+  }
+
+  setQuietEnabled(v: boolean): void {
+    this.setStr('quietEnabled', v ? '1' : '0')
+  }
+
+  /** 免打扰开始小时（0~23，默认 23） */
+  getQuietStart(): number {
+    const raw: string = this.getStr('quietStart', '23')
+    const v: number = Number(raw)
+    return (raw === '' || isNaN(v)) ? 23 : Math.min(23, Math.max(0, v))
+  }
+
+  setQuietStart(h: number): void {
+    this.setStr('quietStart', `${Math.min(23, Math.max(0, h))}`)
+  }
+
+  /** 免打扰结束小时（0~23，默认 7） */
+  getQuietEnd(): number {
+    const v: number = Number(this.getStr('quietEnd', '7'))
+    return isNaN(v) ? 7 : Math.min(23, Math.max(0, v))
+  }
+
+  setQuietEnd(h: number): void {
+    this.setStr('quietEnd', `${Math.min(23, Math.max(0, h))}`)
+  }
+
+  /** 当前是否处于免打扰时段（支持跨零点，如 23:00~07:00） */
+  isInQuietHours(): boolean {
+    if (!this.isQuietEnabled()) return false
+    const start: number = this.getQuietStart()
+    const end: number = this.getQuietEnd()
+    if (start === end) return false
+    const h: number = new Date().getHours()
+    if (start < end) {
+      return h >= start && h < end
+    }
+    return h >= start || h < end
+  }
+
+  // ========== 告警阈值（可配置） ==========
+
+  getTempThreshold(): number {
+    const v: number = Number(this.getStr('thTemp', '75'))
+    return isNaN(v) ? 75 : v
+  }
+
+  setTempThreshold(v: number): void {
+    this.setStr('thTemp', `${v}`)
+  }
+
+  getMemThreshold(): number {
+    const v: number = Number(this.getStr('thMem', '85'))
+    return isNaN(v) ? 85 : v
+  }
+
+  setMemThreshold(v: number): void {
+    this.setStr('thMem', `${v}`)
+  }
+
+  getCpuThreshold(): number {
+    const v: number = Number(this.getStr('thCpu', '90'))
+    return isNaN(v) ? 90 : v
+  }
+
+  setCpuThreshold(v: number): void {
+    this.setStr('thCpu', `${v}`)
+  }
+
+  // ========== 告警历史（最多 50 条，新的在前） ==========
+
+  getHistory(): NotifyRecord[] {
+    try {
+      const v: string = this.getStr('history', '')
+      if (!v) return []
+      return JSON.parse(v) as NotifyRecord[]
+    } catch (e) {
+      return []
+    }
+  }
+
+  /** 记录一条告警：落盘并在内存里保留最近 50 条 */
+  addHistory(type: string, title: string, text: string): void {
+    try {
+      const list: NotifyRecord[] = this.getHistory()
+      list.unshift({ t: Date.now(), type: type, title: title, text: text })
+      const kept: NotifyRecord[] = list.slice(0, 50)
+      this.setStr('history', JSON.stringify(kept))
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `addHistory err: ${JSON.stringify(e)}`)
+    }
+  }
+
+  clearHistory(): void {
+    this.setStr('history', '')
   }
 }

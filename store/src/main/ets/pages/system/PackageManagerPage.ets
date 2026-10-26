@@ -3,7 +3,8 @@
  * 自动检测包管理器：OpenWrt 24.x 用 opkg，25.x 用 apk
  * 支持已装列表 / 搜索安装 / 卸载
  */
-import { router, window, promptAction } from '@kit.ArkUI'
+import { window, promptAction } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
@@ -208,7 +209,7 @@ export struct PackageManagerPage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
           .backgroundColor('rgba(255,138,61,0.1)')
-          .onClick(() => { router.back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
 

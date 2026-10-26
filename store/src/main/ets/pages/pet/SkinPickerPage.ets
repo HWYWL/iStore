@@ -8,6 +8,7 @@ import { SKINS, SkinDef } from '../../common/theme/ThemeColors'
 import { PetStore, PetState } from '../../common/store/PetStore'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
@@ -55,7 +56,7 @@ struct SkinPickerPage {
           .padding({ left: 14, right: 14, top: 6, bottom: 6 })
           .borderRadius(12)
           .backgroundColor(this.tint(this.theme.primary, 0.1))
-          .onClick(() => { this.getUIContext().getRouter().back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: this.topSafeArea + 8, bottom: 10 })

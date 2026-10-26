@@ -2,7 +2,7 @@
  * RouterLevelPage - 路由器等级（Lv.1 新手上路 → Lv.99 网络之神）
  * 按使用天数 + 操作次数升级，数据存 FunStore
  */
-import { router } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
@@ -139,7 +139,7 @@ export struct RouterLevelPage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
           .backgroundColor('rgba(255,138,61,0.1)')
-          .onClick(() => { router.back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
 
@@ -171,9 +171,9 @@ export struct RouterLevelPage {
 
           // 统计卡
           Row({ space: 10 }) {
-            this.stat('📅', `${this.upDays}`, '使用天数')
-            this.stat('⚡', `${this.actions}`, '活跃次数')
-            this.stat('🕐', `${this.upDaysRun()}`, '连续运行(天)')
+            this.stat($r('sys.symbol.calendar'), `${this.upDays}`, '使用天数')
+            this.stat($r('sys.symbol.bolt'), `${this.actions}`, '活跃次数')
+            this.stat($r('sys.symbol.clock'), `${this.upDaysRun()}`, '连续运行(天)')
           }
           .width('100%').margin({ top: 12 })
 
@@ -215,9 +215,9 @@ export struct RouterLevelPage {
   }
 
   @Builder
-  stat(emoji: string, value: string, label: string) {
+  stat(icon: Resource, value: string, label: string) {
     Column() {
-      Text(emoji).fontSize(18)
+      SymbolGlyph(icon).fontSize(18).fontColor([this.theme.primary])
       Text(value).fontSize(22).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold).fontFamily('monospace')
         .margin({ top: 4 })
       Text(label).fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 2 })

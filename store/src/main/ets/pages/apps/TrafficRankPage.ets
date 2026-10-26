@@ -4,32 +4,46 @@ import { ConnectedDevice } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
+import { AppNav } from '../../common/utils/AppNav'
+import { Poller } from '../../common/utils/Poller'
 
 @Entry
 @Component
-struct TrafficRankPage {
+export struct TrafficRankPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State devices: ConnectedDevice[] = []
   @State maxRate: number = 1
   @State errorText: string = ''
-  private timerId: number = -1
-  private rankBadges: string[] = ['🥇', '🥈', '🥉']
+  private poller: Poller | null = null
+  private rankBadges: Resource[] = [$r('sys.symbol.star_trophy'), $r('sys.symbol.medal'), $r('sys.symbol.medal')]
+
+  /** 前三名配色 */
+  private rankColor(idx: number): string {
+    if (idx === 0) return '#F59E0B'
+    if (idx === 1) return '#94A3B8'
+    return '#B45309'
+  }
 
   aboutToAppear(): void {
 this.theme = AppState.getInstance().getTheme()
         this.loadData()
-    this.timerId = setInterval(() => this.loadData(), 5000)
+    // 统一轮询器：上轮未返回则跳过，避免弱网下请求堆积
+    this.poller = new Poller((): Promise<void> => this.loadData(), 5000)
+    this.poller.start()
   }
 
   aboutToDisappear(): void {
-    if (this.timerId !== -1) { clearInterval(this.timerId); this.timerId = -1 }
+    if (this.poller) {
+      this.poller.dispose()
+      this.poller = null
+    }
   }
 
   async loadData(): Promise<void> {
+    const api: ApiService = ApiService.getInstance()
     try {
       if (!AppState.getInstance().isConnected()) return
-      const api = new ApiService()
       const all = await api.fetchConnectedDevices()
       // 按总速率降序排列
       const sorted = [...all].sort((a, b) => {
@@ -44,9 +58,11 @@ this.theme = AppState.getInstance().getTheme()
         if (t > max) max = t
       }
       this.maxRate = max
-      this.errorText = ''
+      // 接口失败时底层返回空数组而不抛异常，这里补一条原因，避免"空白无提示"
+      this.errorText = (sorted.length === 0) ? api.getLastError() : ''
     } catch (e) {
-      this.errorText = '加载失败'
+      // 统一错误层：优先展示底层给出的可读原因（超时/权限/会话失效等）
+      this.errorText = api.getLastError() || '加载失败'
     }
     this.isLoading = false
   }
@@ -102,7 +118,7 @@ this.theme = AppState.getInstance().getTheme()
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
           .border({ width: 0.5, color: this.theme.borderGlass })
-          .onClick(() => this.getUIContext().getRouter().back())
+          .onClick(() => AppNav.getInstance().back())
 
           Blank()
           Text(`共 ${this.devices.length} 个设备`).fontSize(11).fontColor(this.theme.textTertiary)
@@ -115,7 +131,11 @@ this.theme = AppState.getInstance().getTheme()
           }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else if (this.errorText && this.devices.length === 0) {
           Column() {
-            Text('⚠ ' + this.errorText).fontSize(14).fontColor(this.theme.warning).margin({ bottom: 12 })
+            Row() {
+            SymbolGlyph($r('sys.symbol.warning')).fontSize(14).fontColor([this.theme.warning])
+            Text(' ' + this.errorText).fontSize(14).fontColor(this.theme.warning)
+          }
+          .margin({ bottom: 12 })
             Text('点击重试').fontSize(14).fontColor(this.theme.primary)
               .onClick(() => { this.isLoading = true; this.loadData() })
           }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
@@ -123,16 +143,25 @@ this.theme = AppState.getInstance().getTheme()
           Scroll() {
             Column() {
               // 说明
-              Text('📶 按实时下载+上传速率降序排列')
-                .fontSize(11).fontColor(this.theme.textTertiary)
-                .width('100%').padding({ left: 16, right: 16, top: 4, bottom: 4 })
+              Row() {
+                SymbolGlyph($r('sys.symbol.wifi')).fontSize(13).fontColor(['#10B981'])
+                Text(' 按实时下载+上传速率降序排列')
+                  .fontSize(11).fontColor(this.theme.textTertiary)
+                  .layoutWeight(1)
+              }
+              .width('100%').padding({ left: 16, right: 16, top: 4, bottom: 4 })
 
               ForEach(this.devices, (dev: ConnectedDevice, idx: number) => {
                 Column() {
                   // 排名 + 设备名 + 标签
                   Row() {
-                    Text(idx < 3 ? this.rankBadges[idx] : `#${idx + 1}`)
-                      .fontSize(18).fontColor(this.theme.textPrimary).margin({ right: 10 })
+                    if (idx < 3) {
+                      SymbolGlyph(this.rankBadges[idx])
+                        .fontSize(18).fontColor([this.rankColor(idx)]).margin({ right: 10 })
+                    } else {
+                      Text(`#${idx + 1}`)
+                        .fontSize(13).fontColor(this.theme.textTertiary).margin({ right: 10 })
+                    }
 
                     Column() {
                       Text(dev.hostname || '未知设备')

@@ -3,6 +3,8 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ConnectedDevice } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
+import { AppNav } from '../../common/utils/AppNav'
+import { Poller } from '../../common/utils/Poller'
 
 /** 每个 IP 的连接统计 */
 class IpRank {
@@ -17,24 +19,36 @@ class IpRank {
 
 @Entry
 @Component
-struct ConntrackRankPage {
+export struct ConntrackRankPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State items: IpRank[] = []
   @State totalConns: number = 0
   @State maxConns: number = 1
   @State errorText: string = ''
-  private timerId: number = -1
-  private rankBadges: string[] = ['🥇', '🥈', '🥉']
+  private poller: Poller | null = null
+  private rankBadges: Resource[] = [$r('sys.symbol.star_trophy'), $r('sys.symbol.medal'), $r('sys.symbol.medal')]
+
+  /** 前三名配色 */
+  private rankColor(idx: number): string {
+    if (idx === 0) return '#F59E0B'
+    if (idx === 1) return '#94A3B8'
+    return '#B45309'
+  }
 
   aboutToAppear(): void {
 this.theme = AppState.getInstance().getTheme()
         this.loadData()
-    this.timerId = setInterval(() => this.loadData(), 5000)
+    // 统一轮询器：上轮未返回则跳过，避免弱网下请求堆积
+    this.poller = new Poller((): Promise<void> => this.loadData(), 5000)
+    this.poller.start()
   }
 
   aboutToDisappear(): void {
-    if (this.timerId !== -1) { clearInterval(this.timerId); this.timerId = -1 }
+    if (this.poller) {
+      this.poller.dispose()
+      this.poller = null
+    }
   }
 
   async loadData(): Promise<void> {
@@ -124,7 +138,7 @@ this.theme = AppState.getInstance().getTheme()
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
           .border({ width: 0.5, color: this.theme.borderGlass })
-          .onClick(() => this.getUIContext().getRouter().back())
+          .onClick(() => AppNav.getInstance().back())
 
           Blank()
           Text(`共 ${this.totalConns} 条连接`).fontSize(11).fontColor(this.theme.textTertiary)
@@ -137,22 +151,35 @@ this.theme = AppState.getInstance().getTheme()
           }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else if (this.errorText && this.items.length === 0) {
           Column() {
-            Text('⚠ ' + this.errorText).fontSize(14).fontColor(this.theme.warning).margin({ bottom: 12 })
+            Row() {
+            SymbolGlyph($r('sys.symbol.warning')).fontSize(14).fontColor([this.theme.warning])
+            Text(' ' + this.errorText).fontSize(14).fontColor(this.theme.warning)
+          }
+          .margin({ bottom: 12 })
             Text('点击重试').fontSize(14).fontColor(this.theme.primary)
               .onClick(() => { this.isLoading = true; this.loadData() })
           }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else {
           Scroll() {
             Column() {
-              Text('🔗 按 NAT 连接数降序，发现连接大户')
-                .fontSize(11).fontColor(this.theme.textTertiary)
-                .width('100%').padding({ left: 16, right: 16, top: 4, bottom: 4 })
+              Row() {
+                SymbolGlyph($r('sys.symbol.link')).fontSize(13).fontColor(['#EC4899'])
+                Text(' 按 NAT 连接数降序，发现连接大户')
+                  .fontSize(11).fontColor(this.theme.textTertiary)
+                  .layoutWeight(1)
+              }
+              .width('100%').padding({ left: 16, right: 16, top: 4, bottom: 4 })
 
               ForEach(this.items, (item: IpRank, idx: number) => {
                 Column() {
                   Row() {
-                    Text(idx < 3 ? this.rankBadges[idx] : `#${idx + 1}`)
-                      .fontSize(18).fontColor(this.theme.textPrimary).margin({ right: 10 })
+                    if (idx < 3) {
+                      SymbolGlyph(this.rankBadges[idx])
+                        .fontSize(18).fontColor([this.rankColor(idx)]).margin({ right: 10 })
+                    } else {
+                      Text(`#${idx + 1}`)
+                        .fontSize(13).fontColor(this.theme.textTertiary).margin({ right: 10 })
+                    }
 
                     Column() {
                       Text(item.hostname || '未知设备')

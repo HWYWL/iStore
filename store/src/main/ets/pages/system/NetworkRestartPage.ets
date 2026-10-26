@@ -3,7 +3,8 @@
  * /etc/init.d/network restart 只重启网络服务不动整机（OpenWrt 24.x/25.x 通用）
  * 重启后自动 ping 网关验证恢复
  */
-import { router, window, promptAction } from '@kit.ArkUI'
+import { window, promptAction } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
@@ -132,7 +133,7 @@ export struct NetworkRestartPage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
           .backgroundColor('rgba(255,138,61,0.1)')
-          .onClick(() => { router.back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
 
@@ -140,8 +141,10 @@ export struct NetworkRestartPage {
         Column() {
           // 状态大卡
           Column() {
-            Text(this.resultOk === -1 ? '🌐' : (this.resultOk === 1 ? '✅' : '⚠️'))
-              .fontSize(56)
+            SymbolGlyph(this.resultOk === -1 ? $r('sys.symbol.globe_badge_message')
+              : (this.resultOk === 1 ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.warning')))
+              .fontSize(52)
+              .fontColor([this.resultOk === 1 ? '#10B981' : (this.resultOk === -1 ? this.theme.primary : '#F59E0B')])
             Text(this.busy ? '重启中...' : (this.resultOk === -1 ? '网络服务待命' : (this.resultOk === 1 ? '网络已恢复' : '验证未通过')))
               .fontSize(16).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold).margin({ top: 10 })
             Text('断网、拨号失败、DNS 异常时，先试试只重启网络服务')
@@ -153,7 +156,10 @@ export struct NetworkRestartPage {
 
           // 说明卡
           Column() {
-            Text('💡 与「重启路由器」的区别').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
+            Row() {
+            SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(14).fontColor(['#F59E0B'])
+            Text(' 与「重启路由器」的区别').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
+          }
               .width('100%')
             Text('· 重启路由器：整机重启，耗时 1~3 分钟，全部服务中断\n· 网络重启：只重启网络相关服务，约 10~30 秒，其他服务不受影响')
               .fontSize(11).fontColor(this.theme.textSecondary).lineHeight(20).margin({ top: 10 })

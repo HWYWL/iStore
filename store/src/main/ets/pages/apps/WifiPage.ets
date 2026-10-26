@@ -4,10 +4,11 @@ import { ApiService } from '../../api/ApiService'
 import { WifiApInfo, WifiClientDetail } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct WifiPage {
+export struct WifiPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State errorText: string = ''
@@ -399,7 +400,8 @@ this.theme = AppState.getInstance().getTheme()
   guestCard(): void {
     Column() {
       Row() {
-        Text('🛜 访客网络')
+        SymbolGlyph($r('sys.symbol.wifi')).fontSize(14).fontColor(['#10B981'])
+        Text(' 访客网络')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
           .fontWeight(FontWeight.Medium)
@@ -419,7 +421,8 @@ this.theme = AppState.getInstance().getTheme()
 
       if (this.guestEnabled) {
         Row() {
-          Text(`📶 ${this.guestSsid || '已开启'}`)
+          SymbolGlyph($r('sys.symbol.wifi')).fontSize(13).fontColor([this.theme.primary])
+          Text(` ${this.guestSsid || '已开启'}`)
             .fontSize(12)
             .fontColor(this.theme.textPrimary)
             .layoutWeight(1)
@@ -497,12 +500,18 @@ this.theme = AppState.getInstance().getTheme()
       }
 
       if (this.guestMsg) {
-        Text('✓ ' + this.guestMsg)
-          .fontSize(11).fontColor(this.theme.success).width('100%').margin({ top: 8 })
+        Row() {
+          SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(12).fontColor([this.theme.success])
+          Text(' ' + this.guestMsg).fontSize(11).fontColor(this.theme.success)
+        }
+        .width('100%').margin({ top: 8 })
       }
       if (this.guestErr) {
-        Text('⚠ ' + this.guestErr)
-          .fontSize(11).fontColor(this.theme.danger).width('100%').margin({ top: 8 })
+        Row() {
+          SymbolGlyph($r('sys.symbol.warning')).fontSize(12).fontColor([this.theme.danger])
+          Text(' ' + this.guestErr).fontSize(11).fontColor(this.theme.danger)
+        }
+        .width('100%').margin({ top: 8 })
       }
     }
     .width('100%')
@@ -533,7 +542,7 @@ this.theme = AppState.getInstance().getTheme()
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
           .border({ width: 0.5, color: this.theme.borderGlass })
-          .onClick(() => this.getUIContext().getRouter().back())
+          .onClick(() => AppNav.getInstance().back())
 
           Blank()
           Text(`共 ${this.aps.length} 个接入点`).fontSize(11).fontColor(this.theme.textTertiary)
@@ -546,7 +555,11 @@ this.theme = AppState.getInstance().getTheme()
           }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else if (this.errorText) {
           Column() {
-            Text('⚠ ' + this.errorText).fontSize(14).fontColor(this.theme.warning).margin({ bottom: 12 })
+            Row() {
+              SymbolGlyph($r('sys.symbol.warning')).fontSize(14).fontColor([this.theme.warning])
+              Text(' ' + this.errorText).fontSize(14).fontColor(this.theme.warning)
+            }
+            .margin({ bottom: 12 })
             Text('点击重试').fontSize(14).fontColor(this.theme.primary)
               .onClick(() => this.loadData())
           }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
@@ -555,14 +568,20 @@ this.theme = AppState.getInstance().getTheme()
             Column() {
               // 结果提示
               if (this.saveMessage) {
-                Text('✓ ' + this.saveMessage)
-                  .fontSize(12).fontColor('#00E676').width('100%')
-                  .padding({ left: 16, right: 16, top: 8 })
+                Row() {
+                  SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(13).fontColor(['#00E676'])
+                  Text(' ' + this.saveMessage).fontSize(12).fontColor('#00E676')
+                }
+                .width('100%')
+                .padding({ left: 16, right: 16, top: 8 })
               }
               if (this.saveError) {
-                Text('⚠ ' + this.saveError)
-                  .fontSize(12).fontColor(this.theme.danger).width('100%')
-                  .padding({ left: 16, right: 16, top: 8 })
+                Row() {
+                  SymbolGlyph($r('sys.symbol.warning')).fontSize(13).fontColor([this.theme.danger])
+                  Text(' ' + this.saveError).fontSize(12).fontColor(this.theme.danger)
+                }
+                .width('100%')
+                .padding({ left: 16, right: 16, top: 8 })
               }
 
               if (this.aps.length === 0) {
@@ -594,7 +613,7 @@ this.theme = AppState.getInstance().getTheme()
             Row() {
               Text('编辑 WiFi').fontSize(16).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
               Blank()
-              Text('✕').fontSize(18).fontColor(this.theme.textTertiary)
+              SymbolGlyph($r('sys.symbol.xmark')).fontSize(16).fontColor([this.theme.textTertiary])
                 .padding(8)
                 .onClick(() => { this.showEdit = false })
             }.width('100%').margin({ bottom: 12 })
@@ -636,9 +655,13 @@ this.theme = AppState.getInstance().getTheme()
                 .onChange((on: boolean) => this.editDisabled = !on)
             }.width('100%').margin({ bottom: 8 })
 
-            Text('⚠ 保存后无线网络将重启，已连接设备会短暂断线（约 5 秒）')
-              .fontSize(10).fontColor(this.theme.warning).width('100%')
-              .margin({ bottom: 14 })
+            Row() {
+              SymbolGlyph($r('sys.symbol.warning')).fontSize(11).fontColor([this.theme.warning])
+              Text(' 保存后无线网络将重启，已连接设备会短暂断线（约 5 秒）')
+                .fontSize(10).fontColor(this.theme.warning).layoutWeight(1)
+            }
+            .width('100%')
+            .margin({ bottom: 14 })
 
             Row() {
               Text('取消')

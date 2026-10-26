@@ -1,49 +1,62 @@
 import { AppState } from '../../common/store/AppState'
-import {LIGHT_THEME, ThemePalette} from '../../common/theme/ThemeColors'
+import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { hilog } from '@kit.PerformanceAnalysisKit'
-import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit'
-import { SymbolGlyphModifier, window } from '@kit.ArkUI'
+import { mediaquery, window } from '@kit.ArkUI'
 import { DashboardTab } from './DashboardTab'
-import { IStoreTabView } from './IStoreTabView'
+import { AppsPage } from '../apps/AppsPage'
 import { NotificationWatcher } from '../../common/store/NotificationWatcher'
 import { NotifyStore } from '../../common/store/NotifyStore'
 import { applyImmersiveBar } from '../../common/utils/WindowUtils'
 import { ScheduleStore } from '../../common/store/ScheduleStore'
-import { DockerTab } from './DockerTab'
-import { PetView } from '../pet/PetPage'
+import { AppNav } from '../../common/utils/AppNav'
+import { PageHost } from '../../common/components/PageHost'
 
 // 系统导航条高度：手势导航约 24vp，三键导航约 48vp
 const NAV_BAR_GESTURE: number = 24
 const NAV_BAR_THREE_KEY: number = 48
 // 三键导航底栏高度通常 >= 40vp，用于区分导航模式
 const NAV_BAR_THREE_KEY_THRESHOLD: number = 40
-// 悬浮导航条自身高度 + 与内容的间隙
-const NAV_BAR_INSET_BASE: number = 110
-// 悬浮导航条与系统导航条之间的间距
-const NAV_BAR_BOTTOM_GAP: number = 4
-// 主 Tab 索引：首页 0 / 小管家 1 / iStore 2 / Docker 3，系统 Tab 跳转应用中心
-const TAB_SYSTEM: number = 4
+
+// ===== 响应式分栏断点 =====
+// < 600vp：手机单栏（只有首页，功能页全屏路由）
+// >= 600vp：两栏（首页 + 应用中心/应用）
+// >= 1100vp：三栏（首页 + 应用中心 + 应用），覆盖 10 英寸以上平板横屏
+const BP_TWO_COLUMN: number = 600
+const BP_THREE_COLUMN: number = 1100
+const BORDER_WIDTH: number = 0.5
 
 @Entry
 @Component
 struct MainPage {
   @State theme: ThemePalette = LIGHT_THEME
-  @State deviceName: string = ''
-  @State navHidden: boolean = false
-  @State bottomSafeArea: number = NAV_BAR_GESTURE  // 系统导航条占用高度（手势 24vp / 三键 48vp）
-  @State lastTabIndex: number = 0  // 进入应用中心前的 Tab（返回时恢复）
-  @State tabOpacity: number = 1      // Tab 内容过渡动画：透明度
-  @State tabTranslateY: number = 0   // Tab 内容过渡动画：垂直位移
-  private lastScrollOffset: number = 0
-  private tabsController: HdsTabsController = new HdsTabsController()
+  // ===== 分栏状态 =====
+  @State isTwoColumn: boolean = false
+  @State isThreeColumn: boolean = false
+  // ===== 右侧应用栏状态 =====
+  @State recent: string[] = []
+  @State panelEmpty: boolean = true
+  @State bottomSafeArea: number = NAV_BAR_GESTURE
+
+  private panelStack: NavPathStack = new NavPathStack()
+  // 三栏首次进入时右栏默认打开小管家（手动关闭后不再自动弹出）
+  private autoPanelLaunched: boolean = false
+  private twoListener: mediaquery.MediaQueryListener | null = null
+  private threeListener: mediaquery.MediaQueryListener | null = null
   private mainWin: window.Window | null = null
+  private panelListener: () => void = (): void => {
+    this.syncPanelState()
+  }
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
-    const device = AppState.getInstance().getActiveDevice()
-    this.deviceName = device ? (device.label || device.host) : '未连接'
-    // 初始 Tab 为首页，广播给子页做前台感知
+    // 首页常驻，广播 Tab 0 供子页做前台感知（小管家/商店/Docker 页面会临时改）
     AppState.getInstance().setCurrentTab(0)
+
+    // 注册应用面板导航栈：宽屏时 AppNav.open 直接推入此栈，由 NavDestination 承载功能页
+    AppNav.getInstance().setUIContext(this.getUIContext())
+    AppNav.getInstance().attachStack(this.panelStack)
+    AppNav.getInstance().onPanelChange(this.panelListener)
+    this.setupColumns()
 
     // 初始化通知/定时任务存储并启动检测器（App 前台期间 60s 检测）
     const hostCtx = this.getUIContext().getHostContext()
@@ -62,21 +75,6 @@ struct MainPage {
           applyImmersiveBar(ctx as Context, false)
         }
       } catch (e) {}
-    })
-
-    // 订阅外部主 Tab 切换请求（首页快捷区：iStore 商店 / Docker）
-    AppState.getInstance().onTabChange((tab: number) => {
-      if (tab >= 0 && tab < TAB_SYSTEM) {
-        this.tabsController.changeIndex(tab)
-      }
-    })
-
-    AppState.getInstance().onNavChange(() => {
-      // 用 duration 0 的显式动画覆盖 .animation(300) 隐式动画，
-      // 避免导航条 barBottomMargin 从底部位置突变到 -100 时播放"从顶部滑下"的大位移动画
-      this.getUIContext().animateTo({ duration: 0 }, () => {
-        this.navHidden = AppState.getInstance().isNavHidden()
-      })
     })
 
     // 获取系统底部导航条高度（手势导航 24vp / 三键导航 48vp，适配各机型）
@@ -112,6 +110,41 @@ struct MainPage {
     }
   }
 
+  /** 监听窗口宽度断点，决定单栏 / 双栏 / 三栏 */
+  private setupColumns(): void {
+    try {
+      this.twoListener = mediaquery.matchMediaSync(`(min-width: ${BP_TWO_COLUMN}vp)`)
+      this.threeListener = mediaquery.matchMediaSync(`(min-width: ${BP_THREE_COLUMN}vp)`)
+      this.applyColumns(this.twoListener.matches, this.threeListener.matches)
+      this.twoListener.on('change', (res: mediaquery.MediaQueryResult) => {
+        this.applyColumns(res.matches, this.isThreeColumn)
+      })
+      this.threeListener.on('change', (res: mediaquery.MediaQueryResult) => {
+        this.applyColumns(this.isTwoColumn, res.matches)
+      })
+    } catch (e) {
+      hilog.error(0x0001, 'MainPage', `matchMediaSync failed: ${JSON.stringify(e)}`)
+      this.applyColumns(false, false)
+    }
+  }
+
+  private applyColumns(two: boolean, three: boolean): void {
+    this.isTwoColumn = two
+    this.isThreeColumn = three
+    // >= 600vp 即进入分栏形态，功能页改为在应用栏内打开
+    AppState.getInstance().setWideScreen(two)
+    if (!two) {
+      // 回到手机单栏：清空应用面板，功能页改走全屏路由
+      AppNav.getInstance().clearPanel()
+    }
+    this.syncPanelState()
+    // 三栏首次进入：右栏默认打开小管家，避免大片空白
+    if (three && !this.autoPanelLaunched && AppNav.getInstance().isPanelEmpty()) {
+      this.autoPanelLaunched = true
+      AppNav.getInstance().open('pages/pet/PetPage')
+    }
+  }
+
   /**
    * 按导航模式更新底部安全区高度并广播
    * 手势导航：导航条约 24vp；三键导航：底栏约 48vp（系统返回高度 >= 40vp 视为三键）
@@ -123,13 +156,26 @@ struct MainPage {
       safe = px2vp(pxHeight) >= NAV_BAR_THREE_KEY_THRESHOLD ? NAV_BAR_THREE_KEY : NAV_BAR_GESTURE
     }
     this.bottomSafeArea = safe
-    // 广播悬浮主导航条占用的底部空间（系统导航条 + 悬浮间距 + 条自身高度 + 内容间隙）
-    AppState.getInstance().setBottomNavInset(safe + NAV_BAR_INSET_BASE)
-    hilog.info(0x0001, 'MainPage', `navBar=${safe}vp, navInset=${safe + NAV_BAR_INSET_BASE}`)
+    // 底部导航条已取消，只保留系统导航条 + 少量呼吸位
+    AppState.getInstance().setBottomNavInset(safe + 16)
+    hilog.info(0x0001, 'MainPage', `navBar=${safe}vp, bottomInset=${safe + 16}`)
+  }
+
+  /** 同步右栏状态（空栈 / 最近访问列表） */
+  private syncPanelState(): void {
+    this.panelEmpty = AppNav.getInstance().isPanelEmpty()
+    this.recent = AppNav.getInstance().getRecent()
   }
 
   aboutToDisappear(): void {
-    AppState.getInstance().offNavChange(() => {})
+    AppNav.getInstance().offPanelChange(this.panelListener)
+    AppNav.getInstance().detachStack()
+    try {
+      this.twoListener?.off('change')
+      this.threeListener?.off('change')
+    } catch (e) {}
+    this.twoListener = null
+    this.threeListener = null
     NotificationWatcher.getInstance().stop()
     try {
       if (this.mainWin) {
@@ -139,29 +185,30 @@ struct MainPage {
     } catch (e) {}
   }
 
-  /** 页面重新可见（从应用中心返回等）：恢复进入前的 Tab */
+  /** 页面重新可见：首页恢复为当前 Tab */
   onPageShow(): void {
-    // 从应用中心返回时，从系统占位 Tab 恢复到进入前的 Tab（设备→系统→返回→设备）
-    if (this.lastTabIndex !== TAB_SYSTEM && this.lastTabIndex >= 0 && this.lastTabIndex < TAB_SYSTEM) {
-      this.tabsController.changeIndex(this.lastTabIndex)
-      AppState.getInstance().setCurrentTab(this.lastTabIndex)
-    }
+    AppState.getInstance().setCurrentTab(0)
   }
 
   /**
    * 拦截系统返回（含侧滑返回手势）
-   * 当相册处于子视图（相册详情/全部照片/全屏查看）时，先返回相册列表，不退出应用
+   * 1) 相册子视图：先回相册列表
+   * 2) 分栏模式下面板有页面：先出栈
    */
   onBackPress(): boolean {
     if (AppState.getInstance().isAlbumSubView()) {
       AppState.getInstance().notifyAlbumBack()
       return true
     }
+    if (this.isTwoColumn && !AppNav.getInstance().isPanelEmpty()) {
+      AppNav.getInstance().back()
+      return true
+    }
     return false
   }
 
   build() {
-    Stack() {
+    Stack({ alignContent: Alignment.TopEnd }) {
       Column()
         .width('100%')
         .height('100%')
@@ -170,129 +217,146 @@ struct MainPage {
           colors: this.theme.pageGradient
         })
 
-      Column() {
-        Row()
-          .width('100%')
-          .height(48)
-
-        HdsTabs({ controller: this.tabsController }) {
-          TabContent() {
-            Stack() {
-              DashboardTab({ theme: this.theme })
-            }
-            .width('100%').height('100%')
-            .opacity(this.tabOpacity)
-            .translate({ y: this.tabTranslateY })
-          }
-          .tabBar(new BottomTabBarStyle({
-            normal: new SymbolGlyphModifier($r('sys.symbol.house_fill')),
-            selected: new SymbolGlyphModifier($r('sys.symbol.house_fill'))
-          }, '首页'))
-
-          TabContent() {
-            Stack() {
-              PetView({ theme: this.theme })
-            }
-            .width('100%').height('100%')
-            .opacity(this.tabOpacity)
-            .translate({ y: this.tabTranslateY })
-          }
-          .tabBar(new BottomTabBarStyle({
-            normal: new SymbolGlyphModifier($r('sys.symbol.media_center')),
-            selected: new SymbolGlyphModifier($r('sys.symbol.media_center'))
-          }, '小管家'))
-
-          TabContent() {
-            Stack() {
-              IStoreTabView({ theme: this.theme })
-            }
-            .width('100%').height('100%')
-            .opacity(this.tabOpacity)
-            .translate({ y: this.tabTranslateY })
-          }
-          .tabBar(new BottomTabBarStyle({
-            normal: new SymbolGlyphModifier($r('sys.symbol.bag_fill')),
-            selected: new SymbolGlyphModifier($r('sys.symbol.bag_fill'))
-          }, 'iStore'))
-
-          TabContent() {
-            Stack() {
-              DockerTab({ theme: this.theme })
-            }
-            .width('100%').height('100%')
-            .opacity(this.tabOpacity)
-            .translate({ y: this.tabTranslateY })
-          }
-          .tabBar(new BottomTabBarStyle({
-            normal: new SymbolGlyphModifier($r('sys.symbol.archivebox_fill')),
-            selected: new SymbolGlyphModifier($r('sys.symbol.archivebox_fill'))
-          }, 'Docker'))
-
-          TabContent() {
-            Column() {
-              Text('🛠').fontSize(32).margin({ bottom: 12 })
-              Text('系统工具')
-                .fontSize(14).fontColor(this.theme.textSecondary)
-            }
+      Row() {
+        // ===== 左栏：首页 =====
+        Column() {
+          DashboardTab({ theme: this.theme })
             .width('100%')
-            .justifyContent(FlexAlign.Center)
-          }
-          .tabBar(new BottomTabBarStyle({
-            normal: new SymbolGlyphModifier($r('sys.symbol.gearshape_fill')),
-            selected: new SymbolGlyphModifier($r('sys.symbol.gearshape_fill'))
-          }, '系统'))
+            .height('100%')
         }
-        .barOverlap(true)
-        .barPosition(BarPosition.End)
-        .vertical(false)
-        .barMode(BarMode.Fixed)
-        .scrollable(false)
-        .onChange((index: number) => {
-          if (index === TAB_SYSTEM) {
-            // 系统 Tab：跳转应用中心，保持当前 Tab 高亮（不切回首页，避免"乱跳"）
-            try {
-              this.getUIContext().getRouter().pushUrl({ url: 'pages/apps/AppsPage' })
-            } catch (e) {
-              hilog.error(0x0001, 'MainPage', `pushUrl failed: ${e}`)
-            }
-            return
+        .height('100%')
+        .width(this.isThreeColumn ? '25%' : (this.isTwoColumn ? '34%' : '100%'))
+        .padding({ top: 48 })
+
+        if (this.isTwoColumn) {
+          Column()
+            .width(BORDER_WIDTH)
+            .height('100%')
+            .backgroundColor(this.theme.borderGlass)
+        }
+
+        if (this.isThreeColumn) {
+          // ===== 中栏：应用中心 =====
+          Column() {
+            AppsPage()
+              .width('100%')
+              .height('100%')
           }
-          // 相册查看器/子视图打开时：拦截 Tab 滑动穿透，强制停留在相册 Tab
-          if (AppState.getInstance().isAlbumSubView()) {
-            if (index !== 2) {
-              this.tabsController.changeIndex(2)
-            }
-            return
+          .height('100%')
+          .width('30%')
+
+          Column()
+            .width(BORDER_WIDTH)
+            .height('100%')
+            .backgroundColor(this.theme.borderGlass)
+
+          // ===== 右栏：应用中心打开的应用 =====
+          Column() {
+            this.AppPane()
           }
-          // 切换过场动画：内容淡入 + 轻微上移（遮住切换瞬间的加载感）
-          this.tabOpacity = 0.2
-          this.tabTranslateY = 14
-          this.getUIContext().animateTo({ duration: 240, curve: Curve.EaseOut }, () => {
-            this.tabOpacity = 1
-            this.tabTranslateY = 0
-          })
-          // 广播当前 Tab，供各子页做前台感知（暂停/恢复轮询）
-          AppState.getInstance().setCurrentTab(index)
-          // 记录当前 Tab（点"系统"跳应用中心时记住，返回时恢复）
-          if (index >= 0 && index < TAB_SYSTEM) {
-            this.lastTabIndex = index
+          .height('100%')
+          .layoutWeight(1)
+        } else if (this.isTwoColumn) {
+          // ===== 双栏：应用中心与应用共用一个栏位（入栈即覆盖应用中心）=====
+          Column() {
+            this.MainPane()
           }
-        })
-        .barFloatingStyle({
-          barWidth: { smallWidth: 320, mediumWidth: 400, largeWidth: 480 },
-          barBottomMargin: this.navHidden ? -100 : (this.bottomSafeArea + NAV_BAR_BOTTOM_GAP),
-          gradientMask: { maskColor: '#33F5F1EE', maskHeight: 88 },
-          systemMaterialEffect: {
-            materialType: hdsMaterial.MaterialType.IMMERSIVE,
-            materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-          }
-        })
-        .layoutWeight(1)
+          .height('100%')
+          .layoutWeight(1)
+        }
       }
       .width('100%')
       .height('100%')
+      .alignItems(VerticalAlign.Top)
     }
     .width('100%')
     .height('100%')
+  }
+
+  /** 三栏右栏：空栈时展示引导与最近访问，入栈后显示应用 */
+  @Builder
+  AppPane() {
+    if (this.panelEmpty) {
+      this.PanelEmpty()
+    } else {
+      Navigation(this.panelStack) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+      }
+      .hideTitleBar(true)
+      .mode(NavigationMode.Stack)
+      .navDestination(this.PageMap)
+      .backgroundColor(Color.Transparent)
+      .width('100%')
+      .height('100%')
+    }
+  }
+
+  /** 双栏中栏：应用中心作为根内容，打开应用时覆盖 */
+  @Builder
+  MainPane() {
+    Navigation(this.panelStack) {
+      AppsPage()
+    }
+    .hideTitleBar(true)
+    .mode(NavigationMode.Stack)
+    .navDestination(this.PageMap)
+    .backgroundColor(Color.Transparent)
+    .width('100%')
+    .height('100%')
+  }
+
+  /** 三栏右栏空态 */
+  @Builder
+  PanelEmpty() {
+    Column() {
+      Text('🗂').fontSize(34)
+      Text('从中间的应用中心选择要打开的应用')
+        .fontSize(13)
+        .fontColor(this.theme.textSecondary)
+        .margin({ top: 12 })
+        .textAlign(TextAlign.Center)
+
+      if (this.recent.length > 0) {
+        Text('最近访问')
+          .fontSize(11)
+          .fontColor(this.theme.textTertiary)
+          .margin({ top: 28, bottom: 4 })
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center }) {
+          ForEach(this.recent, (url: string) => {
+            Text(AppNav.getInstance().titleOf(url))
+              .fontSize(12)
+              .fontColor(this.theme.primary)
+              .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+              .margin(4)
+              .borderRadius(100)
+              .backgroundColor(this.theme.accentSoft)
+              .onClick(() => AppNav.getInstance().open(url))
+          }, (url: string) => url)
+        }
+        .width('100%')
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 24, right: 24, top: 48 })
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+  }
+
+  /** 应用面板内的 NavDestination 分发：按路径渲染对应功能页组件 */
+  @Builder
+  PageMap(name: string) {
+    NavDestination() {
+      PageHost({ url: name })
+    }
+    .hideTitleBar(true)
+    .onBackPressed(() => {
+      AppNav.getInstance().back()
+      return true
+    })
   }
 }

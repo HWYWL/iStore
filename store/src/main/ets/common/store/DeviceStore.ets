@@ -28,6 +28,10 @@ export interface SavedDevice {
   version: number
   username: string        // 用户名（用于基本认证）
   password: string        // 密码（用于基本认证）
+  /** 收藏（置顶展示），旧数据结构无此字段时按 false 处理 */
+  favorite: boolean
+  /** 分组名称（空串表示未分组） */
+  group: string
 }
 
 export class DeviceStore {
@@ -71,9 +75,17 @@ export class DeviceStore {
       for (let i = 0; i < list.length; i++) {
         list[i].password = decrypt(list[i].password)
         list[i].token = decrypt(list[i].token)
+        // 兼容旧数据：老版本没有 favorite / group 字段
+        list[i].favorite = list[i].favorite === true
+        list[i].group = list[i].group ? list[i].group : ''
       }
-      // 按最近连接时间降序排列（最近连接的排在前面）
-      list.sort((a: SavedDevice, b: SavedDevice) => b.lastConnected - a.lastConnected)
+      // 排序：收藏置顶 → 按最近连接时间降序
+      list.sort((a: SavedDevice, b: SavedDevice) => {
+        if (a.favorite !== b.favorite) {
+          return a.favorite ? -1 : 1
+        }
+        return b.lastConnected - a.lastConnected
+      })
       return list
     } catch (e) {
       hilog.error(DOMAIN, TAG, `Load failed: ${JSON.stringify(e)}`)
@@ -154,7 +166,9 @@ export class DeviceStore {
           lastConnected: list[i].lastConnected,
           version: list[i].version,
           username: list[i].username,
-          password: encrypt(list[i].password)
+          password: encrypt(list[i].password),
+          favorite: list[i].favorite === true,
+          group: list[i].group ? list[i].group : ''
         }
         encList.push(d)
       }
@@ -200,7 +214,89 @@ export class DeviceStore {
       lastConnected: Date.now(),
       version: 0,
       username: config.username || '',
-      password: config.password || ''
+      password: config.password || '',
+      favorite: false,
+      group: ''
+    }
+  }
+
+  /**
+   * 切换收藏状态（收藏的设备在列表内置顶）
+   */
+  async toggleFavorite(id: string): Promise<void> {
+    if (!this.prefs) return
+    const list: SavedDevice[] = await this.loadAll()
+    const idx: number = list.findIndex((d: SavedDevice) => d.id === id)
+    if (idx < 0) return
+    list[idx].favorite = !list[idx].favorite
+    list[idx].version = (list[idx].version || 0) + 1
+    await this.writeList(list)
+  }
+
+  /**
+   * 设置设备分组（传空串表示取消分组）
+   */
+  async setGroup(id: string, group: string): Promise<void> {
+    if (!this.prefs) return
+    const list: SavedDevice[] = await this.loadAll()
+    const idx: number = list.findIndex((d: SavedDevice) => d.id === id)
+    if (idx < 0) return
+    list[idx].group = group ? group.trim() : ''
+    list[idx].version = (list[idx].version || 0) + 1
+    await this.writeList(list)
+  }
+
+  /**
+   * 记录「上次使用的设备」，用于冷启动自动重连
+   */
+  async saveActiveId(id: string): Promise<void> {
+    if (!this.prefs) return
+    try {
+      this.prefs.putSync('active_device_id', id)
+      await this.prefs.flush()
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `saveActiveId failed: ${JSON.stringify(e)}`)
+    }
+  }
+
+  /** 读取上次使用的设备 ID（无则返回空串） */
+  loadActiveId(): string {
+    if (!this.prefs) return ''
+    try {
+      return this.prefs.getSync('active_device_id', '') as string
+    } catch (e) {
+      return ''
+    }
+  }
+
+  /** 清除上次使用的设备（用户主动断开时调用） */
+  async clearActiveId(): Promise<void> {
+    if (!this.prefs) return
+    try {
+      this.prefs.putSync('active_device_id', '')
+      await this.prefs.flush()
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `clearActiveId failed: ${JSON.stringify(e)}`)
+    }
+  }
+
+  /** 是否允许冷启动自动重连（默认开启） */
+  isAutoReconnect(): boolean {
+    if (!this.prefs) return true
+    try {
+      return this.prefs.getSync('auto_reconnect', true) as boolean
+    } catch (e) {
+      return true
+    }
+  }
+
+  async setAutoReconnect(enabled: boolean): Promise<void> {
+    if (!this.prefs) return
+    try {
+      this.prefs.putSync('auto_reconnect', enabled)
+      await this.prefs.flush()
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `setAutoReconnect failed: ${JSON.stringify(e)}`)
     }
   }
 }

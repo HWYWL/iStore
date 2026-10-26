@@ -4,12 +4,13 @@
  */
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
-import { TrafficStatStore, DayTraffic } from '../../common/store/TrafficStatStore'
+import { TrafficStatStore, DayTraffic, HourTraffic } from '../../common/store/TrafficStatStore'
 import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct TrafficReportPage {
+export struct TrafficReportPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
   @State range: number = 7  // 7 天 / 30 天
@@ -17,6 +18,13 @@ struct TrafficReportPage {
   @State totalRx: number = 0
   @State totalTx: number = 0
   @State maxDayBytes: number = 1
+  @State hourly: HourTraffic[] = []
+  @State maxHourBytes: number = 1
+  // 环比 / 峰值 / 突增提示
+  @State prevTotal: number = 0
+  @State peakIndex: number = -1
+  @State peakHour: number = -1
+  @State surgeText: string = ''
   private store: TrafficStatStore = TrafficStatStore.getInstance()
 
   aboutToAppear(): void {
@@ -52,19 +60,105 @@ struct TrafficReportPage {
 
   /** 加载流量数据 */
   loadData(): void {
-    this.days = this.store.getDays(this.range)
+    // getDays 返回按日期升序（末尾是今天）：前 N 天是上一区间，后 N 天是当前区间
+    const all: DayTraffic[] = this.store.getDays(this.range * 2)
+    const prev: DayTraffic[] = all.slice(0, this.range)
+    this.days = all.slice(this.range)
+
     let rx: number = 0
     let tx: number = 0
     let max: number = 1
+    let peak: number = -1
     for (let i = 0; i < this.days.length; i++) {
+      const sum: number = this.days[i].rx + this.days[i].tx
       rx += this.days[i].rx
       tx += this.days[i].tx
-      const sum: number = this.days[i].rx + this.days[i].tx
-      if (sum > max) max = sum
+      if (sum > max) {
+        max = sum
+        peak = i
+      }
     }
     this.totalRx = rx
     this.totalTx = tx
     this.maxDayBytes = max
+    this.peakIndex = peak
+
+    let prevSum: number = 0
+    for (let i = 0; i < prev.length; i++) {
+      prevSum += prev[i].rx + prev[i].tx
+    }
+    this.prevTotal = prevSum
+
+    // 今日 24 小时分布（小时桶由 TrafficStatStore 落盘）
+    this.hourly = this.store.getTodayHourly()
+    let maxH: number = 1
+    let peakH: number = -1
+    for (let h = 0; h < this.hourly.length; h++) {
+      const s: number = this.hourly[h].rx + this.hourly[h].tx
+      if (s > maxH) {
+        maxH = s
+        peakH = h
+      }
+    }
+    this.maxHourBytes = maxH
+    this.peakHour = peakH
+
+    // 异常提示：今日已是昨日 2 倍以上，且绝对值超过 100MB
+    this.surgeText = ''
+    if (this.days.length >= 2) {
+      const n: number = this.days.length
+      const todaySum: number = this.days[n - 1].rx + this.days[n - 1].tx
+      const yestSum: number = this.days[n - 2].rx + this.days[n - 2].tx
+      if (yestSum > 0 && todaySum >= yestSum * 2 && todaySum >= 104857600) {
+        this.surgeText = `今日流量 ${this.fmt(todaySum)}，已是昨日 ${(todaySum / yestSum).toFixed(1)} 倍`
+      }
+    }
+  }
+
+  /** 环比文案（与上一个同长度区间对比） */
+  compareText(): string {
+    if (this.prevTotal <= 0) {
+      return '暂无上期数据'
+    }
+    const cur: number = this.totalRx + this.totalTx
+    const diff: number = (cur - this.prevTotal) / this.prevTotal * 100
+    const sign: string = diff >= 0 ? '+' : ''
+    return `${sign}${diff.toFixed(1)}%`
+  }
+
+  /** 环比颜色：涨红跌绿 */
+  compareColor(): string {
+    if (this.prevTotal <= 0) return this.theme.textTertiary
+    const cur: number = this.totalRx + this.totalTx
+    return cur > this.prevTotal ? '#E4572E' : '#2FA37A'
+  }
+
+  /** 峰值日文案 */
+  peakDayText(): string {
+    if (this.peakIndex < 0 || this.peakIndex >= this.days.length) {
+      return '--'
+    }
+    const d: DayTraffic = this.days[this.peakIndex]
+    return `${this.dayLabel(d.date)} · ${this.fmt(d.rx + d.tx)}`
+  }
+
+  /** 峰值时段文案 */
+  peakHourText(): string {
+    if (this.peakHour < 0) {
+      return '暂无数据'
+    }
+    return `峰值 ${this.peakHour}:00`
+  }
+
+  /** 小时柱高度（vp） */
+  hourBarHeight(sum: number): number {
+    const h: number = (sum / this.maxHourBytes) * 120
+    return Math.max(2, h)
+  }
+
+  /** 小时标签：每 6 小时标一次，避免拥挤 */
+  hourLabel(hour: number): string {
+    return hour % 6 === 0 ? `${hour}` : ''
   }
 
   /** 格式化字节 */
@@ -118,7 +212,7 @@ struct TrafficReportPage {
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
         .onClick(() => {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         })
         Blank()
       }
@@ -127,6 +221,25 @@ struct TrafficReportPage {
 
       Scroll() {
         Column() {
+          // 流量突增提示（今日 ≥ 昨日 2 倍且超过 100MB）
+          if (this.surgeText) {
+            Row() {
+              Text('⚠️')
+                .fontSize(13)
+              Text(this.surgeText)
+                .fontSize(12)
+                .fontColor('#B35A00')
+                .layoutWeight(1)
+                .margin({ left: 8 })
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+            .borderRadius(14)
+            .backgroundColor('rgba(255,168,61,0.14)')
+            .border({ width: 0.5, color: 'rgba(255,138,61,0.35)' })
+            .margin({ bottom: 10 })
+          }
+
           // 汇总卡片
           Column() {
             Row() {
@@ -159,7 +272,24 @@ struct TrafficReportPage {
               .layoutWeight(1)
             }
             .width('100%')
-            .padding({ top: 14, bottom: 14 })
+            .padding({ top: 14, bottom: 8 })
+
+            // 环比 + 峰值日
+            Row() {
+              Text(`较上 ${this.range} 天`)
+                .fontSize(11).fontColor(this.theme.textTertiary)
+              Text(this.compareText())
+                .fontSize(11).fontColor(this.compareColor()).fontWeight(FontWeight.Medium)
+                .margin({ left: 6 })
+              Blank()
+              Text('峰值日')
+                .fontSize(11).fontColor(this.theme.textTertiary)
+              Text(this.peakDayText())
+                .fontSize(11).fontColor(this.theme.textSecondary)
+                .margin({ left: 6 })
+            }
+            .width('100%')
+            .padding({ left: 16, right: 16, bottom: 12 })
 
             Divider().color(this.theme.borderGlass)
 
@@ -228,6 +358,51 @@ struct TrafficReportPage {
             }
             .width('100%')
             .padding({ left: 14, right: 14, top: 6, bottom: 12 })
+          }
+          .width('100%')
+          .backgroundColor(this.theme.bgCard)
+          .backdropBlur(20)
+          .border({ width: 0.5, color: this.theme.borderGlass })
+          .borderRadius(16)
+          .clip(true)
+
+          // 今日 24 小时分布（小时粒度留存数据）
+          this.sectionTitle('今日 24 小时')
+          Column() {
+            Row() {
+              Text('分时流量')
+                .fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
+              Blank()
+              Text(this.peakHourText())
+                .fontSize(10).fontColor(this.theme.textTertiary)
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14, top: 12, bottom: 6 })
+
+            Row() {
+              ForEach(this.hourly, (item: HourTraffic, idx: number) => {
+                Column() {
+                  Column()
+                    .width(6)
+                    .height(this.hourBarHeight(item.rx + item.tx))
+                    .borderRadius(3)
+                    .backgroundColor(item.hour === this.peakHour ? '#F2A54E' : this.theme.primary)
+                    .opacity(item.rx + item.tx > 0 ? 1 : 0.2)
+                  Text(this.hourLabel(item.hour))
+                    .fontSize(8)
+                    .fontColor(this.theme.textTertiary)
+                    .margin({ top: 4 })
+                    .maxLines(1)
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Center)
+                .justifyContent(FlexAlign.End)
+                .height(150)
+              }, (item: HourTraffic, idx: number): string => `h_${item.hour}_${idx}`)
+            }
+            .width('100%')
+            .height(150)
+            .padding({ left: 8, right: 8, bottom: 8 })
           }
           .width('100%')
           .backgroundColor(this.theme.bgCard)

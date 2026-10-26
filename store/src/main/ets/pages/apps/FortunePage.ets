@@ -7,6 +7,7 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 const GOOD_YI: string[] = [
   '下载 4K 电影', '开视频会议', '全家联机打游戏', '备份重要数据', '看高清直播', '挂机下载大文件'
@@ -27,7 +28,15 @@ export struct FortunePage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
   @State level: string = ''       // 大吉/吉/平/凶
-  @State levelIcon: string = ''
+
+  /** 运势图标配色 */
+  levelColor(): string {
+    if (this.level === '大吉') return '#F59E0B'
+    if (this.level === '吉') return '#FBBF24'
+    if (this.level === '平') return '#60A5FA'
+    return '#94A3B8'
+  }
+  @State levelIcon: Resource = $r('sys.symbol.star')
   @State yiText: string[] = []
   @State jiText: string[] = []
   @State loaded: boolean = false
@@ -73,11 +82,11 @@ export struct FortunePage {
       if (hour >= 1 && hour <= 5) r += 5
       r = Math.max(0, Math.min(100, r))
       let lv: string = ''
-      let icon: string = ''
-      if (r >= 80) { lv = '大吉'; icon = '🌟' }
-      else if (r >= 55) { lv = '吉'; icon = '✨' }
-      else if (r >= 30) { lv = '平'; icon = '🌤' }
-      else { lv = '凶'; icon = '🌧' }
+      let icon: Resource = $r('sys.symbol.star')
+      if (r >= 80) { lv = '大吉'; icon = $r('sys.symbol.sun_max') }
+      else if (r >= 55) { lv = '吉'; icon = $r('sys.symbol.star') }
+      else if (r >= 30) { lv = '平'; icon = $r('sys.symbol.cloud') }
+      else { lv = '凶'; icon = $r('sys.symbol.cloud') }
       this.level = lv
       this.levelIcon = icon
       // 宜忌抽取
@@ -122,7 +131,7 @@ export struct FortunePage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
       .width('100%')
@@ -132,8 +141,9 @@ export struct FortunePage {
         Column() {
           // 运势主卡
           Column() {
-            Text(this.levelIcon)
-              .fontSize(64)
+            SymbolGlyph(this.levelIcon)
+              .fontSize(60)
+              .fontColor([this.levelColor()])
             Text(this.level)
               .fontSize(40).fontColor(this.theme.primary).fontWeight(FontWeight.Bold)
               .margin({ top: 6 })
@@ -147,7 +157,8 @@ export struct FortunePage {
           // 宜
           Column() {
             Row() {
-              Text('宜 ✅').fontSize(13).fontColor('#00C853').fontWeight(FontWeight.Bold)
+              SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(14).fontColor(['#00C853'])
+              Text(' 宜').fontSize(13).fontColor('#00C853').fontWeight(FontWeight.Bold)
               Blank()
             }
             .width('100%')
@@ -167,7 +178,8 @@ export struct FortunePage {
           // 忌
           Column() {
             Row() {
-              Text('忌 ❌').fontSize(13).fontColor('#FF5252').fontWeight(FontWeight.Bold)
+              SymbolGlyph($r('sys.symbol.xmark_circle')).fontSize(14).fontColor(['#FF5252'])
+              Text(' 忌').fontSize(13).fontColor('#FF5252').fontWeight(FontWeight.Bold)
               Blank()
             }
             .width('100%')

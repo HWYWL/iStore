@@ -6,6 +6,7 @@ import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 const TARGET = '223.5.5.5'   // 阿里公共 DNS
 const MAX_POINTS = 30
@@ -147,7 +148,7 @@ export struct NetEcgPage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
       .width('100%')

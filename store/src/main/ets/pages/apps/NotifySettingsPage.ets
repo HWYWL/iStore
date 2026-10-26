@@ -7,12 +7,13 @@ import { notificationManager } from '@kit.NotificationKit'
 import { window } from '@kit.ArkUI'
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
-import { NotifyStore } from '../../common/store/NotifyStore'
+import { NotifyStore, NotifyRecord } from '../../common/store/NotifyStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct NotifySettingsPage {
+export struct NotifySettingsPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44  // 状态栏高度（默认 44vp）
   @State masterEnabled: boolean = false
@@ -20,6 +21,14 @@ struct NotifySettingsPage {
   @State newDeviceAlert: boolean = false
   @State aiHealthAlert: boolean = false
   @State notifyEnabled: boolean = true  // 系统通知权限
+  // 免打扰 / 阈值 / 历史
+  @State quietEnabled: boolean = false
+  @State quietStart: number = 23
+  @State quietEnd: number = 7
+  @State thTemp: number = 75
+  @State thMem: number = 85
+  @State thCpu: number = 90
+  @State history: NotifyRecord[] = []
   private store: NotifyStore = NotifyStore.getInstance()
 
   aboutToAppear(): void {
@@ -32,6 +41,13 @@ this.theme = AppState.getInstance().getTheme()
     this.offlineAlert = this.store.isOfflineAlertOn()
     this.newDeviceAlert = this.store.isNewDeviceAlertOn()
     this.aiHealthAlert = this.store.isAiHealthAlertOn()
+    this.quietEnabled = this.store.isQuietEnabled()
+    this.quietStart = this.store.getQuietStart()
+    this.quietEnd = this.store.getQuietEnd()
+    this.thTemp = this.store.getTempThreshold()
+    this.thMem = this.store.getMemThreshold()
+    this.thCpu = this.store.getCpuThreshold()
+    this.history = this.store.getHistory()
     this.checkNotifyPermission()
     // 获取状态栏高度（避免标题栏被遮挡）
     this.loadTopSafeArea()
@@ -104,9 +120,13 @@ this.theme = AppState.getInstance().getTheme()
           } else if (tag === 2) {
             this.newDeviceAlert = v
             this.store.setNewDeviceAlert(v)
-          } else {
+          } else if (tag === 3) {
             this.aiHealthAlert = v
             this.store.setAiHealthAlert(v)
+          } else {
+            // tag 4：免打扰
+            this.quietEnabled = v
+            this.store.setQuietEnabled(v)
           }
         })
     }
@@ -116,6 +136,115 @@ this.theme = AppState.getInstance().getTheme()
     .backdropBlur(20)
     .border({ width: 0.5, color: this.theme.borderGlass })
     .borderRadius(14)
+  }
+
+  /** 微调行当前值（在 @Builder 内直接读状态，保证数值变化能触发刷新） */
+  stepperValue(tag: number): string {
+    if (tag === 0) return `${this.quietStart}:00`
+    if (tag === 1) return `${this.quietEnd}:00`
+    if (tag === 2) return `${this.thTemp}°C`
+    if (tag === 3) return `${this.thMem}%`
+    return `${this.thCpu}%`
+  }
+
+  /** 小时/阈值微调行：tag 0=免打扰开始 1=免打扰结束 2=温度 3=内存 4=CPU */
+  @Builder
+  stepperRow(title: string, desc: string, tag: number, step: number) {
+    Row() {
+      Column() {
+        Text(title)
+          .fontSize(15)
+          .fontColor(this.theme.textPrimary)
+          .fontWeight(FontWeight.Medium)
+        Text(desc)
+          .fontSize(11)
+          .fontColor(this.theme.textTertiary)
+          .margin({ top: 3 })
+          .lineHeight(15)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Row() {
+        Text('−')
+          .fontSize(17)
+          .fontColor(this.theme.textSecondary)
+          .width(30).height(30)
+          .textAlign(TextAlign.Center)
+          .borderRadius(15)
+          .backgroundColor(this.theme.bgGlassLight)
+          .onClick(() => { this.changeValue(tag, -step) })
+        Text(this.stepperValue(tag))
+          .fontSize(14)
+          .fontColor(this.theme.textPrimary)
+          .fontWeight(FontWeight.Medium)
+          .width(58)
+          .textAlign(TextAlign.Center)
+        Text('+')
+          .fontSize(17)
+          .fontColor(this.theme.textSecondary)
+          .width(30).height(30)
+          .textAlign(TextAlign.Center)
+          .borderRadius(15)
+          .backgroundColor(this.theme.bgGlassLight)
+          .onClick(() => { this.changeValue(tag, step) })
+      }
+      .alignItems(VerticalAlign.Center)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .backgroundColor(this.theme.bgCard)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+    .borderRadius(14)
+  }
+
+  /** 调整数值并落盘 */
+  changeValue(tag: number, delta: number): void {
+    if (tag === 0) {
+      this.quietStart = Math.min(23, Math.max(0, this.quietStart + delta))
+      this.store.setQuietStart(this.quietStart)
+    } else if (tag === 1) {
+      this.quietEnd = Math.min(23, Math.max(0, this.quietEnd + delta))
+      this.store.setQuietEnd(this.quietEnd)
+    } else if (tag === 2) {
+      this.thTemp = Math.min(100, Math.max(40, this.thTemp + delta))
+      this.store.setTempThreshold(this.thTemp)
+    } else if (tag === 3) {
+      this.thMem = Math.min(99, Math.max(50, this.thMem + delta))
+      this.store.setMemThreshold(this.thMem)
+    } else {
+      this.thCpu = Math.min(100, Math.max(50, this.thCpu + delta))
+      this.store.setCpuThreshold(this.thCpu)
+    }
+  }
+
+  /** 历史记录图标（统一符号族） */
+  historySymbol(type: string): Resource {
+    if (type === 'offline') return $r('sys.symbol.warning')
+    if (type === 'recover') return $r('sys.symbol.checkmark_circle')
+    if (type === 'newDevice') return $r('sys.symbol.plus_circle')
+    if (type === 'temp') return $r('sys.symbol.thermometer')
+    if (type === 'memory') return $r('sys.symbol.circle_grid_2x2')
+    if (type === 'cpu') return $r('sys.symbol.gearshape')
+    return $r('sys.symbol.bolt')
+  }
+
+  /** 历史记录配色 */
+  historyColor(type: string): string {
+    if (type === 'offline') return '#EF4444'
+    if (type === 'recover') return '#10B981'
+    if (type === 'newDevice') return '#3B82F6'
+    if (type === 'temp') return '#F59E0B'
+    if (type === 'memory') return '#8B5CF6'
+    if (type === 'cpu') return '#06B6D4'
+    return '#F97316'
+  }
+
+  /** 历史记录时间文案 */
+  historyTime(t: number): string {
+    const d: Date = new Date(t)
+    const p = (n: number): string => n < 10 ? `0${n}` : `${n}`
+    return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
   }
 
   @Builder
@@ -143,7 +272,7 @@ this.theme = AppState.getInstance().getTheme()
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
         .onClick(() => {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         })
         Blank()
       }
@@ -198,6 +327,96 @@ this.theme = AppState.getInstance().getTheme()
             // AI 健康告警
             this.switchRow('AI 健康告警', '温度过高/内存紧张/CPU 高负载/突发大流量时通知你',
               this.aiHealthAlert, 3)
+          }
+          .margin({ top: 8 })
+          .backgroundColor(this.theme.bgCard)
+          .backdropBlur(20)
+          .border({ width: 0.5, color: this.theme.borderGlass })
+          .borderRadius(14)
+          .clip(true)
+
+          // ========== 免打扰 ==========
+          this.sectionTitle('免打扰')
+          Column() {
+            this.switchRow('免打扰时段', '开启后只保留断网/恢复告警，健康与新设备通知静默（仍会记入历史）',
+              this.quietEnabled, 4)
+            if (this.quietEnabled) {
+              Divider().color(this.theme.borderGlass).margin({ left: 16, right: 16 })
+              this.stepperRow('开始时间', '每天从这个整点开始静默', 0, 1)
+              Divider().color(this.theme.borderGlass).margin({ left: 16, right: 16 })
+              this.stepperRow('结束时间', '到这个整点恢复推送（支持跨零点）', 1, 1)
+            }
+          }
+          .margin({ top: 8 })
+          .backgroundColor(this.theme.bgCard)
+          .backdropBlur(20)
+          .border({ width: 0.5, color: this.theme.borderGlass })
+          .borderRadius(14)
+          .clip(true)
+
+          // ========== 告警阈值 ==========
+          this.sectionTitle('告警阈值')
+          Column() {
+            this.stepperRow('温度告警', 'CPU 温度超过该值提醒', 2, 5)
+            Divider().color(this.theme.borderGlass).margin({ left: 16, right: 16 })
+            this.stepperRow('内存告警', '内存占用超过该百分比提醒', 3, 5)
+            Divider().color(this.theme.borderGlass).margin({ left: 16, right: 16 })
+            this.stepperRow('CPU 告警', 'CPU 占用超过该百分比提醒', 4, 5)
+          }
+          .margin({ top: 8 })
+          .backgroundColor(this.theme.bgCard)
+          .backdropBlur(20)
+          .border({ width: 0.5, color: this.theme.borderGlass })
+          .borderRadius(14)
+          .clip(true)
+
+          // ========== 告警历史 ==========
+          this.sectionTitle('告警历史')
+          Column() {
+            if (this.history.length === 0) {
+              Text('还没有告警记录')
+                .fontSize(12).fontColor(this.theme.textTertiary)
+                .width('100%').padding(20).textAlign(TextAlign.Center)
+            } else {
+              ForEach(this.history, (rec: NotifyRecord, idx: number) => {
+                Row() {
+                  Row() {
+                    SymbolGlyph(this.historySymbol(rec.type))
+                      .fontSize(15)
+                      .fontColor([this.historyColor(rec.type)])
+                  }
+                  .width(30)
+                  .height(30)
+                  .borderRadius(9)
+                  .backgroundColor('#1F' + this.historyColor(rec.type).substring(1))
+                  .justifyContent(FlexAlign.Center)
+                  Column() {
+                    Text(rec.title)
+                      .fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
+                    Text(rec.text)
+                      .fontSize(11).fontColor(this.theme.textTertiary)
+                      .margin({ top: 2 }).maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  }
+                  .alignItems(HorizontalAlign.Start)
+                  .layoutWeight(1)
+                  .margin({ left: 10 })
+                  Text(this.historyTime(rec.t))
+                    .fontSize(10).fontColor(this.theme.textTertiary)
+                }
+                .width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
+                .alignItems(VerticalAlign.Top)
+                .border({ width: { bottom: idx === this.history.length - 1 ? 0 : 0.5 }, color: this.theme.borderGlass })
+              }, (rec: NotifyRecord, idx: number): string => `${rec.t}_${idx}`)
+
+              Divider().color(this.theme.borderGlass)
+              Text('清空历史')
+                .fontSize(12).fontColor('#E4572E')
+                .width('100%').padding(12).textAlign(TextAlign.Center)
+                .onClick(() => {
+                  this.store.clearHistory()
+                  this.history = []
+                })
+            }
           }
           .margin({ top: 8 })
           .backgroundColor(this.theme.bgCard)

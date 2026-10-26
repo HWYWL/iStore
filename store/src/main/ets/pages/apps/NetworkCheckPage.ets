@@ -9,6 +9,7 @@ import { NetworkCheckItem } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { FunStore } from '../../common/store/FunStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
@@ -201,12 +202,12 @@ export struct NetworkCheckPage {
   }
 
   /** 单项状态图标与颜色 */
-  statusIcon(status: string): string {
-    if (status === 'ok') return '✓'
-    if (status === 'warn') return '⚠'
-    if (status === 'fail') return '✗'
-    if (status === 'running') return '…'
-    return '·'
+  statusIcon(status: string): Resource {
+    if (status === 'ok') return $r('sys.symbol.checkmark_circle')
+    if (status === 'warn') return $r('sys.symbol.warning')
+    if (status === 'fail') return $r('sys.symbol.xmark_circle')
+    if (status === 'running') return $r('sys.symbol.clock')
+    return $r('sys.symbol.info_circle')
   }
 
   statusColor(status: string): string {
@@ -232,7 +233,7 @@ export struct NetworkCheckPage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
         if (this.checked) {
           Text(`${this.score} 分`)
@@ -293,9 +294,9 @@ export struct NetworkCheckPage {
                       TransitionEffect.scale({ x: 0.6, y: 0.6 }).animation({ duration: 200, curve: Curve.EaseOut })))
                 } else if (item.status === 'warn' || item.status === 'fail') {
                   // 完成：⚠/✗ 淡入缩放
-                  Text(this.statusIcon(item.status))
+                  SymbolGlyph(this.statusIcon(item.status))
                     .fontSize(20)
-                    .fontColor(this.statusColor(item.status))
+                    .fontColor([this.statusColor(item.status)])
                     .fontWeight(FontWeight.Bold)
                     .width(22)
                     .transition(TransitionEffect.opacity(0.2).combine(

@@ -2,7 +2,7 @@
  * WolPage - WOL 远程开机（局域网唤醒）
  * SSH 通道执行 etherwake / wakeonlan 发送魔法包，设备列表本地存储
  */
-import { router } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 import { window } from '@kit.ArkUI'
 import { promptAction } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -165,7 +165,7 @@ export struct WolPage {
       // 标题栏
       Row() {
         Row() {
-          Image($r('app.media.app_restart')).width(18).height(18)
+          SymbolGlyph($r('sys.symbol.bolt')).fontSize(18).fontColor(['#F97316'])
         }
         .width(34).height(34).borderRadius(17)
         .backgroundColor('rgba(255,138,61,0.14)')
@@ -182,7 +182,7 @@ export struct WolPage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
           .backgroundColor('rgba(255,138,61,0.1)')
-          .onClick(() => { router.back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
 
@@ -191,7 +191,7 @@ export struct WolPage {
           // 说明卡
           Column() {
             Row() {
-              Text('💡').fontSize(22)
+              SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(22).fontColor(['#F59E0B'])
               Column() {
                 Text('支持 NAS / 电脑 / 树莓派等支持 WOL 的设备')
                   .fontSize(12).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
@@ -254,7 +254,7 @@ export struct WolPage {
 
           if (this.devices.length === 0) {
             Column() {
-              Text('🛌').fontSize(36)
+              SymbolGlyph($r('sys.symbol.moon')).fontSize(36).fontColor(['#94A3B8'])
               Text('还没有设备，添加一台试试').fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
             }
             .width('100%').padding(30).borderRadius(16).margin({ top: 10 })
@@ -282,7 +282,7 @@ export struct WolPage {
                   if (this.busy === d.name) {
                     LoadingProgress().width(14).height(14).color('#FFFFFF')
                   } else {
-                    Text('⚡').fontSize(13)
+                    SymbolGlyph($r('sys.symbol.bolt')).fontSize(13).fontColor(['#FFFFFF'])
                   }
                   Text(this.busy === d.name ? '  发送中' : '  开机')
                     .fontSize(12).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)

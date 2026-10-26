@@ -4,11 +4,12 @@
  */
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
-import { TrafficStatStore, DayTraffic } from '../../common/store/TrafficStatStore'
+import { TrafficStatStore, DayTraffic, HourTraffic } from '../../common/store/TrafficStatStore'
 import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
@@ -24,6 +25,8 @@ export struct NetworkReportPage {
   @State deviceCount: number = 0
   @State topDevices: string[] = []
   @State comment: string = ''
+  @State weekCompare: string = '--'   // 较上周
+  @State activeHour: string = '--'    // 近 7 天最活跃时段
   private api: ApiService = new ApiService()
   private traffic: TrafficStatStore = TrafficStatStore.getInstance()
 
@@ -48,8 +51,10 @@ export struct NetworkReportPage {
       if (hostCtx) {
         await this.traffic.init(hostCtx as Context)
       }
-      // 7 天流量
-      const days: DayTraffic[] = this.traffic.getDays(7)
+      // 14 天流量（升序，末尾是今天）：前 7 天是上一周，后 7 天是本周
+      const allDays: DayTraffic[] = this.traffic.getDays(14)
+      const prevDays: DayTraffic[] = allDays.slice(0, 7)
+      const days: DayTraffic[] = allDays.slice(7)
       // 情感触点：数据考古学家成就（有 3 天前的历史数据）
       if (!FunStore.getInstance().isAchieved('archaeologist')) {
         let hasOld: boolean = false
@@ -78,6 +83,31 @@ export struct NetworkReportPage {
       this.totalText = this.fmtSize(total)
       this.peakText = peak > 0 ? this.fmtSize(peak) : '--'
       this.peakDay = peakDate
+
+      // 环比：与上周同期对比
+      let prevTotal: number = 0
+      for (let i = 0; i < prevDays.length; i++) {
+        prevTotal += prevDays[i].rx + prevDays[i].tx
+      }
+      if (prevTotal > 0) {
+        const diff: number = (total - prevTotal) / prevTotal * 100
+        this.weekCompare = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`
+      } else {
+        this.weekCompare = '上周无数据'
+      }
+
+      // 近 7 天最活跃时段（小时桶累加）
+      const trend: HourTraffic[] = this.traffic.getHourlyTrend(7)
+      let ph: number = -1
+      let pb: number = 0
+      for (let h = 0; h < trend.length; h++) {
+        const s: number = trend[h].rx + trend[h].tx
+        if (s > pb) {
+          pb = s
+          ph = h
+        }
+      }
+      this.activeHour = ph >= 0 ? `${ph}:00-${ph + 1}:00` : '--'
       // 在线设备
       try {
         const devs: ConnectedDevice[] = await this.api.fetchConnectedDevices()
@@ -133,7 +163,7 @@ export struct NetworkReportPage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
       .width('100%')
@@ -144,8 +174,11 @@ export struct NetworkReportPage {
           // 报告卡
           if (this.generated) {
             Column() {
-              Text('📊 本周网络周报')
-                .fontSize(16).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
+              Row() {
+                SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(16).fontColor(['#3B82F6'])
+                Text(' 本周网络周报')
+                  .fontSize(16).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
+              }
               Text('近 7 天（自动统计）')
                 .fontSize(11).fontColor(this.theme.textTertiary).margin({ top: 2 })
 
@@ -158,13 +191,26 @@ export struct NetworkReportPage {
               }
               .width('100%').justifyContent(FlexAlign.Center).margin({ top: 16 })
 
-              // 峰值日
+              // 峰值日 / 活跃时段 / 环比
               Column() {
                 Text('最忙的一天')
                   .fontSize(11).fontColor(this.theme.textTertiary)
                 Text(this.peakDay ? `${this.peakDay}（${this.peakText}）` : '--')
                   .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                   .margin({ top: 4 })
+                Row() {
+                  Text('最活跃时段')
+                    .fontSize(11).fontColor(this.theme.textTertiary)
+                  Text(this.activeHour)
+                    .fontSize(11).fontColor(this.theme.textSecondary).margin({ left: 6 })
+                  Text('·')
+                    .fontSize(11).fontColor(this.theme.textTertiary).margin({ left: 8, right: 8 })
+                  Text('较上周')
+                    .fontSize(11).fontColor(this.theme.textTertiary)
+                  Text(this.weekCompare)
+                    .fontSize(11).fontColor(this.theme.textSecondary).margin({ left: 6 })
+                }
+                .margin({ top: 8 })
               }
               .width('100%').padding(12).borderRadius(12)
               .backgroundColor('rgba(255,138,61,0.08)')
@@ -186,8 +232,11 @@ export struct NetworkReportPage {
 
               // 趣味点评
               Column() {
-                Text('🤖 AI 点评')
-                  .fontSize(11).fontColor(this.theme.primary)
+                Row() {
+                  SymbolGlyph($r('sys.symbol.AI_help_write')).fontSize(12).fontColor([this.theme.primary])
+                  Text(' AI 点评')
+                    .fontSize(11).fontColor(this.theme.primary)
+                }
                 Text(this.comment)
                   .fontSize(13).fontColor(this.theme.textPrimary).lineHeight(20).margin({ top: 6 })
               }
@@ -201,8 +250,9 @@ export struct NetworkReportPage {
             .alignItems(HorizontalAlign.Start)
           } else {
             Column() {
-              Text('📊')
-                .fontSize(46)
+              SymbolGlyph($r('sys.symbol.circle_grid_2x2'))
+                .fontSize(44)
+                .fontColor(['#94A3B8'])
               Text('生成你的网络周报')
                 .fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                 .margin({ top: 10 })

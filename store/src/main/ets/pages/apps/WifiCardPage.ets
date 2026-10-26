@@ -7,6 +7,7 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { WifiApInfo } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
@@ -68,7 +69,7 @@ export struct WifiCardPage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
       .width('100%')
@@ -78,8 +79,9 @@ export struct WifiCardPage {
         Column() {
           // 卡片
           Column() {
-            Text('📶')
-              .fontSize(40)
+            SymbolGlyph($r('sys.symbol.wifi'))
+              .fontSize(38)
+              .fontColor([this.theme.primary])
             Text('欢迎连我的 WiFi')
               .fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
               .margin({ top: 8 })
@@ -151,9 +153,12 @@ export struct WifiCardPage {
           .backgroundColor(this.theme.bgCard)
 
           Row() {
-            Text('💡 提示：密码只在本地生成二维码，不会上传或显示明文')
-              .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 12 })
+            SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(13).fontColor(['#F59E0B'])
+            Text(' 提示：密码只在本地生成二维码，不会上传或显示明文')
+              .fontSize(10).fontColor(this.theme.textTertiary)
+              .layoutWeight(1)
           }
+          .margin({ top: 12 })
         }
         .width('100%')
         .padding({ left: 16, right: 16, bottom: 40 })

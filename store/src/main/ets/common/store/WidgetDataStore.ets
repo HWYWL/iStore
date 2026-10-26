@@ -20,10 +20,15 @@ export interface WidgetSnapshot {
   cpuUsage: number     // CPU 使用率（%）
   memPercent: number   // 内存使用率（%）
   ip: string           // 路由器 LAN IP
+  todayTraffic: number // 今日累计流量（字节）
 }
 
 const KEY_DATA = 'snapshot'
 const KEY_DIMENSION = 'dimension'
+const KEY_METRIC = 'metric'
+
+/** 卡片主指标：speed=实时速率 traffic=今日流量 cpu=CPU/内存 devices=在线设备 */
+export type WidgetMetric = 'speed' | 'traffic' | 'cpu' | 'devices'
 
 export class WidgetDataStore {
   private static prefs: preferences.Preferences | null = null
@@ -47,6 +52,28 @@ export class WidgetDataStore {
       return v || '2*2'
     } catch (e) {
       return '2*2'
+    }
+  }
+
+  /** 保存卡片主指标（配置页调用） */
+  static setMetric(metric: string): void {
+    if (!WidgetDataStore.prefs) return
+    try {
+      WidgetDataStore.prefs.putSync(KEY_METRIC, metric)
+      WidgetDataStore.prefs.flush()
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `setMetric err: ${JSON.stringify(e)}`)
+    }
+  }
+
+  /** 读取卡片主指标（默认实时速率） */
+  static loadMetric(): string {
+    if (!WidgetDataStore.prefs) return 'speed'
+    try {
+      const v: string = WidgetDataStore.prefs.getSync(KEY_METRIC, '') as string
+      return v || 'speed'
+    } catch (e) {
+      return 'speed'
     }
   }
 
@@ -75,7 +102,7 @@ export class WidgetDataStore {
   static load(): WidgetSnapshot {
     const empty: WidgetSnapshot = {
       rxRate: 0, txRate: 0, deviceCount: 0, online: false, deviceName: 'iStore 路由管家',
-      cpuUsage: 0, memPercent: 0, ip: ''
+      cpuUsage: 0, memPercent: 0, ip: '', todayTraffic: 0
     }
     if (!WidgetDataStore.prefs) return empty
     try {
@@ -90,7 +117,8 @@ export class WidgetDataStore {
         deviceName: (rec['deviceName'] as string) || 'iStore 路由管家',
         cpuUsage: (rec['cpuUsage'] as number) || 0,
         memPercent: (rec['memPercent'] as number) || 0,
-        ip: (rec['ip'] as string) || ''
+        ip: (rec['ip'] as string) || '',
+        todayTraffic: (rec['todayTraffic'] as number) || 0
       }
     } catch (e) {
       return empty

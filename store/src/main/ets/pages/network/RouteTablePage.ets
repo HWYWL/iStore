@@ -7,6 +7,7 @@ import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { RouteEntry } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
@@ -61,7 +62,7 @@ this.theme = AppState.getInstance().getTheme()
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              this.getUIContext().getRouter().back()
+              AppNav.getInstance().back()
             } catch (e) {
               hilog.error(0x0001, 'RouteTablePage', `router.back failed: ${e}`)
             }

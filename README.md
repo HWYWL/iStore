@@ -56,20 +56,36 @@
 
 ---
 
-## 🖥️ 界面长这样
+## 🖼️ 宣传图
 
 <p align="center">
-  <img src="images/dashboard.jpg" width="235" alt="网络仪表盘" />
-  &nbsp;&nbsp;
-  <img src="images/pet.jpg" width="235" alt="网络小管家" />
-  &nbsp;&nbsp;
-  <img src="images/store.jpg" width="235" alt="应用商店" />
+  <img src="images/promo_pet.jpg" width="860" alt="网络小管家：陪你一起养成路由器" />
 </p>
 
 <p align="center">
-  <img src="images/docker.jpg" width="235" alt="容器管理" />
-  &nbsp;&nbsp;
-  <img src="images/apps.jpg" width="235" alt="全能工具箱" />
+  <img src="images/promo_store.jpg" width="860" alt="iStore 管家：21 款常用插件，一键装好" />
+</p>
+
+<p align="center">
+  <img src="images/promo_docker.jpg" width="860" alt="Docker 面板：容器状态与资源占用，一屏尽览" />
+</p>
+
+---
+
+## 🖥️ 界面长这样
+
+<p align="center">
+  <img src="images/dashboard.jpg" width="206" alt="网络仪表盘" />
+  &nbsp;
+  <img src="images/pet.jpg" width="206" alt="网络小管家" />
+  &nbsp;
+  <img src="images/store.jpg" width="206" alt="应用商店" />
+</p>
+
+<p align="center">
+  <img src="images/docker.jpg" width="206" alt="容器管理" />
+  &nbsp;
+  <img src="images/apps.jpg" width="206" alt="全能工具箱" />
 </p>
 
 <p align="center">

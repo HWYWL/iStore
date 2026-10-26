@@ -2,7 +2,7 @@
  * ShareCardPage - 装 B 分享卡
  * 网络状态（系统信息/网速/在线设备）生成小红书风卡片 → 截图 → 系统分享
  */
-import { router } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 import { window } from '@kit.ArkUI'
 import { componentSnapshot } from '@kit.ArkUI'
 import { image } from '@kit.ImageKit'
@@ -180,7 +180,7 @@ export struct ShareCardPage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
           .backgroundColor('rgba(255,138,61,0.1)')
-          .onClick(() => { router.back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
 
@@ -194,7 +194,7 @@ export struct ShareCardPage {
             .width('100%').padding(50).alignItems(HorizontalAlign.Center)
           } else if (this.errText) {
             Column() {
-              Text('⚠️').fontSize(36)
+              SymbolGlyph($r('sys.symbol.warning')).fontSize(36).fontColor(['#EF4444'])
               Text(this.errText).fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
             }
             .width('100%').padding(40).alignItems(HorizontalAlign.Center)

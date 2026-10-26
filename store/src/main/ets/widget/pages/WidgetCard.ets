@@ -18,6 +18,8 @@ struct WidgetCard {
   @LocalStorageProp('cpuUsage') cpuUsage: number = 0
   @LocalStorageProp('memPercent') memPercent: number = 0
   @LocalStorageProp('ip') ip: string = ''
+  @LocalStorageProp('todayTraffic') todayTraffic: number = 0
+  @LocalStorageProp('metric') metric: string = 'speed'
   @LocalStorageProp('widgetSize') widgetSize: string = '2*2'
   // 系统自动注入的卡片尺寸（权威来源），如 '2*2' / '2*4' / '4*4'
   @LocalStorageProp('formDimension') formDimension: string = '2*2'
@@ -40,6 +42,38 @@ struct WidgetCard {
     if (v >= 90) return '#FF5252'
     if (v >= 70) return '#FFB300'
     return '#00C853'
+  }
+
+  /** 字节格式化（今日流量） */
+  fmtBytes(v: number): string {
+    if (v >= 1073741824) return `${(v / 1073741824).toFixed(1)} GB`
+    if (v >= 1048576) return `${(v / 1048576).toFixed(0)} MB`
+    if (v >= 1024) return `${(v / 1024).toFixed(0)} KB`
+    return `${v} B`
+  }
+
+  /** 主指标图标（线稿风格，与 App 内图标同源） */
+  metricIconSrc(): Resource {
+    if (this.metric === 'traffic') return $r('app.media.w_metric_traffic')
+    if (this.metric === 'cpu') return $r('app.media.w_metric_cpu')
+    if (this.metric === 'devices') return $r('app.media.w_metric_devices')
+    return $r('app.media.w_metric_speed')
+  }
+
+  /** 主指标图示底色（与图标同色系的浅色底） */
+  metricTint(): string {
+    if (this.metric === 'traffic') return 'rgba(124,58,237,0.12)'
+    if (this.metric === 'cpu') return 'rgba(245,158,11,0.14)'
+    if (this.metric === 'devices') return 'rgba(16,185,129,0.14)'
+    return 'rgba(37,99,235,0.12)'
+  }
+
+  /** 主指标文本（由 App 内「小组件设置」决定） */
+  metricText(): string {
+    if (this.metric === 'traffic') return `今日 ${this.fmtBytes(this.todayTraffic)}`
+    if (this.metric === 'cpu') return `CPU ${this.cpuUsage.toFixed(0)}% · 内存 ${this.memPercent.toFixed(0)}%`
+    if (this.metric === 'devices') return `${this.deviceCount} 台设备在线`
+    return this.fmtSpeed(this.rxRate)
   }
 
   build() {
@@ -67,41 +101,60 @@ struct WidgetCard {
       }
       .width('100%')
 
-      // 中部：下载 / 上传 速率
+      // 中部：主指标（由 App 内「小组件设置」决定，默认实时速率）
       Row() {
         Row() {
-          Text('↓')
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#185FA5')
-          Text(this.fmtSpeed(this.rxRate))
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#0A0E27')
-            .margin({ left: 5 })
-            .maxLines(1)
+          Image(this.metricIconSrc())
+            .width(this.isLarge() ? 16 : 14)
+            .height(this.isLarge() ? 16 : 14)
+            .objectFit(ImageFit.Contain)
         }
-        .layoutWeight(1)
-
-        Row() {
-          Text('↑')
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#1D9E75')
-          Text(this.fmtSpeed(this.txRate))
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#0A0E27')
-            .margin({ left: 5 })
-            .maxLines(1)
-        }
-        .layoutWeight(1)
+        .width(this.isLarge() ? 30 : 26)
+        .height(this.isLarge() ? 30 : 26)
+        .borderRadius(this.isLarge() ? 9 : 8)
+        .backgroundColor(this.metricTint())
+        .justifyContent(FlexAlign.Center)
+        Text(this.metricText())
+          .fontSize(this.isLarge() ? 22 : 18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#0A0E27')
+          .margin({ left: 6 })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
       }
       .width('100%')
-      .padding({ top: 8 })
+      .padding({ top: 10 })
 
-      // 系统状态行：CPU / 内存 / IP（2*4 时 IP 独立一列）
-      if (this.isLarge()) {
+      // 副行：主指标非速率时补充 下行 / 上行 实时速率
+      if (this.metric !== 'speed') {
+        Row() {
+          Image($r('app.media.w_rate_down'))
+            .width(11)
+            .height(11)
+            .objectFit(ImageFit.Contain)
+          Text(this.fmtSpeed(this.rxRate))
+            .fontSize(11)
+            .fontColor('#5F6B8A')
+            .margin({ left: 3 })
+            .maxLines(1)
+          Image($r('app.media.w_rate_up'))
+            .width(11)
+            .height(11)
+            .objectFit(ImageFit.Contain)
+            .margin({ left: 10 })
+          Text(this.fmtSpeed(this.txRate))
+            .fontSize(11)
+            .fontColor('#5F6B8A')
+            .margin({ left: 3 })
+            .maxLines(1)
+        }
+        .width('100%')
+        .padding({ top: 4 })
+      }
+
+      // 系统状态行：CPU / 内存 / IP（2*4 时 IP 独立一列；主指标为 CPU 时避免重复）
+      if (this.isLarge() && this.metric !== 'cpu') {
         Row() {
           Column() {
             Row() {
@@ -157,16 +210,45 @@ struct WidgetCard {
         .padding({ top: 6 })
       }
 
-      // 底部：设备数 + CPU/内存（小卡片紧凑显示）+ 查看详情
+      // 底部：辅助信息 + 查看详情（主指标已占用时不重复展示）
       Row() {
         if (this.isLarge()) {
-          Text(`🖥 在线设备 ${this.deviceCount} 台`)
-            .fontSize(11)
-            .fontColor('#5F6B8A')
+          Row() {
+            if (this.metric === 'devices') {
+              Text(`今日 ${this.fmtBytes(this.todayTraffic)}`)
+                .fontSize(11)
+                .fontColor('#5F6B8A')
+                .maxLines(1)
+            } else {
+              Image($r('app.media.w_host'))
+                .width(12)
+                .height(12)
+                .objectFit(ImageFit.Contain)
+              Text(` 在线设备 ${this.deviceCount} 台`)
+                .fontSize(11)
+                .fontColor('#5F6B8A')
+                .maxLines(1)
+            }
+          }
           Blank()
           Text('查看详情 ›')
             .fontSize(10)
             .fontColor('#185FA5')
+        } else if (this.metric === 'cpu') {
+          Text(`今日 ${this.fmtBytes(this.todayTraffic)}`)
+            .fontSize(10)
+            .fontColor('#5F6B8A')
+            .maxLines(1)
+          Blank()
+          Row() {
+            Image($r('app.media.w_host'))
+              .width(11)
+              .height(11)
+              .objectFit(ImageFit.Contain)
+            Text(` ${this.deviceCount}`)
+              .fontSize(10)
+              .fontColor('#5F6B8A')
+          }
         } else {
           Row() {
             Circle({ width: 5, height: 5 })
@@ -184,9 +266,17 @@ struct WidgetCard {
           }
           .margin({ left: 10 })
           Blank()
-          Text(`🖥 ${this.deviceCount}`)
-            .fontSize(10)
-            .fontColor('#5F6B8A')
+          if (this.metric !== 'devices') {
+            Row() {
+              Image($r('app.media.w_host'))
+                .width(11)
+                .height(11)
+                .objectFit(ImageFit.Contain)
+              Text(` ${this.deviceCount}`)
+                .fontSize(10)
+                .fontColor('#5F6B8A')
+            }
+          }
         }
       }
       .width('100%')

@@ -7,10 +7,11 @@ import { AppState } from '../../common/store/AppState'
 import { ApiService } from '../../api/ApiService'
 import { StartupItem } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct StartupPage {
+export struct StartupPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State errorText: string = ''
@@ -61,7 +62,7 @@ this.theme = AppState.getInstance().getTheme()
           .border({ width: 0.5, color: this.theme.borderGlass })
           .onClick(() => {
             try {
-              this.getUIContext().getRouter().back()
+              AppNav.getInstance().back()
             } catch (e) {
               hilog.error(0x0001, 'StartupPage', `router.back failed: ${e}`)
             }

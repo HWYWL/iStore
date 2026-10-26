@@ -83,12 +83,13 @@ export class NotificationWatcher {
     const last: boolean | null = this.notifyStore.getLastOnline()
 
     if (this.notifyStore.isOfflineAlertOn()) {
+      // 断网/恢复属于关键告警，不受免打扰限制
       if (last === true && !online) {
         // 上次在线 → 现在离线：断网告警
-        this.publish('⚠️ 路由器离线', '检测到路由器连接中断，请检查网络或电源')
+        this.publish('offline', '⚠️ 路由器离线', '检测到路由器连接中断，请检查网络或电源', true)
       } else if (last === false && online) {
         // 上次离线 → 现在在线：恢复通知
-        this.publish('✅ 路由器已恢复', '路由器重新上线，网络已恢复正常')
+        this.publish('recover', '✅ 路由器已恢复', '路由器重新上线，网络已恢复正常', true)
       }
     }
     this.notifyStore.setLastOnline(online)
@@ -123,7 +124,7 @@ export class NotificationWatcher {
         for (let i = 0; i < news.length; i++) {
           const dev: ConnectedDevice = news[i]
           const name: string = dev.hostname || dev.mac
-          this.publish('🆕 新设备接入', `${name}（${dev.mac}）已连接到网络`)
+          this.publish('newDevice', '🆕 新设备接入', `${name}（${dev.mac}）已连接到网络`, false)
         }
       }
       // 更新已知集合（保留最近 50 个，避免无限增长）
@@ -193,7 +194,17 @@ export class NotificationWatcher {
 
   // ========== 通知发布 ==========
 
-  private async publish(title: string, text: string): Promise<void> {
+  /**
+   * 发布通知并记录到告警历史
+   * @param bypassQuiet 关键告警（断网/恢复）不受免打扰限制
+   */
+  private async publish(type: string, title: string, text: string, bypassQuiet: boolean): Promise<void> {
+    // 先入历史（免打扰期间也留痕，方便用户回看）
+    this.notifyStore.addHistory(type, title, text)
+    if (!bypassQuiet && this.notifyStore.isInQuietHours()) {
+      hilog.info(DOMAIN, TAG, `quiet hours, suppressed: ${title}`)
+      return
+    }
     try {
       const req: notificationManager.NotificationRequest = {
         id: Math.floor(Date.now() % 90000) + 10000,

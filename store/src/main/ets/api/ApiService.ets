@@ -112,23 +112,53 @@ interface TimeSlotInfo {
 }
 
 export class ApiService {
+  // ========== 单例 ==========
+  private static instance: ApiService | null = null
+
+  /** 获取全局单例（推荐用法，页面间共享缓存） */
+  static getInstance(): ApiService {
+    if (ApiService.instance === null) {
+      ApiService.instance = new ApiService()
+    }
+    return ApiService.instance
+  }
+
   private client: ApiClient
   private historyBuffer: TrafficHistory[] = []
-  private statsCache: Map<string, number[]> = new Map()
-  private rateMapCache: Record<string, Object> | null = null
-  private interfacesCache: Object | null = null
+
+  // ========== 跨实例共享缓存 ==========
+  // 说明：原先这些缓存是实例字段，而调用方普遍 new ApiService()，导致缓存完全失效、
+  // 同一时刻多个页面重复请求同一份数据。改为静态并加短 TTL：
+  // TTL 内多页共享同一次请求，超出 TTL 必然重新拉取，速率等实时数据不会变"死"。
+  private static statsCache: Map<string, number[]> = new Map()
+  private static rateMapCache: Record<string, Object> | null = null
+  private static interfacesCache: Object | null = null
+  private static cacheStamp: number = 0
+  private static readonly CACHE_TTL_MS: number = 1200
 
   constructor() {
     this.client = ApiClient.getInstance()
   }
 
-  /** 获取网络接口数据 + 速率映射（实例级缓存，仅一次 HTTP 请求） */
-  private async getNetworkData(): Promise<void> {
-    if (this.interfacesCache && this.rateMapCache) {
+  /** 清空共享缓存（切换设备 / 重新登录时调用，避免串台） */
+  static resetCache(): void {
+    ApiService.interfacesCache = null
+    ApiService.rateMapCache = null
+    ApiService.statsCache = new Map()
+    ApiService.cacheStamp = 0
+  }
+
+  /**
+   * 获取网络接口数据 + 速率映射（TTL 内全局共享，避免多页面重复请求）
+   * @param force 强制跳过 TTL 缓存（累计字节数这类有增量语义的读数必须拿最新值）
+   */
+  private async getNetworkData(force: boolean = false): Promise<void> {
+    if (!force && ApiService.interfacesCache && ApiService.rateMapCache &&
+      (Date.now() - ApiService.cacheStamp) < ApiService.CACHE_TTL_MS) {
       return
     }
     const result = await this.client.requestDirect('network_interfaces')
-    this.interfacesCache = (result && result.data) ? result.data : new EmptyRecord()
+    ApiService.interfacesCache = (result && result.data) ? result.data : new EmptyRecord()
     const rateMap: Record<string, Object> = {}
     if (result && result.rates && Array.isArray(result.rates)) {
       const rates = result.rates as Object[]
@@ -142,11 +172,11 @@ export class ApiService {
         }
       }
     }
-    this.rateMapCache = rateMap
+    ApiService.rateMapCache = rateMap
 
     // 同时缓存设备累计字节数（luci-rpc.getNetworkDevices stats 中才有 rx_bytes/tx_bytes）
     const devResult = await this.client.requestDirect('network_devices')
-    this.statsCache.clear()
+    ApiService.statsCache.clear()
     if (devResult && devResult.data) {
       const devData = devResult.data as Record<string, Object>
       const devNames = Object.keys(devData)
@@ -155,7 +185,7 @@ export class ApiService {
         if (dev && typeof dev === 'object') {
           const st = dev['stats'] as Record<string, Object>
           if (st && typeof st === 'object') {
-            this.statsCache.set(dn, [
+            ApiService.statsCache.set(dn, [
               ObjectHelper.getNumber(st, 'rx_bytes', 0),
               ObjectHelper.getNumber(st, 'tx_bytes', 0)
             ])
@@ -163,9 +193,11 @@ export class ApiService {
         }
       }
     }
+    ApiService.cacheStamp = Date.now()
   }
 
   configureConnection(config: ConnectionConfig): void {
+    ApiService.resetCache()
     this.client.configure(config)
   }
 
@@ -271,8 +303,8 @@ export class ApiService {
   async fetchLanStatus(): Promise<WanStatus> {
     try {
       await this.getNetworkData()
-      const interfacesList = ObjectHelper.getArray(this.interfacesCache!, 'interface')
-      const rateMap = this.rateMapCache!
+      const interfacesList = ObjectHelper.getArray(ApiService.interfacesCache!, 'interface')
+      const rateMap = ApiService.rateMapCache!
 
       // 2. 多策略查找 LAN 接口（按优先级尝试）
       let lanIf: Object | null = null
@@ -380,8 +412,8 @@ export class ApiService {
   async fetchNetworkInterfaces(): Promise<NetworkInterface[]> {
     try {
       await this.getNetworkData()
-      const interfacesList = ObjectHelper.getArray(this.interfacesCache!, 'interface')
-      const rateMap = this.rateMapCache!
+      const interfacesList = ObjectHelper.getArray(ApiService.interfacesCache!, 'interface')
+      const rateMap = ApiService.rateMapCache!
 
       const list: NetworkInterface[] = []
 
@@ -414,8 +446,8 @@ export class ApiService {
         // 累计字节从 luci-rpc.getNetworkDevices 的 stats 子对象获取
         // （network.interface dump 在 iStoreOS 上不含 rx_bytes/tx_bytes）
         const lookupDev: string = ObjectHelper.getString(iface, 'device', '') || ''
-        const byteStats: number[] | undefined = this.statsCache.get(displayName) ||
-          this.statsCache.get(ifName) || this.statsCache.get(name) || this.statsCache.get(lookupDev)
+        const byteStats: number[] | undefined = ApiService.statsCache.get(displayName) ||
+          ApiService.statsCache.get(ifName) || ApiService.statsCache.get(name) || ApiService.statsCache.get(lookupDev)
         let rxBytes: number = byteStats ? byteStats[0] : 0
         let txBytes: number = byteStats ? byteStats[1] : 0
         // 兜底：部分固件的 network.interface dump 自带 statistics 字段
@@ -1319,8 +1351,9 @@ export class ApiService {
    */
   async fetchWanTrafficBytes(): Promise<number[]> {
     try {
-      await this.getNetworkData()
-      const list: Object[] = ObjectHelper.getArray(this.interfacesCache!, 'interface')
+      // 累计字节数有增量语义，必须拿最新值，不能吃 TTL 缓存
+      await this.getNetworkData(true)
+      const list: Object[] = ObjectHelper.getArray(ApiService.interfacesCache!, 'interface')
       // 1. 优先 network.interface dump 自带的 statistics
       const fromDump: number[] = this.pickWanBytes(list, true)
       if (fromDump[0] > 0 || fromDump[1] > 0) {
@@ -1401,8 +1434,8 @@ export class ApiService {
       }
       return [0, 0]
     }
-    const byDev: number[] | undefined = dev ? this.statsCache.get(dev) : undefined
-    return byDev || this.statsCache.get(logicalName) || this.statsCache.get(dev) || [0, 0]
+    const byDev: number[] | undefined = dev ? ApiService.statsCache.get(dev) : undefined
+    return byDev || ApiService.statsCache.get(logicalName) || ApiService.statsCache.get(dev) || [0, 0]
   }
 
   /** 是否虚拟接口（不计入 WAN 流量回退） */

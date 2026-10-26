@@ -106,28 +106,54 @@ export struct DeviceTab {
     )
   }
 
-  getDeviceEmoji(mac: string, hostname: string): string {
-    const icon: string = FormatUtils.getDeviceIcon(mac, hostname)
-    switch (icon) {
-      case 'phone':
-        return '📱'
-      case 'laptop':
-        return '💻'
-      case 'tv':
-        return '📺'
-      case 'server':
-        return '🖥'
-      case 'camera':
-        return '📷'
-      case 'printer':
-        return '🖨'
-      case 'speaker':
-        return '🔊'
-      case 'watch':
-        return '⌚'
-      default:
-        return ''  // 无法识别 → 使用默认 SVG 图标
+  /** 主色 → 同色系浅底（图标底座） */
+  tint(hex: string, alpha: number): string {
+    let c: string = hex
+    if (c.startsWith('#')) {
+      c = c.substring(1)
     }
+    if (c.length === 3) {
+      c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2]
+    }
+    let r: number = 0
+    let g: number = 0
+    let b: number = 0
+    try {
+      r = parseInt(c.substring(0, 2), 16)
+      g = parseInt(c.substring(2, 4), 16)
+      b = parseInt(c.substring(4, 6), 16)
+    } catch (e) {
+      return 'rgba(0,0,0,0.08)'
+    }
+    return `rgba(${r},${g},${b},${alpha})`
+  }
+
+  /** 设备类型图标（统一符号族） */
+  getDeviceSymbol(mac: string, hostname: string): Resource {
+    const icon: string = FormatUtils.getDeviceIcon(mac, hostname)
+    if (icon === 'phone') return $r('sys.symbol.phone')
+    if (icon === 'laptop') return $r('sys.symbol.display')
+    if (icon === 'tv') return $r('sys.symbol.display')
+    if (icon === 'server') return $r('sys.symbol.externaldrive')
+    if (icon === 'camera') return $r('sys.symbol.camera')
+    if (icon === 'printer') return $r('sys.symbol.printer')
+    if (icon === 'speaker') return $r('sys.symbol.speaker')
+    if (icon === 'watch') return $r('sys.symbol.watch')
+    return $r('sys.symbol.display')
+  }
+
+  /** 设备类型配色（多彩但统一色板） */
+  getDeviceColor(mac: string, hostname: string): string {
+    const icon: string = FormatUtils.getDeviceIcon(mac, hostname)
+    if (icon === 'phone') return '#3B82F6'
+    if (icon === 'laptop') return '#8B5CF6'
+    if (icon === 'tv') return '#F59E0B'
+    if (icon === 'server') return '#0891B2'
+    if (icon === 'camera') return '#EC4899'
+    if (icon === 'printer') return '#F97316'
+    if (icon === 'speaker') return '#10B981'
+    if (icon === 'watch') return '#14B8A6'
+    return '#64748B'
   }
 
   /** 设备双列分组（每行 2 个） */
@@ -145,20 +171,16 @@ export struct DeviceTab {
   deviceCard(device: ConnectedDevice) {
     Column() {
       Row() {
-        // 设备图标
+        // 设备图标（彩色符号 + 同色系浅底）
         Row() {
-          if (this.getDeviceEmoji(device.mac, device.hostname)) {
-            Text(this.getDeviceEmoji(device.mac, device.hostname))
-              .fontSize(22)
-          } else {
-            Image($r('app.media.device'))
-              .width(20).height(20).objectFit(ImageFit.Contain)
-          }
+          SymbolGlyph(this.getDeviceSymbol(device.mac, device.hostname))
+            .fontSize(20)
+            .fontColor([this.getDeviceColor(device.mac, device.hostname)])
         }
         .width(40)
         .height(40)
         .borderRadius(14)
-        .backgroundColor(this.theme.bgGlassLight)
+        .backgroundColor(this.tint(this.getDeviceColor(device.mac, device.hostname), 0.12))
         .justifyContent(FlexAlign.Center)
 
         Blank()

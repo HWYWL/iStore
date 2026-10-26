@@ -2,13 +2,13 @@
  * TrafficBillPage - 流量月账单（运营商账单风）
  * 本月流量总览 + 近 7 天趋势 + 设备流量排行（实时快照推测）
  */
-import { router } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
-import { TrafficStatStore, DayTraffic } from '../../common/store/TrafficStatStore'
+import { TrafficStatStore, DayTraffic, HourTraffic } from '../../common/store/TrafficStatStore'
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
 
@@ -28,6 +28,11 @@ export struct TrafficBillPage {
   @State weekData: DayTraffic[] = []   // 近 7 天
   @State devices: DeviceTop[] = []     // 设备排行
   @State loading: boolean = true
+  // 上月对比 + 今日分时热点（来自小时桶）
+  @State prevMonthTotal: number = 0
+  @State prevMonthLabel: string = ''
+  @State hourPeak: number = -1
+  @State hourPeakBytes: number = 0
   private api: ApiService = new ApiService()
 
   aboutToAppear(): void {
@@ -48,9 +53,9 @@ export struct TrafficBillPage {
 
   private async loadData(): Promise<void> {
     this.loading = true
-    // 近 30 天流量
-    const days: DayTraffic[] = TrafficStatStore.getInstance().getDays(30)
-    // 本月聚合（取近 30 天内属于本月的）
+    // 近 60 天流量（本月聚合 + 上月对比都要用）
+    const days: DayTraffic[] = TrafficStatStore.getInstance().getDays(60)
+    // 本月聚合（取近 60 天内属于本月的）
     const now: Date = new Date()
     const ym: string = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`
     let total: number = 0
@@ -74,8 +79,34 @@ export struct TrafficBillPage {
     this.avgPerDay = cnt > 0 ? total / cnt : 0
     this.peakDay = peakD
     this.peakTotal = peakT
-    // 近 7 天（反转成时间正序）
-    const week: DayTraffic[] = days.slice(0, 7).reverse()
+
+    // 上月总量（60 天窗口内的上个月）
+    const prevDate: Date = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const prevYm: string = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}`
+    let prevTotal: number = 0
+    for (let i = 0; i < days.length; i++) {
+      if (days[i].date.startsWith(prevYm)) {
+        prevTotal += days[i].rx + days[i].tx
+      }
+    }
+    this.prevMonthTotal = prevTotal
+    this.prevMonthLabel = `${prevDate.getMonth() + 1} 月`
+
+    // 今日分时热点（小时桶）
+    const hours: HourTraffic[] = TrafficStatStore.getInstance().getTodayHourly()
+    let ph: number = -1
+    let pb: number = 0
+    for (let h = 0; h < hours.length; h++) {
+      const s: number = hours[h].rx + hours[h].tx
+      if (s > pb) {
+        pb = s
+        ph = h
+      }
+    }
+    this.hourPeak = ph
+    this.hourPeakBytes = pb
+    // 近 7 天（getDays 已是时间正序，末尾是今天）
+    const week: DayTraffic[] = days.slice(-7)
     this.weekData = week
     // 设备排行（实时快照）
     try {
@@ -128,6 +159,29 @@ export struct TrafficBillPage {
     return `${day}日`
   }
 
+  /** 较上月（同为本月累计值对比本月之前的整月） */
+  private monthCompareText(): string {
+    if (this.prevMonthTotal <= 0) {
+      return '上月无数据'
+    }
+    const diff: number = (this.monthTotal - this.prevMonthTotal) / this.prevMonthTotal * 100
+    const sign: string = diff >= 0 ? '+' : ''
+    return `${sign}${diff.toFixed(1)}%`
+  }
+
+  private monthCompareColor(): string {
+    if (this.prevMonthTotal <= 0) return this.theme.textTertiary
+    return this.monthTotal > this.prevMonthTotal ? '#E4572E' : '#2FA37A'
+  }
+
+  /** 今日流量高峰时段 */
+  private hourPeakText(): string {
+    if (this.hourPeak < 0) {
+      return '今日暂无数据'
+    }
+    return `${this.hourPeak}:00-${this.hourPeak + 1}:00 · ${this.val(this.hourPeakBytes)} ${this.unit(this.hourPeakBytes)}`
+  }
+
   /** 读取状态栏安全区高度（避免标题栏与状态栏重叠） */
   loadTopSafeArea(): void {
     try {
@@ -164,7 +218,7 @@ export struct TrafficBillPage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
           .backgroundColor('rgba(255,138,61,0.1)')
-          .onClick(() => { router.back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
 
@@ -196,11 +250,39 @@ export struct TrafficBillPage {
             })
             .alignItems(HorizontalAlign.Center)
 
+            // 上月对比 + 今日流量高峰（均基于本地留存数据）
+            Column() {
+              Row() {
+                Text(`较上月（${this.prevMonthLabel}）`)
+                  .fontSize(13).fontColor(this.theme.textSecondary)
+                Blank()
+                Text(this.monthCompareText())
+                  .fontSize(13).fontColor(this.monthCompareColor()).fontWeight(FontWeight.Medium)
+              }
+              .width('100%')
+
+              Divider().color(this.theme.borderGlass).margin({ top: 10, bottom: 10 })
+
+              Row() {
+                Text('今日流量高峰')
+                  .fontSize(13).fontColor(this.theme.textSecondary)
+                Blank()
+                Text(this.hourPeakText())
+                  .fontSize(13).fontColor(this.theme.textPrimary)
+              }
+              .width('100%')
+            }
+            .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
+            .backgroundColor(this.theme.bgCard)
+
             // 峰值日
             if (this.peakTotal > 0) {
               Column() {
                 Row() {
-                  Text('🏔 本月峰值日').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
+                  Row() {
+            SymbolGlyph($r('sys.symbol.arrow_up_right')).fontSize(13).fontColor(['#3B82F6'])
+            Text(' 本月峰值日').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
+          }
                   Text(this.peakDay).fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 8 })
                   Blank()
                   Text(`${this.val(this.peakTotal)} ${this.unit(this.peakTotal)}`).fontSize(14).fontColor(this.theme.primary).fontWeight(FontWeight.Bold).fontFamily('monospace')
@@ -254,7 +336,11 @@ export struct TrafficBillPage {
               } else {
                 ForEach(this.devices, (d: DeviceTop, idx: number) => {
                   Row() {
-                    Text(this.rankEmoji(idx)).fontSize(16).width(26)
+                    if (idx < 3) {
+                      SymbolGlyph(this.rankSymbol(idx)).fontSize(16).fontColor([this.rankColor(idx)]).width(26)
+                    } else {
+                      Text(`${idx + 1}`).fontSize(12).fontColor(this.theme.textTertiary).width(26)
+                    }
                     Column() {
                       Text(d.name).fontSize(12).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                         .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -284,11 +370,17 @@ export struct TrafficBillPage {
     })
   }
 
-  private rankEmoji(idx: number): string {
-    if (idx === 0) return '🥇'
-    if (idx === 1) return '🥈'
-    if (idx === 2) return '🥉'
-    return `${idx + 1}`
+  /** 前三名奖牌图标 */
+  private rankSymbol(idx: number): Resource {
+    if (idx === 0) return $r('sys.symbol.star_trophy')
+    return $r('sys.symbol.medal')
+  }
+
+  /** 前三名奖牌配色 */
+  private rankColor(idx: number): string {
+    if (idx === 0) return '#F59E0B'
+    if (idx === 1) return '#94A3B8'
+    return '#B45309'
   }
 
   private speedText(rate: number): string {

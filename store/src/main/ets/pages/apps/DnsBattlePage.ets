@@ -6,6 +6,7 @@ import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 interface DnsRow {
   name: string
@@ -87,11 +88,18 @@ export struct DnsBattlePage {
     return 0
   }
 
-  private rankIcon(r: number): string {
-    if (r === 1) return '🥇'
-    if (r === 2) return '🥈'
-    if (r === 3) return '🥉'
-    return '🏅'
+  private rankIcon(r: number): Resource {
+    if (r === 1) return $r('sys.symbol.star_trophy')
+    if (r === 2) return $r('sys.symbol.medal')
+    if (r === 3) return $r('sys.symbol.medal')
+    return $r('sys.symbol.medal')
+  }
+
+  private rankColor(r: number): string {
+    if (r === 1) return '#F59E0B'
+    if (r === 2) return '#94A3B8'
+    if (r === 3) return '#B45309'
+    return '#64748B'
   }
 
   build() {
@@ -109,7 +117,7 @@ export struct DnsBattlePage {
         .borderRadius(100)
         .backgroundColor(this.theme.bgCard)
         .border({ width: 0.5, color: this.theme.borderGlass })
-        .onClick(() => { this.getUIContext().getRouter().back() })
+        .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
       .width('100%')
@@ -129,7 +137,7 @@ export struct DnsBattlePage {
           // 排行榜
           ForEach(this.rows, (row: DnsRow) => {
             Row() {
-              Text(this.rankIcon(row.rank)).fontSize(24).width(36)
+              SymbolGlyph(this.rankIcon(row.rank)).fontSize(22).fontColor([this.rankColor(row.rank)]).width(36)
               Column() {
                 Text(row.name)
                   .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
@@ -156,8 +164,13 @@ export struct DnsBattlePage {
 
           if (this.recommend) {
             Column() {
-              Text('💡 ' + this.recommend)
-                .fontSize(12).fontColor(this.theme.textPrimary).lineHeight(19)
+              Row() {
+                SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(13).fontColor(['#F59E0B'])
+                Text(' ' + this.recommend)
+                  .fontSize(12).fontColor(this.theme.textPrimary).lineHeight(19)
+                  .layoutWeight(1)
+              }
+              .alignItems(VerticalAlign.Top)
             }
             .width('100%').padding(14).borderRadius(14)
             .border({ width: 0.5, color: 'rgba(255,138,61,0.4)' })

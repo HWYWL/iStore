@@ -3,6 +3,7 @@ import {ThemePalette} from '../../common/theme/ThemeColors'
 import { DockerOverview, DockerContainer, DockerStats, DockerImage, DockerNetwork } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { Poller } from '../../common/utils/Poller'
 
 @Component
 export struct DockerTab {
@@ -25,7 +26,7 @@ export struct DockerTab {
   @State imagesLoading: boolean = false
   @State networks: DockerNetwork[] = []
   @State networksLoading: boolean = false
-  private api: ApiService = new ApiService()
+  private api: ApiService = ApiService.getInstance()
   private lastScrollY: number = 0
 
   /** 格式化镜像大小 */
@@ -109,7 +110,7 @@ export struct DockerTab {
       this.istoreIconsLoaded = true
     }
   }
-  private refreshTimer: number = -1
+  private poller: Poller | null = null
   private isVisible: boolean = false
   private tabChangeListener: ((tab: number) => void) | null = null
 
@@ -117,33 +118,34 @@ export struct DockerTab {
     this.apiAvailable = this.api.hasDockerApi()
     // 前台感知：仅当本 Tab（Docker index 3）可见时轮询
     this.isVisible = AppState.getInstance().getCurrentTab() === 3
+    // 统一轮询器：静默刷新 + 上轮未返回则跳过
+    this.poller = new Poller((): Promise<void> => this.refreshSilently(), 5000)
     this.tabChangeListener = (tab: number) => {
       const visible: boolean = tab === 3
       if (visible && !this.isVisible) {
         this.isVisible = true
         this.loadData()
-        if (this.refreshTimer === -1) {
-          this.refreshTimer = setInterval(() => { this.refreshSilently() }, 5000)
+        if (this.poller) {
+          this.poller.start()
         }
       } else if (!visible && this.isVisible) {
         this.isVisible = false
-        if (this.refreshTimer !== -1) {
-          clearInterval(this.refreshTimer)
-          this.refreshTimer = -1
+        if (this.poller) {
+          this.poller.stop()
         }
       }
     }
     AppState.getInstance().onTabChange(this.tabChangeListener)
     this.loadData()
-    if (this.isVisible) {
-      this.refreshTimer = setInterval(() => { this.refreshSilently() }, 5000)
+    if (this.isVisible && this.poller) {
+      this.poller.start()
     }
   }
 
   aboutToDisappear(): void {
-    if (this.refreshTimer !== -1) {
-      clearInterval(this.refreshTimer)
-      this.refreshTimer = -1
+    if (this.poller) {
+      this.poller.dispose()
+      this.poller = null
     }
     if (this.tabChangeListener) {
       AppState.getInstance().offTabChange(this.tabChangeListener)
@@ -162,7 +164,8 @@ export struct DockerTab {
       }
       this.loadIStoreIcons()
     } catch (e) {
-      this.errorText = '加载失败'
+      // 统一错误层：优先展示底层给出的可读原因（超时/权限/会话失效等）
+      this.errorText = this.api.getLastError() || '加载失败'
     }
     this.isLoading = false
   }
@@ -413,8 +416,9 @@ export struct DockerTab {
             if (!this.apiAvailable) {
               Column() {
                 Row() {
-                  Text('💡')
+                  SymbolGlyph($r('sys.symbol.lightbulb'))
                     .fontSize(14)
+                    .fontColor(['#F59E0B'])
                   Text('开启 Docker API 后，可显示容器 CPU / 内存实时统计')
                     .fontSize(12).fontColor(this.theme.textSecondary)
                     .layoutWeight(1).margin({ left: 8 })
@@ -463,7 +467,10 @@ export struct DockerTab {
             // ========== 容器 / 镜像 / 网络 切换 ==========
             Row() {
               Row() {
-                Text('📦 容器')
+                SymbolGlyph($r('sys.symbol.rectangle_stack'))
+                  .fontSize(13)
+                  .fontColor([this.viewIndex === 0 ? '#3B82F6' : this.theme.textTertiary])
+                Text(' 容器')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 0 ? this.theme.textPrimary : this.theme.textTertiary)
                   .fontWeight(this.viewIndex === 0 ? FontWeight.Medium : FontWeight.Normal)
@@ -475,7 +482,10 @@ export struct DockerTab {
               .onClick(() => { this.switchView(0) })
 
               Row() {
-                Text('🗂 镜像')
+                SymbolGlyph($r('sys.symbol.archivebox'))
+                  .fontSize(13)
+                  .fontColor([this.viewIndex === 1 ? '#8B5CF6' : this.theme.textTertiary])
+                Text(' 镜像')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 1 ? this.theme.textPrimary : this.theme.textTertiary)
                   .fontWeight(this.viewIndex === 1 ? FontWeight.Medium : FontWeight.Normal)
@@ -488,7 +498,10 @@ export struct DockerTab {
               .onClick(() => { this.switchView(1) })
 
               Row() {
-                Text('🌐 网络')
+                SymbolGlyph($r('sys.symbol.globe_badge_message'))
+                  .fontSize(13)
+                  .fontColor([this.viewIndex === 2 ? '#10B981' : this.theme.textTertiary])
+                Text(' 网络')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 2 ? this.theme.textPrimary : this.theme.textTertiary)
                   .fontWeight(this.viewIndex === 2 ? FontWeight.Medium : FontWeight.Normal)
@@ -676,8 +689,9 @@ export struct DockerTab {
                   Column() {
                     Row() {
                       Column() {
-                        Text('🌐')
+                        SymbolGlyph($r('sys.symbol.globe_badge_message'))
                           .fontSize(20)
+                          .fontColor(['#10B981'])
                       }
                       .width(40).height(40)
                       .justifyContent(FlexAlign.Center)

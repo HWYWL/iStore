@@ -5,13 +5,14 @@ import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
+import { AppNav } from '../../common/utils/AppNav'
 
 // ============================================================
 // NetworkPage - 网络管理（独立页面，从应用中心进入）
 // ============================================================
 @Entry
 @Component
-struct NetworkPage {
+export struct NetworkPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State interfaces: NetworkInterface[] = []
   @State wanStatus: WanStatus = this.emptyWan()
@@ -70,14 +71,12 @@ this.theme = AppState.getInstance().getTheme()
     return colors[type] || this.theme.textTertiary
   }
 
-  getTypeEmoji(type: string): string {
-    const emojis: Record<string, string> = {
-      'wan': '🌐',
-      'lan': '🏠',
-      'wifi': '📶',
-      'vpn': '🔒'
-    }
-    return emojis[type] || '🔌'
+  getTypeSymbol(type: string): Resource {
+    if (type === 'wan') return $r('sys.symbol.globe_badge_message')
+    if (type === 'lan') return $r('sys.symbol.house')
+    if (type === 'wifi') return $r('sys.symbol.wifi')
+    if (type === 'vpn') return $r('sys.symbol.lock')
+    return $r('sys.symbol.link')
   }
 
   build() {
@@ -99,7 +98,7 @@ this.theme = AppState.getInstance().getTheme()
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
           .border({ width: 0.5, color: this.theme.borderGlass })
-          .onClick(() => this.getUIContext().getRouter().back())
+          .onClick(() => AppNav.getInstance().back())
 
           Blank()
           Text(`${this.interfaces.length} 个接口`)
@@ -120,8 +119,9 @@ this.theme = AppState.getInstance().getTheme()
             } else {
               if (this.errorText) {
                 Row() {
-                  Text('⚠')
+                  SymbolGlyph($r('sys.symbol.warning'))
                     .fontSize(16)
+                    .fontColor([this.theme.warning])
                     .margin({ right: 8 })
                   Text(this.errorText)
                     .fontSize(12)
@@ -137,11 +137,16 @@ this.theme = AppState.getInstance().getTheme()
 
               // LAN 网络状态卡片
               Column() {
-                Text('🏠 LAN 网络状态')
-                  .fontSize(14)
-                  .fontColor(this.theme.textPrimary)
-                  .fontWeight(FontWeight.Medium)
-                  .margin({ bottom: 12 })
+                Row() {
+                  SymbolGlyph($r('sys.symbol.house'))
+                    .fontSize(15)
+                    .fontColor(['#10B981'])
+                  Text(' LAN 网络状态')
+                    .fontSize(14)
+                    .fontColor(this.theme.textPrimary)
+                    .fontWeight(FontWeight.Medium)
+                }
+                .margin({ bottom: 12 })
 
                 Row() {
                   Text(this.lanStatus.ipAddress)
@@ -195,13 +200,16 @@ this.theme = AppState.getInstance().getTheme()
               ForEach(this.interfaces, (iface: NetworkInterface) => {
                 Column() {
                   Row() {
-                    Text(this.getTypeEmoji(iface.type))
-                      .fontSize(24)
-                      .width(40)
-                      .height(40)
-                      .borderRadius(10)
-                      .backgroundColor(this.theme.bgGlassLight)
-                      .textAlign(TextAlign.Center)
+                    Row() {
+                      SymbolGlyph(this.getTypeSymbol(iface.type))
+                        .fontSize(20)
+                        .fontColor([this.getTypeColor(iface.type)])
+                    }
+                    .width(40)
+                    .height(40)
+                    .borderRadius(10)
+                    .backgroundColor(this.theme.bgGlassLight)
+                    .justifyContent(FlexAlign.Center)
 
                     Column() {
                       Text(iface.name)

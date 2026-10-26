@@ -1,0 +1,54 @@
+name: CI
+
+# 说明：本仓库的签名配置指向本机绝对路径（build-profile.json5），
+# 因此 CI 只做「编译 + Lint」这类不依赖签名的检查，打包仍需在开发机上执行。
+# 需要一个装有 HarmonyOS command-line-tools 的 runner，并设置环境变量 OHOS_CLI
+# 指向 command-line-tools/bin（如 F:\OpenHarmony\command-line-tools\bin）。
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - 'images/**'
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    paths-ignore:
+      - 'images/**'
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ArkTS 编译检查
+    runs-on: [self-hosted, windows, harmonyos]
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 环境检查
+        shell: pwsh
+        run: |
+          if (-not $env:OHOS_CLI) {
+            Write-Error "未设置 OHOS_CLI，请指向 command-line-tools/bin"
+            exit 1
+          }
+          Test-Path (Join-Path $env:OHOS_CLI 'hvigorw.bat')
+
+      - name: 编译 + Lint
+        shell: pwsh
+        run: ./scripts/ci.ps1 -Lint
+
+      - name: 上传构建产物（存在才上传）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs
+          path: store/build/default/outputs/**/*.hap
+          if-no-files-found: ignore
+          retention-days: 7

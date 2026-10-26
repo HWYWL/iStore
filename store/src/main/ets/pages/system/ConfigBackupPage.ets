@@ -3,7 +3,8 @@
  * sysupgrade -b 备份配置 → SFTP 下载到手机；本地备份 → 上传 → sysupgrade -r 恢复
  * OpenWrt 24.x / 25.x 的 sysupgrade -b/-r 均为标准命令，通用
  */
-import { router, window } from '@kit.ArkUI'
+import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 import { systemShare } from '@kit.ShareKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { fileUri } from '@kit.CoreFileKit'
@@ -175,7 +176,7 @@ export struct ConfigBackupPage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
           .backgroundColor('rgba(255,138,61,0.1)')
-          .onClick(() => { router.back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
 
@@ -184,7 +185,7 @@ export struct ConfigBackupPage {
           // 说明卡
           Column() {
             Row() {
-              Text('💡').fontSize(20)
+              SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(20).fontColor(['#F59E0B'])
               Column() {
                 Text('sysupgrade 标准备份格式，OpenWrt 24.x / 25.x 通用')
                   .fontSize(12).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
@@ -200,15 +201,21 @@ export struct ConfigBackupPage {
 
           // 备份卡
           Column() {
-            Text('⬇️ 备份当前配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
-              .width('100%')
+            Row() {
+              SymbolGlyph($r('sys.symbol.download')).fontSize(16).fontColor(['#3B82F6'])
+              Text(' 备份当前配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
+            }
+            .width('100%')
             Text('在路由器上打包配置并下载到手机')
               .fontSize(11).fontColor(this.theme.textTertiary).margin({ top: 4 }).width('100%')
 
             if (this.backupPath) {
               Row() {
                 Column() {
-                  Text('📦 已保存备份').fontSize(11).fontColor(this.theme.textSecondary)
+                  Row() {
+                    SymbolGlyph($r('sys.symbol.archivebox')).fontSize(12).fontColor(['#F59E0B'])
+                    Text(' 已保存备份').fontSize(11).fontColor(this.theme.textSecondary)
+                  }
                   Text(`${this.backupSize}`).fontSize(13).fontColor(this.theme.primary).fontWeight(FontWeight.Bold)
                     .margin({ top: 3 })
                 }
@@ -243,8 +250,11 @@ export struct ConfigBackupPage {
 
           // 恢复卡
           Column() {
-            Text('⬆️ 恢复配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
-              .width('100%')
+            Row() {
+              SymbolGlyph($r('sys.symbol.share')).fontSize(16).fontColor(['#F97316'])
+              Text(' 恢复配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
+            }
+            .width('100%')
             Text('选择备份文件上传并恢复（⚠️ 会重启设备）')
               .fontSize(11).fontColor('#FF5252').margin({ top: 4 }).width('100%')
 

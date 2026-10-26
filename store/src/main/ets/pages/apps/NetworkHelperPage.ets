@@ -6,6 +6,7 @@ import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { AiHelper, ChatMsg } from '../../common/ai/AiHelper'
 import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 
 const QUICK_QUESTIONS: string[] = [
   '谁在占带宽？',
@@ -18,7 +19,7 @@ const QUICK_QUESTIONS: string[] = [
 
 @Entry
 @Component
-struct NetworkHelperPage {
+export struct NetworkHelperPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
   @State messages: ChatMsg[] = []
@@ -95,8 +96,9 @@ struct NetworkHelperPage {
       } else {
         Column() {
           Row() {
-            Text('🌐')
-              .fontSize(16)
+            SymbolGlyph($r('sys.symbol.globe_badge_message'))
+              .fontSize(15)
+              .fontColor([this.theme.primary])
             Text(' 网络助手')
               .fontSize(10)
               .fontColor(this.theme.textTertiary)
@@ -135,7 +137,7 @@ struct NetworkHelperPage {
             .padding({ left: 4, right: 12, top: 2, bottom: 2 })
         }
         .onClick(() => {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         })
         Text('网络助手')
           .fontSize(17)

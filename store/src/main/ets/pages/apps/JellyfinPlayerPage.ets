@@ -8,6 +8,7 @@ import { JellyfinStore, JellyfinConfig } from '../../common/store/JellyfinStore'
 import { JellyfinClient, PlaybackInfo } from '../../api/JellyfinClient'
 import { common } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
@@ -79,7 +80,7 @@ struct JellyfinPlayerPage {
             .fontSize(13).fontColor('#FF6B6B').textAlign(TextAlign.Center)
             .padding({ left: 30, right: 30 })
           Text('返回').fontSize(14).fontColor(this.theme.primary).padding({ top: 16 })
-            .onClick(() => { this.getUIContext().getRouter().back() })
+            .onClick(() => { AppNav.getInstance().back() })
         }
         .width('100%').height('100%')
         .justifyContent(FlexAlign.Center)
@@ -108,7 +109,7 @@ struct JellyfinPlayerPage {
           .backgroundColor('rgba(0,0,0,0.45)')
           .borderRadius(20)
           .textAlign(TextAlign.Center)
-          .onClick(() => { this.getUIContext().getRouter().back() })
+          .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%')
       .padding({ left: 16, top: 36 })

@@ -12,6 +12,7 @@ import { JellyfinClient, JellyfinItem, JellyfinView } from '../../api/JellyfinCl
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppNav } from '../../common/utils/AppNav'
 
 const RECENT_ID: string = '__recent__'
 const CARD_GAP: number = 8
@@ -25,7 +26,7 @@ interface ChipTab {
 
 @Entry
 @Component
-struct JellyfinPage {
+export struct JellyfinPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
   @State topSafeArea: number = 44
   // 登录态
@@ -214,7 +215,7 @@ struct JellyfinPage {
         Text('‹')
           .fontSize(24).fontColor(this.theme.textPrimary)
           .padding({ left: 4, right: 12, top: 2, bottom: 2 })
-          .onClick(() => { this.getUIContext().getRouter().back() })
+          .onClick(() => { AppNav.getInstance().back() })
         Text('Jellyfin')
           .fontSize(17).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
         if (this.cfg) {

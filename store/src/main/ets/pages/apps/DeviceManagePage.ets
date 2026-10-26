@@ -5,10 +5,11 @@
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { DeviceTab } from '../dashboard/DeviceTab'
 import { window } from '@kit.ArkUI'
+import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
 @Component
-struct DeviceManagePage {
+export struct DeviceManagePage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
 
@@ -42,7 +43,7 @@ struct DeviceManagePage {
             .padding({ left: 4, right: 12, top: 2, bottom: 2 })
         }
         .onClick(() => {
-          this.getUIContext().getRouter().back()
+          AppNav.getInstance().back()
         })
         Text('设备管理')
           .fontSize(17)

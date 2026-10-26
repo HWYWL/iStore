@@ -38,13 +38,15 @@ export default class EntryFormAbility extends FormExtensionAbility {
         cpuUsage: snap.cpuUsage,
         memPercent: snap.memPercent,
         ip: snap.ip,
+        todayTraffic: snap.todayTraffic,
+        metric: WidgetDataStore.loadMetric(),
         widgetSize: dimension
       })
     } catch (e) {
       hilog.error(DOMAIN, TAG, `onAddForm err: ${JSON.stringify(e)}`)
       return formBindingData.createFormBindingData({
         rxRate: 0, txRate: 0, deviceCount: 0, online: false, deviceName: 'iStore 路由管家',
-        cpuUsage: 0, memPercent: 0, ip: '', widgetSize: '2*2'
+        cpuUsage: 0, memPercent: 0, ip: '', todayTraffic: 0, metric: 'speed', widgetSize: '2*2'
       })
     }
   }
@@ -68,6 +70,8 @@ export default class EntryFormAbility extends FormExtensionAbility {
           cpuUsage: snap.cpuUsage,
           memPercent: snap.memPercent,
           ip: snap.ip,
+          todayTraffic: snap.todayTraffic,
+          metric: WidgetDataStore.loadMetric(),
           widgetSize: dim
         })).catch((err: Error) => {
           hilog.error(DOMAIN, TAG, `updateForm err: ${err.message}`)
