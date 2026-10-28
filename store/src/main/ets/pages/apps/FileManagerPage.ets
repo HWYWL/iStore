@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FileManagerPage - OpenWrt 文件管理器
  * SSH 连接，浏览/查看/编辑/新建/重命名/删除/复制/移动/上传/下载
  */
@@ -20,6 +20,17 @@ import { AppNav } from '../../common/utils/AppNav'
 const DOMAIN = 0x0001
 
 @Entry
+@Component
+struct FileManagerPageRoute {
+  build() {
+    Column() {
+      FileManagerPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct FileManagerPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -84,7 +95,7 @@ export struct FileManagerPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }
@@ -464,7 +475,7 @@ export struct FileManagerPage {
   /** toast */
   toast(msg: string): void {
     try {
-      promptAction.showToast({ message: msg, duration: 2000 })
+      this.getUIContext().getPromptAction().showToast({ message: msg, duration: 2000 })
     } catch (e) {}
   }
 

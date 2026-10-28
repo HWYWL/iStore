@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RouterLevelPage - 路由器等级（Lv.1 新手上路 → Lv.99 网络之神）
  * 按使用天数 + 操作次数升级，数据存 FunStore
  */
@@ -15,6 +15,17 @@ const DOMAIN = 0x0001
 const TAG = 'RouterLevel'
 
 @Entry
+@Component
+struct RouterLevelPageRoute {
+  build() {
+    Column() {
+      RouterLevelPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct RouterLevelPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -110,7 +121,7 @@ export struct RouterLevelPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

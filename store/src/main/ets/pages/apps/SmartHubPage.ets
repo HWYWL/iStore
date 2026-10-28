@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SmartHubPage — 智能网络管家中心（v3 按小花创意设计稿重写）
  * 设计规范：prototype-smarthub.html / DesignSystemManifest-智能管家.md
  * 动画：曲线 stagger 生长 / 峰值环 sweep / 扫描光 / 状态灯脉冲 / 星空闪烁 / 时间线滑入 / 健康环滚动
@@ -46,6 +46,17 @@ interface DetectItem {
 }
 
 @Entry
+@Component
+struct SmartHubPageRoute {
+  build() {
+    Column() {
+      SmartHubPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct SmartHubPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
@@ -101,7 +112,7 @@ export struct SmartHubPage {
       if (ctx) {
         window.getLastWindow(ctx as common.Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }
@@ -324,7 +335,7 @@ export struct SmartHubPage {
     try {
       const api = ApiClient.getInstance()
       if (cmd.includes('重启')) {
-        promptAction.showDialog({
+        this.getUIContext().getPromptAction().showDialog({
           title: '重启路由器',
           message: '确定要重启吗？所有设备会短暂断网（约 1-2 分钟）。',
           buttons: [{ text: '取消', color: '#8A8378' }, { text: '重启', color: '#FF8A3D' }]

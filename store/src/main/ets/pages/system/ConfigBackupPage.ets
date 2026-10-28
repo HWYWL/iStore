@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ConfigBackupPage - 配置备份 / 恢复
  * sysupgrade -b 备份配置 → SFTP 下载到手机；本地备份 → 上传 → sysupgrade -r 恢复
  * OpenWrt 24.x / 25.x 的 sysupgrade -b/-r 均为标准命令，通用
@@ -21,6 +21,17 @@ const TAG = 'CfgBak'
 
 @Entry
 @Component
+struct ConfigBackupPageRoute {
+  build() {
+    Column() {
+      ConfigBackupPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
+@Component
 export struct ConfigBackupPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
@@ -42,7 +53,7 @@ export struct ConfigBackupPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SkinManagePage - 皮肤管理
  * 展示所有可用皮肤（SKINS 注册表），点击切换，全应用即时生效并持久化
  */
@@ -9,6 +9,17 @@ import { vibrator } from '@kit.SensorServiceKit'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct SkinManagePageRoute {
+  build() {
+    Column() {
+      SkinManagePage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct SkinManagePage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -34,7 +45,7 @@ export struct SkinManagePage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }
@@ -52,7 +63,9 @@ export struct SkinManagePage {
     try {
       vibrator.startVibration({ type: 'time', duration: 25 }, { id: 0, usage: 'alarm' }).catch(() => {})
     } catch (e) {}
-    promptAction.showToast({ message: `已切换为「${skin.name}」皮肤 ✨`, duration: 1200 })
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: `已切换为「${skin.name}」皮肤 ✨`, duration: 1200 })
+    } catch (e) {}
   }
 
   /** 皮肤预览卡片 */

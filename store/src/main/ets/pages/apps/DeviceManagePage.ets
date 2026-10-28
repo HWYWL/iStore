@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DeviceManagePage - 设备管理页（应用中心入口）
  * 原底部导航「设备」Tab 移入应用中心后的独立页面
  */
@@ -8,6 +8,17 @@ import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct DeviceManagePageRoute {
+  build() {
+    Column() {
+      DeviceManagePage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct DeviceManagePage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -23,7 +34,7 @@ export struct DeviceManagePage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }

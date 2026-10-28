@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WiFi 访客卡片
  * SSID 自动获取 + 密码手输 → 生成扫码连接卡片，可截图分享给访客
  */
@@ -10,6 +10,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct WifiCardPageRoute {
+  build() {
+    Column() {
+      WifiCardPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct WifiCardPage {
   @State theme: ThemePalette = LIGHT_THEME

@@ -1,4 +1,4 @@
-#include "SftpSession.h"
+﻿#include "SftpSession.h"
 #include "SshSession.h"
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -1957,8 +1957,8 @@ void SftpSession::requestCancel() {
 
 // --- 新增：keepAliveThread方法实现 ---
 void SftpSession::keepAliveThread() {
-    auto threadId = std::this_thread::get_id();
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][SFTP Session %{public}d] keepAliveThread 开始执行", threadId, sessionId.load());
+    const size_t threadId = std::hash<std::thread::id>{}(std::this_thread::get_id());
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][SFTP Session %{public}d] keepAliveThread 开始执行", threadId, sessionId.load());
     
     // 确保间隔大于0
     if (config.keepAliveInterval <= 0) {
@@ -2016,8 +2016,8 @@ void SftpSession::keepAliveThread() {
         
         // 每5分钟记录一次日志（避免日志过多）
         if (elapsedSeconds % 300 == 0) {
-            OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][SFTP Session %{public}d] keepAliveThread 已运行 %{public}ld 秒", 
-                       threadId, sessionId.load(), elapsedSeconds);
+            OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][SFTP Session %{public}d] keepAliveThread 已运行 %{public}ld 秒", 
+                       threadId, sessionId.load(), (long)elapsedSeconds);
         }
         
         // 使用libssh2返回的next_time作为实际休眠时间
@@ -2043,6 +2043,6 @@ void SftpSession::keepAliveThread() {
         }
     }
     
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][SFTP Session %{public}d] keepAliveThread 正常退出", threadId, sessionId.load());
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][SFTP Session %{public}d] keepAliveThread 正常退出", threadId, sessionId.load());
 }
 // --- 新增结束 ---

@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ConnectedDevice } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
@@ -18,6 +18,17 @@ class IpRank {
 }
 
 @Entry
+@Component
+struct ConntrackRankPageRoute {
+  build() {
+    Column() {
+      ConntrackRankPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct ConntrackRankPage {
   @State theme: ThemePalette = LIGHT_THEME

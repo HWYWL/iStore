@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 运行里程碑页
  * 展示路由器连续运行天数、App 使用天数，里程碑达成撒花庆祝
  */
@@ -12,6 +12,17 @@ import { AppNav } from '../../common/utils/AppNav'
 const MILESTONES: number[] = [1, 7, 30, 100, 365]
 
 @Entry
+@Component
+struct MileStonePageRoute {
+  build() {
+    Column() {
+      MileStonePage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct MileStonePage {
   @State theme: ThemePalette = LIGHT_THEME

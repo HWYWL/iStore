@@ -1,7 +1,7 @@
 {
-  "version": "3.4.1",
-  "versionCode": 3,
-  "description": "移除本地AI，修复流量统计，优化底部导航栏",
-  "releaseDate": "2026-10-24",
+  "version": "3.4.2",
+  "versionCode": 4,
+  "description": "修复部分路由器 SSH 连接崩溃，优化网络拓扑与设备外号",
+  "releaseDate": "2026-10-28",
   "downloadUrl": "https://github.com/HWYWL/iStore/releases"
 }

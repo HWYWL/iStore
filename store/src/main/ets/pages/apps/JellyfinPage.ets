@@ -1,4 +1,4 @@
-/**
+﻿/**
  * JellyfinPage — Jellyfin 媒体首页（对齐 MaFei dev 分支视觉）
  * 结构：chip 横向选择器（最近添加 + 媒体库）→ 3 列海报网格
  * 副标题规则（MaFei 同款）：
@@ -25,6 +25,17 @@ interface ChipTab {
 }
 
 @Entry
+@Component
+struct JellyfinPageRoute {
+  build() {
+    Column() {
+      JellyfinPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct JellyfinPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
@@ -61,7 +72,7 @@ export struct JellyfinPage {
       if (ctx) {
         window.getLastWindow(ctx as common.Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

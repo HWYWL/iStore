@@ -69,6 +69,9 @@ export function encrypt(plain: string): string {
   if (plain.startsWith('enc:')) {
     return plain
   }
+  if (!canIUse('SystemCapability.Security.CryptoFramework')) {
+    return plain
+  }
   try {
     const gen = cryptoFramework.createSymKeyGenerator('AES128')
     const key = gen.convertKeySync(toBlob(KEY_BYTES))
@@ -96,6 +99,9 @@ export function encrypt(plain: string): string {
 export function decrypt(encoded: string): string {
   if (!encoded) return ''
   if (!encoded.startsWith('enc:')) {
+    return encoded
+  }
+  if (!canIUse('SystemCapability.Security.CryptoFramework')) {
     return encoded
   }
   try {

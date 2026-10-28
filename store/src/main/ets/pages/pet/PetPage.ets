@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PetPage — 小管家宠物养成（路由器拟人，按 HTML 原型完整还原）
  * 动画：bob 浮动 / 云漂移 / 太阳旋转 / 星光闪烁 / 喂食跳跃+粒子 / 摸头倾斜+爱心 / 升级爆发
  */
@@ -31,6 +31,18 @@ interface Spark {
   x: number
   y: number
   delay: number
+}
+
+@Entry
+@Component
+struct PetPageRoute {
+  build() {
+    Column() {
+      PetPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
 }
 
 @Component
@@ -66,11 +78,11 @@ export struct PetView {
       this.bobY = this.bobY === 0 ? -9 : 0
     }, 1100)
     // 云漂移
-    animateTo({
+    this.getUIContext().animateTo({
       duration: 9000, iterations: -1, playMode: PlayMode.Alternate, curve: Curve.EaseInOut
     }, () => { this.cloudX1 = 24 })
     // 太阳光晕（Alternate 往返旋转模拟脉动）
-    animateTo({
+    this.getUIContext().animateTo({
       duration: 3000, iterations: -1, playMode: PlayMode.Alternate, curve: Curve.EaseInOut
     }, () => { this.sunAngle = 24 })
     // 星光闪烁
@@ -78,7 +90,7 @@ export struct PetView {
     this.sparksAlpha = sparks
     for (let i = 0; i < sparks.length; i++) {
       const delay: number = 400 + i * 260
-      animateTo({
+      this.getUIContext().animateTo({
         duration: 1400, delay: delay, iterations: -1, playMode: PlayMode.Alternate, curve: Curve.EaseInOut
       }, () => {
         const next: number[] = this.sparksAlpha.slice()
@@ -130,7 +142,9 @@ export struct PetView {
     setTimeout(() => { this.jumping = false }, 650)
     this.spawnParticles(['🍚', '✨', '💛', '🍙', '⭐'], 8)
     this.moodText = '吃得好饱，嗝～ 谢谢你'
-    promptAction.showToast({ message: '饱食度 +15', duration: 1200 })
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: '饱食度 +15', duration: 1200 })
+    } catch (e) {}
   }
 
   /** 摸摸头：心情+10 倾斜+爱心 */
@@ -140,7 +154,9 @@ export struct PetView {
     setTimeout(() => { this.tilting = false }, 500)
     this.spawnParticles(['💗', '🩷', '✨', '❤️'], 7)
     this.refreshMoodText()
-    promptAction.showToast({ message: '心情 +10 💗', duration: 1200 })
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: '心情 +10 💗', duration: 1200 })
+    } catch (e) {}
   }
 
   /** 换装扮：粒子 + 关闭 */
@@ -567,7 +583,6 @@ export struct PetView {
 }
 
 /** 独立路由页（应用中心进入，也可作为组件挂到宽屏应用面板） */
-@Entry
 @Component
 export struct PetPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()

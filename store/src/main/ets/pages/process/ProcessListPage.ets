@@ -1,4 +1,4 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 /**
  * 系统进程列表页面
  * 展示路由器运行中的进程，支持点击展开查看详情
@@ -12,6 +12,17 @@ import { AppNav } from '../../common/utils/AppNav'
 import { Poller } from '../../common/utils/Poller'
 
 @Entry
+@Component
+struct ProcessListPageRoute {
+  build() {
+    Column() {
+      ProcessListPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct ProcessListPage {
   @State theme: ThemePalette = LIGHT_THEME

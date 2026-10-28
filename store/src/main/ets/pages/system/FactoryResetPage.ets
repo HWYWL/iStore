@@ -1,4 +1,4 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 /**
  * 恢复出厂设置页面
  * 调用路由器 API 执行恢复出厂设置，操作前需二次确认
@@ -10,6 +10,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct FactoryResetPageRoute {
+  build() {
+    Column() {
+      FactoryResetPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct FactoryResetPage {
   @State theme: ThemePalette = LIGHT_THEME

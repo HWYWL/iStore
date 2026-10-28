@@ -1,4 +1,4 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 /**
  * 系统启动项页面
  * 展示路由器开机自启的服务列表及其启用状态
@@ -10,6 +10,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct StartupPageRoute {
+  build() {
+    Column() {
+      StartupPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct StartupPage {
   @State theme: ThemePalette = LIGHT_THEME

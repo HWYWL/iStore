@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import {ThemePalette} from '../../common/theme/ThemeColors'
 import { DockerOverview, DockerContainer, DockerStats, DockerImage, DockerNetwork } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
@@ -745,7 +745,7 @@ export struct DockerTab {
       .width('100%').padding({ left: 16, right: 16, bottom: AppState.getInstance().getBottomNavInset() })
       }
       .width('100%').height('100%').scrollBar(BarState.Off)
-      .onScroll((_x: number, y: number) => {
+      .onDidScroll((y: number, _state: ScrollState) => {
         const diff = y - this.lastScrollY
         this.lastScrollY = y
         if (diff > 10 && y > 120) {

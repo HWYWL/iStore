@@ -1,4 +1,4 @@
-#include "SshSession.h"
+﻿#include "SshSession.h"
 #include <numeric>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -499,7 +499,24 @@ bool SshSession::openConnect(const std::string& napiInput) {
         }
     }
 
-    userAuthList = libssh2_userauth_list(session.get(), SessionAnalyseHandle->userName, (unsigned int)strlen(SessionAnalyseHandle->userName));
+    if (ret != 0) {
+        char* hsErr = nullptr;
+        int hsErrLen = 0;
+        libssh2_session_last_error(session.get(), &hsErr, &hsErrLen, 0);
+        OH_LOG_ERROR(LOG_APP, "SSH 握手失败: code=%{public}d (%{public}s)", ret, hsErr ? hsErr : "N/A");
+        return false;
+    }
+
+    // libssh2_userauth_list 在会话异常或服务器未返回认证方式时返回 NULL，
+    // 直接赋值给 std::string 会触发 strlen(nullptr) 崩溃（ImmortalWrt/dropbear 上复现）
+    const char* authMethods = libssh2_userauth_list(session.get(), SessionAnalyseHandle->userName,
+                                                    (unsigned int)strlen(SessionAnalyseHandle->userName));
+    if (authMethods == nullptr) {
+        int authErr = libssh2_session_last_errno(session.get());
+        OH_LOG_ERROR(LOG_APP, "获取认证方式失败: libssh2 errno=%{public}d", authErr);
+        return false;
+    }
+    userAuthList = authMethods;
     if (!userAuthList.empty()) {
         // 根据前端配置的认证方式选择认证方法
         if (SessionAnalyseHandle->authType == AUTH_PASSWORD) {
@@ -791,9 +808,9 @@ bool SshSession::sendData(const std::string& command) {
 }
 
 void SshSession::receiveData() {
-    auto threadId = std::this_thread::get_id();
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData 开始执行 (v13 - 增加初始化日志)", threadId, sessionId); // 添加 sessionId
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Initial logManagerInitialized = %{public}d", threadId, sessionId, logManagerInitialized.load()); // 添加日志：记录初始 logManagerInitialized
+    const size_t threadId = std::hash<std::thread::id>{}(std::this_thread::get_id());
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData 开始执行 (v13 - 增加初始化日志)", threadId, sessionId); // 添加 sessionId
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Initial logManagerInitialized = %{public}d", threadId, sessionId, logManagerInitialized.load()); // 添加日志：记录初始 logManagerInitialized
 
     // --- Define the lines/strings to filter out ---
     // NOTE: Adjust these strings precisely based on what you see in YOUR terminal
@@ -814,7 +831,7 @@ void SshSession::receiveData() {
 
     // --- Initial non-blocking read (unchanged from previous version) ---
     bool initial_data_processed = false;
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Attempting initial non-blocking read...", threadId);
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Attempting initial non-blocking read...", threadId);
     {
         std::lock_guard<std::recursive_mutex> lock(libssh2Mutex);
         if (session && channelShell) {
@@ -823,17 +840,17 @@ void SshSession::receiveData() {
             libssh2_channel_set_blocking(channelShell.get(), 1);
 
             // --- 添加详细的首次读取日志 ---
-            OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Initial read result n = %zd", threadId, sessionId, n);
+            OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Initial read result n = %zd", threadId, sessionId, n);
             // -----------------------------
 
             if (n > 0) {
                 buffer[n] = '\0';
                 std::string initial_received_data(buffer, n);
-                OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Initial data received (first 50 chars): %{public}.50s", threadId, sessionId, initial_received_data.c_str()); // 打印部分初始数据
+                OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Initial data received (first 50 chars): %{public}.50s", threadId, sessionId, initial_received_data.c_str()); // 打印部分初始数据
 
                 // --- 新增：检查是否在配置 Shell ---
                 if (isConfiguringShell.load()) {
-                    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Discarding initial data received during shell configuration (%zd bytes).", threadId, sessionId, n);
+                    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Discarding initial data received during shell configuration (%zd bytes).", threadId, sessionId, n);
                     initial_data_processed = true; // 标记为已处理，避免后续逻辑误判
                     // 直接跳出 if (n > 0) 的处理，因为首次读取只执行一次
                 } else {
@@ -844,7 +861,7 @@ void SshSession::receiveData() {
                     for (const auto& filter_str : lines_to_filter) {
                         // Check if the data CONTAINS the filter string. Adjust if needed (e.g., check start/end)
                         if (initial_received_data.find(filter_str) != std::string::npos) {
-                            OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Initial read data contains filter string: '%s'. Filtering out.", threadId, sessionId, filter_str.c_str());
+                            OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Initial read data contains filter string: '%s'. Filtering out.", threadId, sessionId, filter_str.c_str());
                             initial_should_filter = true;
                             break;
                         }
@@ -852,24 +869,24 @@ void SshSession::receiveData() {
                     // --------------------------------------
 
                     if (!initial_should_filter) {
-                        OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Initial read successful (%zd bytes). Buffering/Processing...", threadId, sessionId, n);
+                        OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Initial read successful (%zd bytes). Buffering/Processing...", threadId, sessionId, n);
                         if (followTerminalDirectory) {
                             parseOSC7Sequence(initial_received_data); // Use the string version
                         }
                         if (!logManagerInitialized.load()) {
-                            OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: logManager not initialized, appending to initialBuffer.", threadId, sessionId); // 记录缓冲行为
+                            OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: logManager not initialized, appending to initialBuffer.", threadId, sessionId); // 记录缓冲行为
                             std::lock_guard<std::mutex> bufferLock(bufferMutex);
                             if (initialBuffer.length() + n < MAX_INITIAL_BUFFER_SIZE) {
                                 initialBuffer.append(buffer, n);
-                                OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Appended initial data to buffer. Buffer size: %zu", threadId, sessionId, initialBuffer.length());
+                                OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Appended initial data to buffer. Buffer size: %zu", threadId, sessionId, initialBuffer.length());
                             } else {
-                                OH_LOG_WARN(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Initial buffer full, dropping initial data.", threadId, sessionId);
+                                OH_LOG_WARN(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Initial buffer full, dropping initial data.", threadId, sessionId);
                             }
                         } else {
-                            OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: logManager initialized, writing to logManager.", threadId, sessionId); // 记录写日志行为
+                            OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: logManager initialized, writing to logManager.", threadId, sessionId); // 记录写日志行为
                             logManager.writeLog(buffer, n);
                         }
-                        OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Calling pendingCallData for initial data.", threadId, sessionId); // 记录调用回调
+                        OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Calling pendingCallData for initial data.", threadId, sessionId); // 记录调用回调
                         pendingCallData(buffer, false); // Send to UI
                         {
                             std::lock_guard<std::mutex> status_lock(statusMutex);
@@ -877,7 +894,7 @@ void SshSession::receiveData() {
                         }
                         initial_data_processed = true;
                     } else {
-                         OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] receiveData: Initial read data was filtered out.", threadId, sessionId);
+                         OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] receiveData: Initial read data was filtered out.", threadId, sessionId);
                          // Still mark as processed so we don't treat it as an error/EOF
                          initial_data_processed = true;
                     }
@@ -885,20 +902,20 @@ void SshSession::receiveData() {
                 } // --- 新增 else 块结束 ---
 
             } else if (n == 0) {
-                 OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Initial read returned 0 (EOF).", threadId);
+                 OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Initial read returned 0 (EOF).", threadId);
                  should_exit = true;
             } else {
                  read_errno = libssh2_session_last_errno(session.get());
                  // 初次读无数据/瞬时错误属正常（会话刚建立，可能无输出待读）
                  // 不标记退出——继续主循环，waitSocket 会等待真实数据
-                 OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Initial read returned %{public}zd (errno=%{public}d), continuing to main loop.", threadId, n, read_errno);
+                 OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Initial read returned %{public}zd (errno=%{public}d), continuing to main loop.", threadId, n, read_errno);
             }
         } else {
-            OH_LOG_WARN(LOG_APP, "[Thread %{public}ld] receiveData: Session/Channel invalid before initial read.", threadId);
+            OH_LOG_WARN(LOG_APP, "[Thread %{public}zu] receiveData: Session/Channel invalid before initial read.", threadId);
             should_exit = true;
         }
     }
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Initial read attempt finished.", threadId);
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Initial read attempt finished.", threadId);
 
 
     // --- 主接收循环 ---
@@ -912,13 +929,13 @@ void SshSession::receiveData() {
         {
             std::lock_guard<std::recursive_mutex> lock(libssh2Mutex);
             if (!session || !channelShell) {
-                OH_LOG_ERROR(LOG_APP, "[Thread %{public}ld] receiveData: 会话或通道已无效.", threadId);
+                OH_LOG_ERROR(LOG_APP, "[Thread %{public}zu] receiveData: 会话或通道已无效.", threadId);
                 channel_valid = false;
                 should_exit = true;
             }
         }
         if (!channel_valid) {
-            OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Channel invalid, breaking loop.", threadId);
+            OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Channel invalid, breaking loop.", threadId);
             break;
         }
 
@@ -927,7 +944,7 @@ void SshSession::receiveData() {
 
         if (ws_rc < 0) {
             read_errno = errno;
-            OH_LOG_ERROR(LOG_APP, "[Thread %{public}ld] receiveData: waitSocket error (%d: %s)，标记退出", threadId, read_errno, strerror(read_errno));
+            OH_LOG_ERROR(LOG_APP, "[Thread %{public}zu] receiveData: waitSocket error (%d: %s)，标记退出", threadId, read_errno, strerror(read_errno));
             should_exit = true;
         } else if (ws_rc > 0) {
             // 3. Attempt read (unchanged, includes try-catch)
@@ -935,7 +952,7 @@ void SshSession::receiveData() {
                 std::lock_guard<std::recursive_mutex> lock(libssh2Mutex);
                 try {
                     if (!channelShell) {
-                         OH_LOG_WARN(LOG_APP, "[Thread %{public}ld] receiveData: channelShell became null before read attempt.", threadId);
+                         OH_LOG_WARN(LOG_APP, "[Thread %{public}zu] receiveData: channelShell became null before read attempt.", threadId);
                          n = -1; read_errno = -999;
                     } else {
                        // --- 设置为非阻塞读 ---
@@ -949,10 +966,10 @@ void SshSession::receiveData() {
                        }
                     }
                 } catch (const std::exception& e) {
-                    OH_LOG_ERROR(LOG_APP, "[Thread %{public}ld] receiveData: Exception during read: %{public}s", threadId, e.what());
+                    OH_LOG_ERROR(LOG_APP, "[Thread %{public}zu] receiveData: Exception during read: %{public}s", threadId, e.what());
                     n = -1; read_errno = -998;
                 } catch (...) {
-                    OH_LOG_ERROR(LOG_APP, "[Thread %{public}ld] receiveData: Unknown exception during read", threadId);
+                    OH_LOG_ERROR(LOG_APP, "[Thread %{public}zu] receiveData: Unknown exception during read", threadId);
                     n = -1; read_errno = -997;
                 }
             }
@@ -965,7 +982,7 @@ void SshSession::receiveData() {
 
                 // --- 新增：检查是否在配置 Shell ---
                 if (isConfiguringShell.load()) {
-                    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Discarding data received during shell configuration (%zd bytes).", threadId, n);
+                    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Discarding data received during shell configuration (%zd bytes).", threadId, n);
                     continue; // 直接跳到下一次循环，丢弃此数据块
                 }
                 // -------------------------------
@@ -979,7 +996,7 @@ void SshSession::receiveData() {
                     // You might need a more sophisticated check depending on your exact output.
                     // For example, checking if the line *ends* with `stty -echo` after stripping whitespace.
                     if (received_data.find(filter_str) != std::string::npos) {
-                        OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Data contains filter string: '%s'. Filtering out.", threadId, filter_str.c_str());
+                        OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Data contains filter string: '%s'. Filtering out.", threadId, filter_str.c_str());
                         should_filter = true;
                         break; // Found a match, no need to check others for this block
                     }
@@ -997,9 +1014,9 @@ void SshSession::receiveData() {
                          if (!logManagerInitialized.load()) {
                              if (initialBuffer.length() + n < MAX_INITIAL_BUFFER_SIZE) {
                                  initialBuffer.append(buffer, n);
-                                 // OH_LOG_DEBUG(LOG_APP, "[Thread %{public}ld] receiveData: Appended data to buffer. Buffer size: %zu", threadId, initialBuffer.length());
+                                 // OH_LOG_DEBUG(LOG_APP, "[Thread %{public}zu] receiveData: Appended data to buffer. Buffer size: %zu", threadId, initialBuffer.length());
                              } else {
-                                  OH_LOG_WARN(LOG_APP, "[Thread %{public}ld] receiveData: Initial buffer full, dropping data.", threadId);
+                                  OH_LOG_WARN(LOG_APP, "[Thread %{public}zu] receiveData: Initial buffer full, dropping data.", threadId);
                              }
                          } else {
                             logManager.writeLog(buffer, n);
@@ -1016,18 +1033,18 @@ void SshSession::receiveData() {
                     }
                 } else {
                     // Data was filtered out, do nothing (or just log)
-                    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Data filtered out.", threadId);
+                    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Data filtered out.", threadId);
                 }
                 // -------------------------------------------------
                 continue; // Continue loop immediately after processing/filtering
             } else if (n == 0) {
                 // EOF (unchanged)
-                OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Read 0 bytes -> Channel EOF detected，标记退出", threadId);
+                OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Read 0 bytes -> Channel EOF detected，标记退出", threadId);
                 should_exit = true;
             } else { // n < 0
                 // Read error：瞬时错误不立即断开（dropbear 首包延迟常见），连续失败才退出
                 if (read_errno != LIBSSH2_ERROR_EAGAIN) {
-                    OH_LOG_ERROR(LOG_APP, "[Thread %{public}ld] receiveData: Non-EAGAIN read error (errno=%{public}d), retrying...", threadId, read_errno);
+                    OH_LOG_ERROR(LOG_APP, "[Thread %{public}zu] receiveData: Non-EAGAIN read error (errno=%{public}d), retrying...", threadId, read_errno);
                     readErrorCount++;
                     if (readErrorCount > 20) {
                         should_exit = true;
@@ -1045,7 +1062,7 @@ void SshSession::receiveData() {
 
     } // while loop end
 
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData 循环最终结束 (should_exit=%d)", threadId, should_exit);
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData 循环最终结束 (should_exit=%d)", threadId, should_exit);
 
     // --- 5. Post-loop processing (unchanged) ---
     bool notify_needed = false;
@@ -1057,9 +1074,9 @@ void SshSession::receiveData() {
                status = SessionStatus::DISCONNECTED;
                notify_needed = true;
                cleanup_needed = true; // <<< Mark for cleanup
-               OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData 设置状态为 DISCONNECTED，标记需要清理", threadId);
+               OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData 设置状态为 DISCONNECTED，标记需要清理", threadId);
             } else if (stopThread.load()) {
-               OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData 循环因外部停止而结束.", threadId);
+               OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData 循环因外部停止而结束.", threadId);
                // External stop via disconnect() or destructor will handle cleanup
             }
         }
@@ -1067,30 +1084,30 @@ void SshSession::receiveData() {
 
     // --- Perform cleanup if marked ---
     if (cleanup_needed) {
-        OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Triggering cleanup for SFTP and Port Forward due to unexpected disconnect...", threadId);
+        OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Triggering cleanup for SFTP and Port Forward due to unexpected disconnect...", threadId);
         // Use recursive mutex as these might call back into libssh2 functions
         std::lock_guard<std::recursive_mutex> sshLock(libssh2Mutex);
         try {
             // Reset SFTP sessions (calls their destructors)
             if (interactiveSftpSession) {
-                OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Resetting interactive SFTP session.", threadId);
+                OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Resetting interactive SFTP session.", threadId);
                 interactiveSftpSession.reset();
             }
             if (transferSftpSession) {
-                OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Resetting transfer SFTP session.", threadId);
+                OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Resetting transfer SFTP session.", threadId);
                 transferSftpSession.reset();
             }
             // Disconnect Port Forwarding session
             if (portForward) {
-                 OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: Calling portForward->disconnectSession().", threadId);
+                 OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: Calling portForward->disconnectSession().", threadId);
                  portForward->disconnectSession(); // Call the explicit disconnect
                  // We don't reset portForward here, its destructor handles full cleanup later
             }
-            OH_LOG_INFO(LOG_APP, "[Thread %{public}ld] receiveData: SFTP and Port Forward cleanup calls completed.", threadId);
+            OH_LOG_INFO(LOG_APP, "[Thread %{public}zu] receiveData: SFTP and Port Forward cleanup calls completed.", threadId);
         } catch (const std::exception& e) {
-             OH_LOG_ERROR(LOG_APP, "[Thread %{public}ld] receiveData: Exception during SFTP/PF cleanup: %{public}s", threadId, e.what());
+             OH_LOG_ERROR(LOG_APP, "[Thread %{public}zu] receiveData: Exception during SFTP/PF cleanup: %{public}s", threadId, e.what());
         } catch (...) {
-             OH_LOG_ERROR(LOG_APP, "[Thread %{public}ld] receiveData: Unknown exception during SFTP/PF cleanup", threadId);
+             OH_LOG_ERROR(LOG_APP, "[Thread %{public}zu] receiveData: Unknown exception during SFTP/PF cleanup", threadId);
         }
     }
     // --------------------------------
@@ -1160,8 +1177,8 @@ void SshSession::callBackSendData() {
 
 // --- 新增：keepAliveThread方法实现 ---
 void SshSession::keepAliveThread() {
-    auto threadId = std::this_thread::get_id();
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] keepAliveThread 开始执行", threadId, sessionId);
+    const size_t threadId = std::hash<std::thread::id>{}(std::this_thread::get_id());
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] keepAliveThread 开始执行", threadId, sessionId);
     
     // 确保间隔大于0
     if (keepAliveInterval <= 0) {
@@ -1219,8 +1236,8 @@ void SshSession::keepAliveThread() {
         
         // 每5分钟记录一次日志（避免日志过多）
         if (elapsedSeconds % 300 == 0) {
-            OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] keepAliveThread 已运行 %{public}ld 秒", 
-                       threadId, sessionId, elapsedSeconds);
+            OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] keepAliveThread 已运行 %{public}ld 秒", 
+                       threadId, sessionId, (long)elapsedSeconds);
         }
         
         // 使用libssh2返回的next_time作为实际休眠时间
@@ -1246,7 +1263,7 @@ void SshSession::keepAliveThread() {
         }
     }
     
-    OH_LOG_INFO(LOG_APP, "[Thread %{public}ld][Session %{public}d] keepAliveThread 正常退出", threadId, sessionId);
+    OH_LOG_INFO(LOG_APP, "[Thread %{public}zu][Session %{public}d] keepAliveThread 正常退出", threadId, sessionId);
 }
 // --- 新增结束 ---
 

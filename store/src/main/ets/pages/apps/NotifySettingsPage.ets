@@ -1,9 +1,10 @@
-/**
+﻿/**
  * NotifySettingsPage - 智能通知设置页
  * 开关：总开关 / 断网告警 / 新设备接入提醒
  * 请求系统通知权限，说明检测机制
  */
 import { notificationManager } from '@kit.NotificationKit'
+import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
@@ -12,6 +13,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct NotifySettingsPageRoute {
+  build() {
+    Column() {
+      NotifySettingsPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct NotifySettingsPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -60,7 +72,7 @@ this.theme = AppState.getInstance().getTheme()
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }
@@ -83,7 +95,8 @@ this.theme = AppState.getInstance().getTheme()
   /** 请求通知权限 */
   async requestNotifyPermission(): Promise<void> {
     try {
-      await notificationManager.requestEnableNotification()
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext
+      await notificationManager.requestEnableNotification(ctx)
       this.checkNotifyPermission()
     } catch (e) {
       hilog.error(0x0001, 'NotifySettingsPage', `requestEnableNotification err: ${JSON.stringify(e)}`)

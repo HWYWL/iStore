@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AI 网络周报
  * 汇总近 7 天流量 + 设备活跃，生成趣味周报（本地规则引擎拼装）
  */
@@ -12,6 +12,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct NetworkReportPageRoute {
+  build() {
+    Column() {
+      NetworkReportPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct NetworkReportPage {
   @State theme: ThemePalette = LIGHT_THEME

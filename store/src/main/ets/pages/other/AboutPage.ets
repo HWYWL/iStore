@@ -1,4 +1,4 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
@@ -14,6 +14,17 @@ const PROJECT_URL = 'https://github.com/HWYWL/iStore'
 const QQ_GROUP = '1101685827'
 
 @Entry
+@Component
+struct AboutPageRoute {
+  build() {
+    Column() {
+      AboutPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct AboutPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -40,7 +51,7 @@ export struct AboutPage {
 
   private showCopyToast(): void {
     try {
-      promptAction.showToast({
+      this.getUIContext().getPromptAction().showToast({
         message: '复制成功',
         duration: 1500
       })

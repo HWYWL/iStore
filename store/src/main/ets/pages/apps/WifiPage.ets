@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { WifiApInfo, WifiClientDetail } from '../../models/Models'
@@ -7,6 +7,17 @@ import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct WifiPageRoute {
+  build() {
+    Column() {
+      WifiPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct WifiPage {
   @State theme: ThemePalette = LIGHT_THEME

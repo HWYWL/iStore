@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 今日网络运势
  * 每日一次占卜：结合真实数据（温度/负载/时间）生成宜忌与运势等级
  */
@@ -23,6 +23,17 @@ const BAD_JI: string[] = [
 ]
 
 @Entry
+@Component
+struct FortunePageRoute {
+  build() {
+    Column() {
+      FortunePage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct FortunePage {
   @State theme: ThemePalette = LIGHT_THEME

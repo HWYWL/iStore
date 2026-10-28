@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ConnectedDevice } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
@@ -8,6 +8,17 @@ import { AppNav } from '../../common/utils/AppNav'
 import { Poller } from '../../common/utils/Poller'
 
 @Entry
+@Component
+struct TrafficRankPageRoute {
+  build() {
+    Column() {
+      TrafficRankPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct TrafficRankPage {
   @State theme: ThemePalette = LIGHT_THEME

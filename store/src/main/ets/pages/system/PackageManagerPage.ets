@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PackageManagerPage - 软件包管理
  * 自动检测包管理器：OpenWrt 24.x 用 opkg，25.x 用 apk
  * 支持已装列表 / 搜索安装 / 卸载
@@ -20,6 +20,17 @@ interface PkgItem {
 
 @Entry
 @Component
+struct PackageManagerPageRoute {
+  build() {
+    Column() {
+      PackageManagerPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
+@Component
 export struct PackageManagerPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
@@ -31,6 +42,8 @@ export struct PackageManagerPage {
   @State statusMsg: string = ''
   @State newPkg: string = ''
   @State filtered: string = ''
+  @State detecting: boolean = true  // 检测进行中
+  @State sshFailed: boolean = false // SSH 不可用（区别于「没有包管理器」）
   private ssh: SshService = SshService.getInstance()
   private sshTried: boolean = false
 
@@ -46,37 +59,59 @@ export struct PackageManagerPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }
     } catch (e) {}
   }
 
-  private async sshExec(cmd: string): Promise<string> {
+  /** 执行命令；返回 null 表示 SSH 通道不可用（与「命令无输出」区分开） */
+  private async sshExec(cmd: string): Promise<string | null> {
     try {
       if (!this.ssh.isConnected()) {
-        if (this.sshTried) return ''
+        if (this.sshTried) return null
         this.sshTried = true
         const device = AppState.getInstance().getActiveDevice()
-        if (!device || !device.username || !device.password) return ''
+        if (!device || !device.username || !device.password) return null
         const ok: boolean = await this.ssh.connect(device)
-        if (!ok) return ''
+        if (!ok) return null
       }
       return await this.ssh.exec(cmd)
     } catch (e) {
       hilog.error(DOMAIN, TAG, `ssh err: ${String(e)}`)
-      return ''
+      return null
     }
+  }
+
+  /** 给命令加超时，避免页面一直停在「检测中」 */
+  private async withTimeout(cmd: string, ms: number): Promise<string | null> {
+    const timeout: Promise<string | null> = new Promise<string | null>((resolve) => {
+      setTimeout(() => resolve(null), ms)
+    })
+    return await Promise.race<string | null>([this.sshExec(cmd), timeout])
   }
 
   /** 检测包管理器与系统版本（OpenWrt 24.x = opkg，25.x = apk） */
   private async detect(): Promise<void> {
+    this.detecting = true
+    this.sshFailed = false
     this.statusMsg = '正在检测包管理器...'
-    const verOut: string = await this.sshExec("cat /etc/openwrt_release 2>/dev/null | grep DISTRIB_RELEASE | cut -d\\' -f2")
+    const verOut: string | null = await this.withTimeout(
+      "cat /etc/openwrt_release 2>/dev/null | grep DISTRIB_RELEASE | cut -d\\' -f2", 8000)
+    if (verOut === null) {
+      this.failDetect()
+      return
+    }
     this.osVer = verOut.trim()
-    const mgr: string = await this.sshExec('command -v apk >/dev/null 2>&1 && echo apk || echo opkg')
+    const mgr: string | null = await this.withTimeout(
+      'command -v apk >/dev/null 2>&1 && echo apk || command -v opkg >/dev/null 2>&1 && echo opkg', 8000)
+    if (mgr === null) {
+      this.failDetect()
+      return
+    }
     this.pkgMgr = mgr.trim()
+    this.detecting = false
     if (this.pkgMgr !== 'apk' && this.pkgMgr !== 'opkg') {
       this.pkgMgr = ''
       this.statusMsg = '⚠️ 未检测到 opkg / apk 包管理器'
@@ -86,14 +121,37 @@ export struct PackageManagerPage {
     this.loadList()
   }
 
+  private failDetect(): void {
+    this.detecting = false
+    this.sshFailed = true
+    this.pkgMgr = ''
+    const detail: string = this.ssh.lastError
+    this.statusMsg = detail
+      ? `⚠️ ${detail}`
+      : '⚠️ 无法通过 SSH 连接路由器，请检查 SSH 服务是否开启（默认端口 22）以及防火墙是否放行'
+  }
+
+  /** 重试检测（重置本次会话标记，允许重新建连） */
+  private retryDetect(): void {
+    this.pkgs = []
+    this.osVer = ''
+    this.sshTried = false
+    this.detect()
+  }
+
   /** 加载已安装列表 */
   private async loadList(): Promise<void> {
     if (this.loading) return
     this.loading = true
     // opkg list-installed 输出「name - version - desc」；apk info 输出「name-x.y.z」
-    const out: string = this.pkgMgr === 'apk'
-      ? await this.sshExec('apk info 2>/dev/null')
-      : await this.sshExec('opkg list-installed 2>/dev/null')
+    const out: string | null = this.pkgMgr === 'apk'
+      ? await this.withTimeout('apk info 2>/dev/null', 20000)
+      : await this.withTimeout('opkg list-installed 2>/dev/null', 20000)
+    if (out === null) {
+      this.loading = false
+      this.failDetect()
+      return
+    }
     const items: PkgItem[] = []
     if (out) {
       const lines: string[] = out.split('\n')
@@ -127,7 +185,7 @@ export struct PackageManagerPage {
     const name: string = this.newPkg.trim()
     if (!name || this.busy) return
     try {
-      promptAction.showDialog({
+      this.getUIContext().getPromptAction().showDialog({
         title: `安装 ${name}`,
         message: `将通过 ${this.pkgMgr} 安装「${name}」，可能需要更新软件源，是否继续？`,
         buttons: [
@@ -141,7 +199,12 @@ export struct PackageManagerPage {
         const cmd: string = this.pkgMgr === 'apk'
           ? `apk update >/dev/null 2>&1; apk add ${name} 2>&1 | tail -3`
           : `opkg update >/dev/null 2>&1; opkg install ${name} 2>&1 | tail -3`
-        const out: string = await this.sshExec(cmd)
+        const out: string | null = await this.withTimeout(cmd, 120000)
+        if (out === null) {
+          this.statusMsg = '⚠️ SSH 连接已断开，请稍后重试'
+          this.busy = false
+          return
+        }
         hilog.error(DOMAIN, TAG, `install out=[${out}]`)
         const ok: boolean = !out.includes('Unknown package') && !out.includes('failed') &&
           (out.includes('installed') || out.includes('Installing') || out.includes('OK') || out.length === 0)
@@ -156,7 +219,7 @@ export struct PackageManagerPage {
   private removePkg(p: PkgItem): void {
     if (this.busy) return
     try {
-      promptAction.showDialog({
+      this.getUIContext().getPromptAction().showDialog({
         title: `卸载 ${p.name}`,
         message: `将卸载「${p.name}」及依赖它的配置，是否继续？`,
         buttons: [
@@ -170,7 +233,12 @@ export struct PackageManagerPage {
         const cmd: string = this.pkgMgr === 'apk'
           ? `apk del ${p.name} 2>&1 | tail -3`
           : `opkg remove ${p.name} 2>&1 | tail -3`
-        const out: string = await this.sshExec(cmd)
+        const out: string | null = await this.withTimeout(cmd, 120000)
+        if (out === null) {
+          this.statusMsg = '⚠️ SSH 连接已断开，请稍后重试'
+          this.busy = false
+          return
+        }
         hilog.error(DOMAIN, TAG, `remove out=[${out}]`)
         this.statusMsg = out.includes('No packages removed') || out.includes('not installed')
           ? '该包未安装或已移除'
@@ -179,6 +247,18 @@ export struct PackageManagerPage {
         this.loadList()
       })
     } catch (e) {}
+  }
+
+  private cardTitle(): string {
+    if (this.pkgMgr) return `${this.pkgMgr.toUpperCase()} 包管理器`
+    if (this.detecting) return '检测中...'
+    return this.sshFailed ? 'SSH 未连接' : '未找到包管理器'
+  }
+
+  private cardSubtitle(): string {
+    if (this.pkgMgr) return this.osVer ? `OpenWrt ${this.osVer}` : 'OpenWrt 版本未知'
+    if (this.detecting) return '正在读取系统信息'
+    return this.statusMsg || '请检查路由器 SSH 设置'
   }
 
   private visiblePkgs(): PkgItem[] {
@@ -218,17 +298,34 @@ export struct PackageManagerPage {
           // 包管理器状态卡
           Row() {
             Column() {
-              Text(this.pkgMgr ? `${this.pkgMgr.toUpperCase()} 包管理器` : '检测中...')
-                .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
-              Text(this.osVer ? `OpenWrt ${this.osVer}` : '版本读取中')
-                .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 3 })
+              Row({ space: 6 }) {
+                if (this.detecting) {
+                  LoadingProgress().width(14).height(14).color(this.theme.primary)
+                }
+                Text(this.cardTitle())
+                  .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
+              }
+              Text(this.cardSubtitle())
+                .fontSize(10)
+                .fontColor(this.sshFailed ? '#D9534F' : this.theme.textTertiary)
+                .margin({ top: 3 })
             }
             .alignItems(HorizontalAlign.Start).layoutWeight(1)
-            Text(`${this.pkgs.length} 个已装包`)
-              .fontSize(11).fontColor(this.theme.primary)
-              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-              .borderRadius(12)
-              .backgroundColor('rgba(255,138,61,0.1)')
+
+            if (this.sshFailed) {
+              Text('重试')
+                .fontSize(12).fontColor('#FFFFFF')
+                .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+                .borderRadius(12)
+                .backgroundColor('#FF8A3D')
+                .onClick(() => { this.retryDetect() })
+            } else {
+              Text(`${this.pkgs.length} 个已装包`)
+                .fontSize(11).fontColor(this.theme.primary)
+                .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                .borderRadius(12)
+                .backgroundColor('rgba(255,138,61,0.1)')
+            }
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
           .backgroundColor(this.theme.bgCard)

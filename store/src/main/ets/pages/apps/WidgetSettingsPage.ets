@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WidgetSettingsPage - 桌面小组件设置
  * 选择卡片主指标：实时速率 / 今日流量 / CPU·内存 / 在线设备
  * 配置写入 WidgetDataStore，卡片下次刷新（onUpdateForm）时生效
@@ -29,6 +29,17 @@ const OPTIONS: MetricOption[] = [
 
 @Entry
 @Component
+struct WidgetSettingsPageRoute {
+  build() {
+    Column() {
+      WidgetSettingsPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
+@Component
 export struct WidgetSettingsPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
@@ -47,7 +58,7 @@ export struct WidgetSettingsPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }
@@ -79,10 +90,12 @@ export struct WidgetSettingsPage {
     this.metric = key
     try {
       WidgetDataStore.setMetric(key)
-      promptAction.showToast({ message: '已保存，卡片下次刷新后生效', duration: 1800 })
+      this.getUIContext().getPromptAction().showToast({ message: '已保存，卡片下次刷新后生效', duration: 1800 })
     } catch (e) {
       hilog.error(0x0001, 'WidgetSettingsPage', `setMetric err: ${JSON.stringify(e)}`)
-      promptAction.showToast({ message: '保存失败，请重试', duration: 1800 })
+      try {
+        this.getUIContext().getPromptAction().showToast({ message: '保存失败，请重试', duration: 1800 })
+      } catch (_e) {}
     }
   }
 

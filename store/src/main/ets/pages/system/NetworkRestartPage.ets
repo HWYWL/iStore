@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NetworkRestartPage - 网络服务重启
  * /etc/init.d/network restart 只重启网络服务不动整机（OpenWrt 24.x/25.x 通用）
  * 重启后自动 ping 网关验证恢复
@@ -14,6 +14,17 @@ const DOMAIN = 0x0001
 const TAG = 'NetRst'
 
 @Entry
+@Component
+struct NetworkRestartPageRoute {
+  build() {
+    Column() {
+      NetworkRestartPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct NetworkRestartPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -35,7 +46,7 @@ export struct NetworkRestartPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }
@@ -62,7 +73,7 @@ export struct NetworkRestartPage {
   /** 确认并重启网络 */
   private confirmRestart(): void {
     try {
-      promptAction.showDialog({
+      this.getUIContext().getPromptAction().showDialog({
         title: '重启网络服务',
         message: '将重启路由器网络服务（约 10~30 秒），期间网络会短暂中断，是否继续？',
         buttons: [

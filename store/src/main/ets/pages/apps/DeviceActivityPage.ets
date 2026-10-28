@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 设备作息热力图
  * 打开本页即采样在线设备，记录 24h 活跃，色块深浅展示
  */
@@ -18,6 +18,17 @@ interface ActRow {
 }
 
 @Entry
+@Component
+struct DeviceActivityPageRoute {
+  build() {
+    Column() {
+      DeviceActivityPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct DeviceActivityPage {
   @State theme: ThemePalette = LIGHT_THEME

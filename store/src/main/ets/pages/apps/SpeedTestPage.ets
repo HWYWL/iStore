@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 网速全国排位赛
  * wget 下载已知大小测试文件计时测速，按档位给出「击败全国 xx%」排位
  */
@@ -31,6 +31,17 @@ const TEST_FILES: TestFile[] = [
 ]
 
 @Entry
+@Component
+struct SpeedTestPageRoute {
+  build() {
+    Column() {
+      SpeedTestPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct SpeedTestPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -177,10 +188,10 @@ export struct SpeedTestPage {
       const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext
       if (!ctx) return
       // 1. 截图结果卡（小红书风卡片）
-      const pixelMap: image.PixelMap = await componentSnapshot.get('speedCard')
+      const pixelMap: image.PixelMap = await this.getUIContext().getComponentSnapshot().get('speedCard')
       // 2. 打包 PNG
       const packer: image.ImagePacker = image.createImagePacker()
-      const buf: ArrayBuffer = await packer.packing(pixelMap, { format: 'image/png', quality: 100 })
+      const buf: ArrayBuffer = await packer.packToData(pixelMap, { format: 'image/png', quality: 100 })
       packer.release()
       // 3. 写文件
       const filePath: string = `${ctx.cacheDir}/speed_card.png`

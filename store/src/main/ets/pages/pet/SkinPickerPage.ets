@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SkinPickerPage — 小管家装扮选择（独立页，全屏覆盖导航条）
  * 8 套皮肤联动 App 主题，选中即应用
  */
@@ -31,7 +31,7 @@ struct SkinPickerPage {
       if (ctx) {
         window.getLastWindow(ctx as common.Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SmallStorePage — iStore 商店（由应用中心进入）
  *
  * 原先是底部导航的一个 Tab，取消底部导航后改为独立页面：
@@ -11,6 +11,17 @@ import { AppNav } from '../../common/utils/AppNav'
 import { IStoreTabView } from '../dashboard/IStoreTabView'
 
 @Entry
+@Component
+struct StorePageRoute {
+  build() {
+    Column() {
+      StorePage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct StorePage {
   @State theme: ThemePalette = LIGHT_THEME

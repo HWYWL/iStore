@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 路由器心情
  * 根据温度/负载/运行天数生成路由器「心情」表情与吐槽
  */
@@ -16,6 +16,17 @@ interface MoodInfo {
 }
 
 @Entry
+@Component
+struct RouterMoodPageRoute {
+  build() {
+    Column() {
+      RouterMoodPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct RouterMoodPage {
   @State theme: ThemePalette = LIGHT_THEME

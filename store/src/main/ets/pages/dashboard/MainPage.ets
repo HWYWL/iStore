@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { mediaquery, window } from '@kit.ArkUI'
@@ -113,8 +113,8 @@ struct MainPage {
   /** 监听窗口宽度断点，决定单栏 / 双栏 / 三栏 */
   private setupColumns(): void {
     try {
-      this.twoListener = mediaquery.matchMediaSync(`(min-width: ${BP_TWO_COLUMN}vp)`)
-      this.threeListener = mediaquery.matchMediaSync(`(min-width: ${BP_THREE_COLUMN}vp)`)
+      this.twoListener = this.getUIContext().getMediaQuery().matchMediaSync(`(min-width: ${BP_TWO_COLUMN}vp)`)
+      this.threeListener = this.getUIContext().getMediaQuery().matchMediaSync(`(min-width: ${BP_THREE_COLUMN}vp)`)
       this.applyColumns(this.twoListener.matches, this.threeListener.matches)
       this.twoListener.on('change', (res: mediaquery.MediaQueryResult) => {
         this.applyColumns(res.matches, this.isThreeColumn)
@@ -153,7 +153,7 @@ struct MainPage {
   private applyNavBarHeight(pxHeight: number): void {
     let safe: number = NAV_BAR_GESTURE
     if (pxHeight > 0) {
-      safe = px2vp(pxHeight) >= NAV_BAR_THREE_KEY_THRESHOLD ? NAV_BAR_THREE_KEY : NAV_BAR_GESTURE
+      safe = this.getUIContext().px2vp(pxHeight) >= NAV_BAR_THREE_KEY_THRESHOLD ? NAV_BAR_THREE_KEY : NAV_BAR_GESTURE
     }
     this.bottomSafeArea = safe
     // 底部导航条已取消，只保留系统导航条 + 少量呼吸位

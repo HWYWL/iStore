@@ -404,6 +404,8 @@ export class ImmichClient {
         readTimeout: 15000
       })
       return r
+    } catch (e) {
+      throw new Error(`GET ${path} 失败：${JSON.stringify(e)}`)
     } finally {
       req.destroy()
     }
@@ -422,6 +424,8 @@ export class ImmichClient {
         readTimeout: 20000
       })
       return r
+    } catch (e) {
+      throw new Error(`POST ${path} 失败：${JSON.stringify(e)}`)
     } finally {
       req.destroy()
     }

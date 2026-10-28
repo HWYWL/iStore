@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { NetworkInterface, WanStatus } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
@@ -11,6 +11,17 @@ import { AppNav } from '../../common/utils/AppNav'
 // NetworkPage - 网络管理（独立页面，从应用中心进入）
 // ============================================================
 @Entry
+@Component
+struct NetworkPageRoute {
+  build() {
+    Column() {
+      NetworkPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct NetworkPage {
   @State theme: ThemePalette = LIGHT_THEME

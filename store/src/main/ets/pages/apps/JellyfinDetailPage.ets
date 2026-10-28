@@ -1,4 +1,4 @@
-/**
+﻿/**
  * JellyfinDetailPage — Jellyfin 媒体详情页（对齐 MaFei dev 视觉）
  * 光感界面：全屏模糊海报背景（blur + scale + 渐变遮罩）
  * → Hero 标题/元信息 → 播放按钮 → 简介
@@ -46,7 +46,7 @@ struct JellyfinDetailPage {
       if (ctx) {
         window.getLastWindow(ctx as common.Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

@@ -4,6 +4,7 @@
  * 注：沉浸光感 uiMaterial 需 API 26+，当前 SDK 使用窗口级沉浸方案
  */
 import { window } from '@kit.ArkUI'
+import { deviceInfo } from '@kit.BasicServicesKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'WindowUtils'
@@ -15,6 +16,9 @@ const DOMAIN = 0x0001
  * @param isDark 深色主题时图标用白色，浅色用黑色
  */
 export async function applyImmersiveBar(context: Context, isDark: boolean): Promise<void> {
+  if (deviceInfo.deviceType === '2in1') {
+    return
+  }
   try {
     const win: window.Window = await window.getLastWindow(context)
     win.setWindowSystemBarProperties({
@@ -36,6 +40,9 @@ export async function applyImmersiveBar(context: Context, isDark: boolean): Prom
  * @param orientation 如 AUTO_ROTATION（跟随传感器旋转）/ PORTRAIT / LANDSCAPE
  */
 export async function setWindowOrientation(context: Context, orientation: window.Orientation): Promise<void> {
+  if (deviceInfo.deviceType === '2in1') {
+    return
+  }
   try {
     const win: window.Window = await window.getLastWindow(context)
     win.setPreferredOrientation(orientation).catch((e: Error) => {

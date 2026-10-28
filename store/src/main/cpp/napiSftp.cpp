@@ -186,7 +186,7 @@ static std::string SafeGetStringFromNapi(napi_env env, napi_value value) {
         }
         return "";
     }
-    std::string str(len, '\\0');
+    std::string str(len, '\0');
     status = napi_get_value_string_utf8(env, value, &str[0], len + 1, &len);
      if (status != napi_ok) {
         OH_LOG_ERROR(LOG_APP, "SafeGetStringFromNapi: Failed to get string value (status %d)", status);
@@ -649,7 +649,7 @@ static napi_value UploadFile(napi_env env, napi_callback_info info) {
          return nullptr;
      }
 
-    OH_LOG_INFO(LOG_APP, "SFTP UploadFile: 解析了 %{public}zu 个文件, 总大小: %{public}lld 字节", workData->items.size(), workData->totalSize);
+    OH_LOG_INFO(LOG_APP, "SFTP UploadFile: 解析了 %{public}zu 个文件, 总大小: %{public}lu 字节", workData->items.size(), workData->totalSize);
 
     // --- 保存回调函数引用 ---
     status = napi_create_reference(env, args[3], 1, &workData->progressCallbackRef);
@@ -948,7 +948,7 @@ static napi_value UploadFile(napi_env env, napi_callback_info info) {
                      continue;
                  }
 
-                OH_LOG_INFO(LOG_APP, "SftpMultiUpload Execute: Uploading file %{public}zu/%{public}zu: '%{public}s' (Size: %{public}lld bytes)",
+                OH_LOG_INFO(LOG_APP, "SftpMultiUpload Execute: Uploading file %{public}zu/%{public}zu: '%{public}s' (Size: %{public}lu bytes)",
                            i + 1, wd->items.size(), uploadItem.remotePath.c_str(), uploadItem.fileSize);
 
                 auto fileStartTime = std::chrono::steady_clock::now();
@@ -1533,7 +1533,7 @@ static napi_value DownloadFile(napi_env env, napi_callback_info info) {
                 // --->>> 现在这个调用在 try 块内部 <<<---
                 if (sshSession->getFileInfo(wd->remotePath, fileInfo)) {
                     wd->fileSize = fileInfo.size;
-                    OH_LOG_INFO(LOG_APP, "SftpDownload Execute: Remote file size for '%{public}s': %{public}lld bytes", wd->remotePath.c_str(), wd->fileSize);
+                    OH_LOG_INFO(LOG_APP, "SftpDownload Execute: Remote file size for '%{public}s': %{public}lu bytes", wd->remotePath.c_str(), wd->fileSize);
                 } else {
                     // 如果 getFileInfo 返回 false（理论上不应发生，因为现在它会抛出异常）
                     wd->fileSize = -1; // Indicate unknown size
@@ -1655,7 +1655,7 @@ static napi_value DownloadFile(napi_env env, napi_callback_info info) {
                     OH_LOG_INFO(LOG_APP, "SftpDownload Execute: Successfully downloaded '%{public}s'.", wd->remotePath.c_str());
                      // Ensure final byte count matches file size if known
                      if (wd->fileSize >= 0 && wd->downloadedBytes != wd->fileSize) {
-                          OH_LOG_WARN(LOG_APP, "SftpDownload Execute: Final byte count mismatch for '%{public}s'. Reported: %{public}lld, Expected: %{public}lld. Correcting.",
+                          OH_LOG_WARN(LOG_APP, "SftpDownload Execute: Final byte count mismatch for '%{public}s'. Reported: %{public}lu, Expected: %{public}lu. Correcting.",
                                        wd->remotePath.c_str(), wd->downloadedBytes, wd->fileSize);
                           wd->downloadedBytes = wd->fileSize;
                      }
@@ -2223,7 +2223,7 @@ static napi_value SetFileTime(napi_env env, napi_callback_info info) {
     bool success = false;
     std::string errorMsg;
      try {
-         OH_LOG_INFO(LOG_APP, "SFTP SetFileTime: Calling sshSession->setFileTime for '%s' (m:%lld a:%lld)", pathStr.c_str(), mtime, atime);
+         OH_LOG_INFO(LOG_APP, "SFTP SetFileTime: Calling sshSession->setFileTime for '%s' (m:%{public}lu a:%{public}lu)", pathStr.c_str(), mtime, atime);
         success = sshSession->setFileTime(pathStr, mtime, atime);
          if (!success) {
             // errorMsg = sshSession->getLastSftpError();

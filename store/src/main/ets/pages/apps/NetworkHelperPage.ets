@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NetworkHelperPage - 网络助手（快捷问答）
  * 本地规则引擎：快捷提问 + 自由输入，实时拉取路由器数据回答
  */
@@ -18,6 +18,17 @@ const QUICK_QUESTIONS: string[] = [
 ]
 
 @Entry
+@Component
+struct NetworkHelperPageRoute {
+  build() {
+    Column() {
+      NetworkHelperPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct NetworkHelperPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -43,7 +54,7 @@ export struct NetworkHelperPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }

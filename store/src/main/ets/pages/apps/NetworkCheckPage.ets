@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 智能网络体检页面
  * 一键检测：网关连通性 / 外网连通 / 公网延迟 / DNS 解析
  * 逐项展示状态（优秀/正常/警告/不可达）+ 延迟 + 丢包，并给出总评分
@@ -12,6 +12,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct NetworkCheckPageRoute {
+  build() {
+    Column() {
+      NetworkCheckPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct NetworkCheckPage {
   @State theme: ThemePalette = LIGHT_THEME

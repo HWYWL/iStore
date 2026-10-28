@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import {ThemePalette} from '../../common/theme/ThemeColors'
 import { ConnectedDevice, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
@@ -391,7 +391,7 @@ export struct DeviceTab {
       .width('100%')
       .layoutWeight(1)
       .scrollBar(BarState.Off)
-      .onScroll((_x: number, y: number) => {
+      .onDidScroll((y: number, _state: ScrollState) => {
         const diff = y - this.lastScrollY
         this.lastScrollY = y
         if (diff > 10 && y > 120) {
@@ -502,7 +502,7 @@ export struct DeviceTab {
       .width('100%')
       .layoutWeight(1)
       .scrollBar(BarState.Off)
-      .onScroll((_x: number, y: number) => {
+      .onDidScroll((y: number, _state: ScrollState) => {
         const diff = y - this.lastScrollY
         this.lastScrollY = y
         if (diff > 10 && y > 120) {

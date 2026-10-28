@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SshTerminalPage - SSH 终端
  * 连接路由器 SSH（复用设备用户名/密码），执行命令查看输出
  * 终端风格：深色底 + 等宽字体 + 快捷命令
@@ -36,6 +36,17 @@ interface CmdRecord {
 
 @Entry
 @Component
+struct SshTerminalPageRoute {
+  build() {
+    Column() {
+      SshTerminalPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
+@Component
 export struct SshTerminalPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
@@ -70,7 +81,7 @@ this.theme = AppState.getInstance().getTheme()
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }
@@ -188,7 +199,7 @@ this.theme = AppState.getInstance().getTheme()
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const area: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD)
-          const h: number = px2vp(area.bottomRect.height)
+          const h: number = this.getUIContext().px2vp(area.bottomRect.height)
           if (h > 0) {
             this.getUIContext().animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
               this.kbCompensate = h

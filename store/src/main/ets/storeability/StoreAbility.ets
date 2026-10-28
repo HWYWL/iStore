@@ -5,7 +5,7 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.Ab
  */
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { window } from '@kit.ArkUI'
-import { BusinessError } from '@kit.BasicServicesKit'
+import { BusinessError, deviceInfo } from '@kit.BasicServicesKit'
 import { TrafficStatStore } from '../common/store/TrafficStatStore'
 import { FunStore } from '../common/store/FunStore'
 import { DiaryStore } from '../common/store/DiaryStore'
@@ -53,15 +53,17 @@ export default class StoreAbility extends UIAbility {
       hilog.error(DOMAIN, 'StoreAbility', 'Failed to set full-screen layout: %{public}s', JSON.stringify(err))
     })
 
-    // 沉浸式：状态栏/导航栏透明，图标默认白色（App 默认深色主题）
-    mainWindow.setWindowSystemBarProperties({
-      statusBarColor: '#00000000',
-      navigationBarColor: '#00000000',
-      statusBarContentColor: '#FFFFFF',
-      navigationBarContentColor: '#FFFFFF'
-    }).catch((err: BusinessError) => {
-      hilog.error(DOMAIN, 'StoreAbility', 'Failed to set system bar transparent: %{public}s', JSON.stringify(err))
-    })
+    // 沉浸式：状态栏/导航栏透明，图标默认白色（App 默认深色主题）；2in1 不支持该系统栏属性
+    if (deviceInfo.deviceType !== '2in1') {
+      mainWindow.setWindowSystemBarProperties({
+        statusBarColor: '#00000000',
+        navigationBarColor: '#00000000',
+        statusBarContentColor: '#FFFFFF',
+        navigationBarContentColor: '#FFFFFF'
+      }).catch((err: BusinessError) => {
+        hilog.error(DOMAIN, 'StoreAbility', 'Failed to set system bar transparent: %{public}s', JSON.stringify(err))
+      })
+    }
 
     windowStage.loadContent('pages/entry/LoginPage', (err) => {
       if (err.code) {

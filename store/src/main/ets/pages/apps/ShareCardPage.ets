@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ShareCardPage - 装 B 分享卡
  * 网络状态（系统信息/网速/在线设备）生成小红书风卡片 → 截图 → 系统分享
  */
@@ -20,6 +20,17 @@ const DOMAIN = 0x0001
 const TAG = 'ShareCard'
 
 @Entry
+@Component
+struct ShareCardPageRoute {
+  build() {
+    Column() {
+      ShareCardPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct ShareCardPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -121,9 +132,9 @@ export struct ShareCardPage {
     try {
       const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext
       if (!ctx) return
-      const pixelMap: image.PixelMap = await componentSnapshot.get('shareCard')
+      const pixelMap: image.PixelMap = await this.getUIContext().getComponentSnapshot().get('shareCard')
       const packer: image.ImagePacker = image.createImagePacker()
-      const buf: ArrayBuffer = await packer.packing(pixelMap, { format: 'image/png', quality: 100 })
+      const buf: ArrayBuffer = await packer.packToData(pixelMap, { format: 'image/png', quality: 100 })
       packer.release()
       const filePath: string = `${ctx.cacheDir}/share_card.png`
       const file = fs.openSync(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
@@ -151,7 +162,7 @@ export struct ShareCardPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

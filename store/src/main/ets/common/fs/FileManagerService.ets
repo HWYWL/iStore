@@ -111,17 +111,25 @@ export class FileManagerService {
   async writeText(path: string, content: string): Promise<void> {
     const ctx = this.getCtx()
     const tmp: string = `${ctx.cacheDir}/fm_write_${Date.now()}.tmp`
-    const file = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    const encoder = new util.TextEncoder()
-    const bytes: Uint8Array = encoder.encodeInto(content)
-    fs.writeSync(file.fd, bytes.buffer)
-    fs.closeSync(file)
     try {
+      const file = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+      try {
+        const encoder = new util.TextEncoder()
+        const bytes: Uint8Array = encoder.encodeInto(content)
+        fs.writeSync(file.fd, bytes.buffer)
+      } finally {
+        try { fs.closeSync(file) } catch (e) {}
+      }
       const dir: string = path.substring(0, path.lastIndexOf('/')) || '/'
       const name: string = path.substring(path.lastIndexOf('/') + 1)
       const wf = fs.openSync(tmp, fs.OpenMode.READ_ONLY)
-      await this.ssh.sftpUpload(wf.fd, dir, name)
-      fs.closeSync(wf)
+      try {
+        await this.ssh.sftpUpload(wf.fd, dir, name)
+      } finally {
+        try { fs.closeSync(wf) } catch (e) {}
+      }
+    } catch (e) {
+      throw new Error(`保存文件失败：${JSON.stringify(e)}`)
     } finally {
       try { fs.unlinkSync(tmp) } catch (e) {}
     }
@@ -136,14 +144,19 @@ export class FileManagerService {
   async touch(path: string): Promise<void> {
     const ctx = this.getCtx()
     const tmp: string = `${ctx.cacheDir}/fm_touch_${Date.now()}.tmp`
-    const file = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
-    fs.closeSync(file)
     try {
+      const file = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE)
+      try { fs.closeSync(file) } catch (e) {}
       const dir: string = path.substring(0, path.lastIndexOf('/')) || '/'
       const name: string = path.substring(path.lastIndexOf('/') + 1)
       const rf = fs.openSync(tmp, fs.OpenMode.READ_ONLY)
-      await this.ssh.sftpUpload(rf.fd, dir, name)
-      fs.closeSync(rf)
+      try {
+        await this.ssh.sftpUpload(rf.fd, dir, name)
+      } finally {
+        try { fs.closeSync(rf) } catch (e) {}
+      }
+    } catch (e) {
+      throw new Error(`新建文件失败：${JSON.stringify(e)}`)
     } finally {
       try { fs.unlinkSync(tmp) } catch (e) {}
     }
@@ -163,15 +176,23 @@ export class FileManagerService {
   async copy(src: string, dst: string): Promise<void> {
     const ctx = this.getCtx()
     const tmp: string = `${ctx.cacheDir}/fm_copy_${Date.now()}.tmp`
-    const wf = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    await this.ssh.sftpDownload(src, wf.fd)
-    fs.closeSync(wf)
     try {
+      const wf = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+      try {
+        await this.ssh.sftpDownload(src, wf.fd)
+      } finally {
+        try { fs.closeSync(wf) } catch (e) {}
+      }
       const dir: string = dst.substring(0, dst.lastIndexOf('/')) || '/'
       const name: string = dst.substring(dst.lastIndexOf('/') + 1)
       const rf = fs.openSync(tmp, fs.OpenMode.READ_ONLY)
-      await this.ssh.sftpUpload(rf.fd, dir, name)
-      fs.closeSync(rf)
+      try {
+        await this.ssh.sftpUpload(rf.fd, dir, name)
+      } finally {
+        try { fs.closeSync(rf) } catch (e) {}
+      }
+    } catch (e) {
+      throw new Error(`复制文件失败：${JSON.stringify(e)}`)
     } finally {
       try { fs.unlinkSync(tmp) } catch (e) {}
     }
@@ -181,20 +202,28 @@ export class FileManagerService {
   async downloadToTemp(remotePath: string): Promise<string> {
     const ctx = this.getCtx()
     const tmp: string = `${ctx.cacheDir}/fm_dl_${Date.now()}.tmp`
-    const wf = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    await this.ssh.sftpDownload(remotePath, wf.fd)
-    fs.closeSync(wf)
     try {
+      const wf = fs.openSync(tmp, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+      try {
+        await this.ssh.sftpDownload(remotePath, wf.fd)
+      } finally {
+        try { fs.closeSync(wf) } catch (e) {}
+      }
       const stat = fs.statSync(tmp)
       if (stat.size > 20 * 1024 * 1024) {
         throw new Error('文件过大（>20MB），暂不支持')
       }
       const rf = fs.openSync(tmp, fs.OpenMode.READ_ONLY)
       const buf = new ArrayBuffer(stat.size)
-      fs.readSync(rf.fd, buf)
-      fs.closeSync(rf)
+      try {
+        fs.readSync(rf.fd, buf)
+      } finally {
+        try { fs.closeSync(rf) } catch (e) {}
+      }
       const decoder = new util.TextDecoder()
       return decoder.decodeToString(new Uint8Array(buf))
+    } catch (e) {
+      throw new Error(`读取文件失败：${JSON.stringify(e)}`)
     } finally {
       try { fs.unlinkSync(tmp) } catch (e) {}
     }
@@ -208,6 +237,8 @@ export class FileManagerService {
       await FileManagerService.withTimeout(
         this.ssh.sftpDownload(remotePath, wf.fd), 120000,
         '下载超时：路由器响应缓慢或文件过大，请重试')
+    } catch (e) {
+      throw new Error(`下载失败：${JSON.stringify(e)}`)
     } finally {
       try {
         if (wf) {
@@ -219,11 +250,15 @@ export class FileManagerService {
 
   /** 上传本地文件（文件管理"上传"用） */
   async uploadFile(localPath: string, targetDir: string, fileName: string): Promise<void> {
-    const rf = fs.openSync(localPath, fs.OpenMode.READ_ONLY)
     try {
-      await this.ssh.sftpUpload(rf.fd, targetDir, fileName)
-    } finally {
-      fs.closeSync(rf)
+      const rf = fs.openSync(localPath, fs.OpenMode.READ_ONLY)
+      try {
+        await this.ssh.sftpUpload(rf.fd, targetDir, fileName)
+      } finally {
+        try { fs.closeSync(rf) } catch (e) {}
+      }
+    } catch (e) {
+      throw new Error(`上传文件失败：${JSON.stringify(e)}`)
     }
   }
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TrafficBillPage - 流量月账单（运营商账单风）
  * 本月流量总览 + 近 7 天趋势 + 设备流量排行（实时快照推测）
  */
@@ -16,6 +16,17 @@ const DOMAIN = 0x0001
 const TAG = 'TrafficBill'
 
 @Entry
+@Component
+struct TrafficBillPageRoute {
+  build() {
+    Column() {
+      TrafficBillPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct TrafficBillPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -189,7 +200,7 @@ export struct TrafficBillPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

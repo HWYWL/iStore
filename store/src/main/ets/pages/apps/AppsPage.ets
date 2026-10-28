@@ -1,4 +1,4 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { getAppVersionText } from '../../common/utils/AppVersion'
@@ -27,6 +27,17 @@ interface IconGradient {
 }
 
 @Entry
+@Component
+struct AppsPageRoute {
+  build() {
+    Column() {
+      AppsPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct AppsPage {
   @State theme: ThemePalette = LIGHT_THEME

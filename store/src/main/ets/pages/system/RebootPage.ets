@@ -1,4 +1,4 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 /**
  * 重启设备页面
  * 调用路由器 API 执行系统重启，提供 60 秒倒计时
@@ -9,6 +9,17 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct RebootPageRoute {
+  build() {
+    Column() {
+      RebootPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct RebootPage {
   @State theme: ThemePalette = LIGHT_THEME

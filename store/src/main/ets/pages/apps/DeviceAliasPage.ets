@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 设备外号生成器
  * 根据设备厂商 / 类型 / 信号 / 速率生成趣味「社交外号」，图标统一为系统符号 + 同色系底座
  */
@@ -150,6 +150,18 @@ const NEAR_POOL: AliasItem[] = [
 ]
 
 /** 鸿蒙标志（自绘）：与系统符号一致的单色描边风格 */
+@Entry
+@Component
+struct DeviceAliasPageRoute {
+  build() {
+    Column() {
+      DeviceAliasPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 struct HarmonyMark {
   @Prop markColor: string = '#EF4444'
@@ -177,7 +189,6 @@ struct HarmonyMark {
   }
 }
 
-@Entry
 @Component
 export struct DeviceAliasPage {
   @State theme: ThemePalette = LIGHT_THEME

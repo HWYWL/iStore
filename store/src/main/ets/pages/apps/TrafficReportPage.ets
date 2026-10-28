@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TrafficReportPage - 流量统计（周报/月报）
  * 展示近 7 天 / 30 天每日下载/上传流量柱状图与汇总
  */
@@ -9,6 +9,17 @@ import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct TrafficReportPageRoute {
+  build() {
+    Column() {
+      TrafficReportPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct TrafficReportPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -49,7 +60,7 @@ export struct TrafficReportPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }

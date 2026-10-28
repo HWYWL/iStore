@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WolPage - WOL 远程开机（局域网唤醒）
  * SSH 通道执行 etherwake / wakeonlan 发送魔法包，设备列表本地存储
  */
@@ -18,6 +18,17 @@ const DOMAIN = 0x0001
 const TAG = 'WolPage'
 
 @Entry
+@Component
+struct WolPageRoute {
+  build() {
+    Column() {
+      WolPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct WolPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -142,7 +153,7 @@ export struct WolPage {
 
   private showMsg(msg: string): void {
     try {
-      promptAction.showToast({ message: msg, duration: 2000 })
+      this.getUIContext().getPromptAction().showToast({ message: msg, duration: 2000 })
     } catch (e) {}
   }
 
@@ -153,7 +164,7 @@ export struct WolPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

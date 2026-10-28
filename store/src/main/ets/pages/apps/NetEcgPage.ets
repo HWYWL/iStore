@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 网络心电图
  * 每秒 ping 一次公网目标，Canvas 实时绘制延迟波形（正常绿波/卡顿红尖峰）
  */
@@ -12,6 +12,17 @@ const TARGET = '223.5.5.5'   // 阿里公共 DNS
 const MAX_POINTS = 30
 
 @Entry
+@Component
+struct NetEcgPageRoute {
+  build() {
+    Column() {
+      NetEcgPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct NetEcgPage {
   @State theme: ThemePalette = LIGHT_THEME

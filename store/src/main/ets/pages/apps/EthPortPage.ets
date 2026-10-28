@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
@@ -15,6 +15,17 @@ class EthPort {
 }
 
 @Entry
+@Component
+struct EthPortPageRoute {
+  build() {
+    Column() {
+      EthPortPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct EthPortPage {
   @State theme: ThemePalette = LIGHT_THEME

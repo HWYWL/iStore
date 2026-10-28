@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DiaryPage — 网络日记（每日网络事时间线）
  * 小管点评 + 4 格概览 + 事件时间线 + 日期翻页
  * 数据源：DiaryStore（事件）+ TrafficStatStore（流量）+ fetchConnectedDevices（在线）
@@ -15,6 +15,17 @@ import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct DiaryPageRoute {
+  build() {
+    Column() {
+      DiaryPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct DiaryPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
@@ -40,7 +51,7 @@ export struct DiaryPage {
       if (ctx) {
         window.getLastWindow(ctx as common.Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

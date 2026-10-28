@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SystemLogPage - 系统日志查看器
  * SSH logread 实时查看 + 关键字过滤 + 自动刷新（OpenWrt 24.x/25.x 通用）
  */
@@ -14,6 +14,17 @@ const DOMAIN = 0x0001
 const TAG = 'SysLog'
 
 @Entry
+@Component
+struct SystemLogPageRoute {
+  build() {
+    Column() {
+      SystemLogPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct SystemLogPage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -50,7 +61,7 @@ export struct SystemLogPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

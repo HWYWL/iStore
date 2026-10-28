@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 登录页面
  * 功能：
  * - 管理已保存的设备列表（增删改查，持久化存储）
@@ -78,7 +78,7 @@ struct LoginPage {
       if (hostCtx) {
         const win: window.Window = await window.getLastWindow(hostCtx)
         const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-        const h: number = px2vp(avoidArea.topRect.height)
+        const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
         if (h > 0) {
           this.topSafeArea = h
         }
@@ -373,7 +373,7 @@ struct LoginPage {
   /** 弹窗错误提示（用户点击确定后关闭） */
   showError(msg: string): void {
     try {
-      promptAction.showDialog({
+      this.getUIContext().getPromptAction().showDialog({
         title: '提示',
         message: msg,
         buttons: [

@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import {ThemePalette} from '../../common/theme/ThemeColors'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
@@ -1081,7 +1081,7 @@ export struct DashboardTab {
           if (Whimsy.tap('dash_logo', 5)) {
             this.whimsyShake = true
             setTimeout(() => { this.whimsyShake = false }, 900)
-            promptAction.showToast({ message: '小管在，别慌 🎩', duration: 1500 })
+            this.getUIContext().getPromptAction().showToast({ message: '小管在，别慌 🎩', duration: 1500 })
           }
         })
         .rotate({ angle: this.whimsyShake ? -8 : 0 })
@@ -1588,7 +1588,7 @@ export struct DashboardTab {
         .width('100%')
         .layoutWeight(1)
         .scrollBar(BarState.Off)
-        .onScroll((_x: number, y: number) => {
+        .onDidScroll((y: number, _state: ScrollState) => {
           const diff = y - this.lastScrollY
           this.lastScrollY = y
           if (diff > 10 && y > 120) {

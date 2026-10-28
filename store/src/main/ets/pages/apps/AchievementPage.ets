@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 网络成就系统
  * 徽章收集：运行稳定 / 夜猫子 / 流量之王 / 设备云集 / 七日全勤 / 体检卫士
  */
@@ -33,6 +33,17 @@ const ACHS: AchDef[] = [
 ]
 
 @Entry
+@Component
+struct AchievementPageRoute {
+  build() {
+    Column() {
+      AchievementPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct AchievementPage {
   @State theme: ThemePalette = LIGHT_THEME

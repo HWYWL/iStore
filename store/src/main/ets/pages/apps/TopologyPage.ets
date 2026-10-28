@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TopologyPage - 网络拓扑图
  * 可视化设备连接关系：路由器在中心，无线设备（下半区）/ 有线设备（上半区）围绕分布
  */
@@ -32,6 +32,17 @@ interface CapMetrics {
 
 @Entry
 @Component
+struct TopologyPageRoute {
+  build() {
+    Column() {
+      TopologyPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
+@Component
 export struct TopologyPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
@@ -58,7 +69,7 @@ this.theme = AppState.getInstance().getTheme()
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }

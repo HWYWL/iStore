@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AlbumPage — 相册独立页（从应用中心进入）
  * 复用 AlbumTab 组件（Immich 相册），顶部标题栏由 AlbumTab 内部提供
  */
@@ -11,6 +11,17 @@ import { common } from '@kit.AbilityKit'
 
 @Entry
 @Component
+struct AlbumPageRoute {
+  build() {
+    Column() {
+      AlbumPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
+@Component
 export struct AlbumPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
   @State topSafeArea: number = 44
@@ -22,7 +33,7 @@ export struct AlbumPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as common.Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) this.topSafeArea = h
         }).catch(() => {})
       }

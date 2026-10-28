@@ -1,4 +1,4 @@
-import { AppState } from '../../common/store/AppState'
+﻿import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { OafStatus, AppFilterBase, AppClass, AppItem, AppFilterTime, AppFilterUser, TimeSlot } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
@@ -10,6 +10,17 @@ import { AppNav } from '../../common/utils/AppNav'
 const WEEKDAYS: string[] = ['日', '一', '二', '三', '四', '五', '六']
 
 @Entry
+@Component
+struct OafPageRoute {
+  build() {
+    Column() {
+      OafPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct OafPage {
   @State theme: ThemePalette = LIGHT_THEME

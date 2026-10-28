@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SecurityHubPage — 家庭网络安全中心
  * R1 安全评分（0-100 三档）+ R2 一键体检（5 项）+ R4 一键处置（隔离/信任）+ R6 历史
  */
@@ -12,6 +12,17 @@ import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 
 @Entry
+@Component
+struct SecurityHubPageRoute {
+  build() {
+    Column() {
+      SecurityHubPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct SecurityHubPage {
   @State theme: ThemePalette = AppState.getInstance().getTheme()
@@ -43,7 +54,7 @@ export struct SecurityHubPage {
       if (hostCtx) {
         window.getLastWindow(hostCtx as common.Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }
@@ -96,7 +107,7 @@ export struct SecurityHubPage {
 
   /** 处置：踢出设备（R4） */
   kickDevice(mac: string): void {
-    promptAction.showDialog({
+    this.getUIContext().getPromptAction().showDialog({
       title: '踢出设备',
       message: `将踢出设备 ${mac}，如误报可标记为信任设备`,
       buttons: [
@@ -105,7 +116,7 @@ export struct SecurityHubPage {
       ]
     }).then((res) => {
       if (res.index === 1) {
-        promptAction.showToast({ message: '已踢出设备', duration: 1500 })
+        this.getUIContext().getPromptAction().showToast({ message: '已踢出设备', duration: 1500 })
       }
     }).catch(() => {})
   }

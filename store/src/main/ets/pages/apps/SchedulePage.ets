@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SchedulePage - 定时任务中心
  * 定时重启路由器 / 定时开关 WiFi
  * 配置保存到 ScheduleStore，由 NotificationWatcher 在 App 运行时到点执行
@@ -14,6 +14,17 @@ import { AppNav } from '../../common/utils/AppNav'
 const WEEK_LABELS: string[] = ['一', '二', '三', '四', '五', '六', '日']
 
 @Entry
+@Component
+struct SchedulePageRoute {
+  build() {
+    Column() {
+      SchedulePage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct SchedulePage {
   @State theme: ThemePalette = LIGHT_THEME
@@ -54,7 +65,7 @@ this.theme = AppState.getInstance().getTheme()
       if (hostCtx) {
         window.getLastWindow(hostCtx as Context).then((win: window.Window) => {
           const avoidArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-          const h: number = px2vp(avoidArea.topRect.height)
+          const h: number = this.getUIContext().px2vp(avoidArea.topRect.height)
           if (h > 0) {
             this.topSafeArea = h
           }

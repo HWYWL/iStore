@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DNS 速度擂台
  * 对多个公共 DNS 依次 ping 测延迟，出排行榜 + 推荐
  */
@@ -24,6 +24,17 @@ const DNS_LIST: string[][] = [
 ]
 
 @Entry
+@Component
+struct DnsBattlePageRoute {
+  build() {
+    Column() {
+      DnsBattlePage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Component
 export struct DnsBattlePage {
   @State theme: ThemePalette = LIGHT_THEME
