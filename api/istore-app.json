@@ -53,7 +53,17 @@
 				"/sbin/ip -[46] neigh show": ["exec"],
 				"/bin/df": ["exec"],
 				"/bin/ps": ["exec"],
-				"/usr/bin/ps": ["exec"]
+				"/usr/bin/ps": ["exec"],
+				"/sbin/bridge fdb show br br-lan": ["exec"],
+				"/usr/sbin/bridge fdb show br br-lan": ["exec"],
+				"/sbin/bridge fdb show": ["exec"],
+				"/usr/sbin/bridge fdb show": ["exec"],
+				"/sbin/brctl showmacs br-lan": ["exec"],
+				"/usr/sbin/brctl showmacs br-lan": ["exec"],
+				"/sbin/brctl show br-lan": ["exec"],
+				"/usr/sbin/brctl show br-lan": ["exec"],
+				"/sbin/ip -o link show master br-lan": ["exec"],
+				"/sbin/ip link show master br-lan": ["exec"]
 			}
 		}
 	}

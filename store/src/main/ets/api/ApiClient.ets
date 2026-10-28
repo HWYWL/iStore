@@ -250,6 +250,9 @@ export class ApiClient {
   token: string = ''         // 认证令牌（legacy 模式）
   connected: boolean = false // 连接状态
   lastError: string = ''     // 最近一次错误信息
+  lastBridgeDebug: string = '' // 调试：网桥转发表读取过程中的原始输出摘要
+  private aclUpgradeTried: boolean = false // 是否已尝试过「命令被 ACL 拒绝 → SSH 补授权」
+  private sshBridgeTried: boolean = false  // 是否已尝试过用 SSH 读网桥转发表（每次会话只试一次）
 
   // ========== 连接配置 ==========
   private username: string = ''
@@ -266,6 +269,8 @@ export class ApiClient {
 
   // ========== LuCI 网页通道状态（补充 ubus ACL 之外的能力：iStore 应用、Docker 容器） ==========
   private luciCookie: string = ''                        // sysauth_http 会话 Cookie
+  private luciSessionId: string = ''                     // LuCI 页面内嵌的 ubus 会话 id（root 会话）
+  private luciStok: string = ''                          // LuCI 会话令牌（URL 中的 ;stok=）
   private luciLoginInFlight: Promise<boolean> | null = null
   private dockerIdMap: Map<string, string> = new Map()   // 容器名/短ID -> 完整ID（用于操作）
   private dockerApiBase: string = ''                     // Docker Remote API 根地址（探测成功才设置）
@@ -625,6 +630,17 @@ export class ApiClient {
   }
 
   /**
+   * ubus 调用；失败时（方法不在 rpcd ACL 白名单内）改用 LuCI 网页会话代理重试
+   */
+  private async ubusCallFallback(obj: string, method: string, params: Object): Promise<Object | null> {
+    const direct: Object | null = await this.ubusCall(obj, method, params)
+    if (direct) {
+      return direct
+    }
+    return await this.luciUbusData(obj, method, params)
+  }
+
+  /**
    * 列出 ubus 对象（用于 WiFi 设备发现等），返回对象名列表
    */
   private async ubusList(pattern: string): Promise<string[]> {
@@ -678,6 +694,7 @@ export class ApiClient {
    */
   private async doLuciFormLogin(): Promise<boolean> {
     this.luciCookie = ''
+    this.luciSessionId = ''
     const body: string =
       `luci_username=${encodeURIComponent(this.username)}&luci_password=${encodeURIComponent(this.password)}`
     const req: http.HttpRequest = http.createHttp()
@@ -820,6 +837,107 @@ export class ApiClient {
       hilog.error(DOMAIN, TAG, `luciHttp ${method} ${path} error: ${e}`)
     }
     return result
+  }
+
+  // ============================================================
+  //  LuCI 侧 ubus 代理（绕过 rpcd 对 file.exec 的命令白名单）
+  // ============================================================
+
+  /**
+   * 通过 LuCI 网页会话调用 ubus：/cgi-bin/luci/admin/ubus
+   * LuCI 内部以 root 会话转发，因此不受 istore-app ACL 中「命令白名单」的限制
+   * @returns ubus 返回的数据部分（JSON-RPC result[1]），失败返回 null
+   */
+  /**
+   * 取 LuCI 登录会话对应的 ubus 会话 id（LuCI 页面 HTML 内嵌的 sessionid，具备 root 权限）
+   * 取不到时退回全 0 的匿名会话（会受 rpcd ACL 限制）
+   */
+  private async luciUbusSessionId(): Promise<string> {
+    if (this.luciSessionId.length > 0) {
+      return this.luciSessionId
+    }
+    try {
+      const res: LuciHttpResult = await this.luciGet('')
+      const body: string = res.body
+      const mId: RegExpMatchArray | null = body.match(/sessionid["']?\s*[:=]\s*["']([0-9a-fA-F]{32})["']/)
+      if (mId) {
+        this.luciSessionId = mId[1]
+      }
+      const mStok: RegExpMatchArray | null = body.match(/;stok=([a-zA-Z0-9]{8,64})/)
+      if (mStok) {
+        this.luciStok = mStok[1]
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `luciUbusSessionId err: ${e}`)
+    }
+    return this.luciSessionId.length > 0 ? this.luciSessionId : '00000000000000000000000000000000'
+  }
+
+  private async luciUbusData(object: string, method: string, params: Object): Promise<Object | null> {
+    const ok: boolean = await this.ensureLuciCookie()
+    if (!ok) {
+      return null
+    }
+    const sid: string = await this.luciUbusSessionId()
+    const payload: Record<string, Object> = {}
+    payload['jsonrpc'] = '2.0'
+    payload['id'] = 1
+    payload['method'] = 'call'
+    const callParams: Object[] = [sid, object, method, params]
+    payload['params'] = callParams as Object
+    const req: http.HttpRequest = http.createHttp()
+    try {
+      // 带 stok 的 URL 才会绑定到登录用户（root）的 ubus 会话
+      const url: string = this.luciStok.length > 0
+        ? `${this.baseUrl}/cgi-bin/luci/;stok=${this.luciStok}/admin/ubus`
+        : `${this.baseUrl}/cgi-bin/luci/admin/ubus`
+      const r: http.HttpResponse = await req.request(url, {
+        method: http.RequestMethod.POST,
+        header: { 'Cookie': this.luciCookie, 'Content-Type': 'application/json' },
+        extraData: JSON.stringify(payload),
+        connectTimeout: CONNECT_TIMEOUT_MS,
+        readTimeout: READ_TIMEOUT_LONG_MS
+      })
+      req.destroy()
+      if (r.responseCode !== 200) {
+        return null
+      }
+      let text: string = ''
+      const data = r.result
+      if (typeof data === 'string') {
+        text = data
+      } else if (data !== null && data !== undefined) {
+        text = JSON.stringify(data)
+      }
+      if (text.length === 0) {
+        return null
+      }
+      const parsed = JSON.parse(text) as Record<string, Object>
+      const result = parsed['result']
+      if (!Array.isArray(result)) {
+        return null
+      }
+      const arr: Object[] = result as Object[]
+      if (arr.length < 2) {
+        return null
+      }
+      return arr[1]
+    } catch (e) {
+      req.destroy()
+      return null
+    }
+  }
+
+  /** 通过 LuCI ubus 代理执行命令并取标准输出 */
+  private async luciExec(command: string, args: string[]): Promise<string> {
+    const p: FileExecParam = new FileExecParam()
+    p.command = command
+    p.params = args
+    const data: Object | null = await this.luciUbusData('file', 'exec', p)
+    if (!data) {
+      return ''
+    }
+    return ApiUtils.strOf(data as Record<string, Object>, 'stdout')
   }
 
   // ============================================================
@@ -1124,7 +1242,7 @@ export class ApiClient {
       }
       const connOk: boolean = await sshSvc.connect(device)
       if (!connOk) {
-        this.lastError = 'SSH 密码认证失败'
+        this.lastError = sshSvc.lastError || 'SSH 连接失败：请确认路由器已开启 SSH（端口 22）、账号密码正确'
         return false
       }
 
@@ -1198,7 +1316,16 @@ export class ApiClient {
       '"/sbin/reboot":["exec"],"/sbin/firstboot -r -y":["exec"],' +
       '"/sbin/ip -[46] route show table all":["exec"],' +
       '"/sbin/ip -[46] neigh show":["exec"],"/bin/df":["exec"],' +
-      '"/bin/ps":["exec"],"/usr/bin/ps":["exec"]}}}}'
+      '"/bin/ps":["exec"],"/usr/bin/ps":["exec"],' +
+      // 网桥转发表 / 桥成员：拓扑页区分「无线 / 直连端口 / 经交换机接入」
+      '"/sbin/bridge fdb show br br-lan":["exec"],' +
+      '"/usr/sbin/bridge fdb show br br-lan":["exec"],' +
+      '"/sbin/bridge fdb show":["exec"],"/usr/sbin/bridge fdb show":["exec"],' +
+      '"/sbin/brctl showmacs br-lan":["exec"],' +
+      '"/usr/sbin/brctl showmacs br-lan":["exec"],' +
+      '"/sbin/brctl show br-lan":["exec"],"/usr/sbin/brctl show br-lan":["exec"],' +
+      '"/sbin/ip -o link show master br-lan":["exec"],' +
+      '"/sbin/ip link show master br-lan":["exec"]}}}}'
   }
 // ============================================================
   //  统一 action 请求入口
@@ -1857,6 +1984,70 @@ export class ApiClient {
     return [0, 0]
   }
 
+  /** 收集候选接口名（去重、过滤非法值） */
+  private static pushName(out: string[], name: string): void {
+    if (!name || name.length === 0 || name.length > 32) {
+      return
+    }
+    if (name.indexOf(' ') >= 0 || name.indexOf('/') >= 0) {
+      return
+    }
+    if (out.indexOf(name) >= 0) {
+      return
+    }
+    out.push(name)
+  }
+
+  /**
+   * 从 iwinfo devices / luci-rpc getWirelessDevices 等多种返回结构里提取接口名
+   * - 数组：元素可为字符串或 {name|device|ifname}
+   * - 对象：优先取 results / devices 数组，否则把 key 当作接口名
+   */
+  private static collectNames(rec: Object | null, out: string[]): void {
+    if (!rec) {
+      return
+    }
+    if (Array.isArray(rec)) {
+      const arr: Object[] = rec as Object[]
+      for (let i = 0; i < arr.length; i++) {
+        const item: Object = arr[i]
+        if (item === null || item === undefined) {
+          continue
+        }
+        if (typeof item === 'string') {
+          ApiClient.pushName(out, item as string)
+          continue
+        }
+        const one = item as Record<string, Object>
+        let name: string = ApiUtils.strOf(one, 'name')
+        if (name.length === 0) {
+          name = ApiUtils.strOf(one, 'device')
+        }
+        if (name.length === 0) {
+          name = ApiUtils.strOf(one, 'ifname')
+        }
+        ApiClient.pushName(out, name)
+      }
+      return
+    }
+    const root = rec as Record<string, Object>
+    const arrKeys: string[] = ['results', 'devices']
+    for (let i = 0; i < arrKeys.length; i++) {
+      const v: Object | undefined = root[arrKeys[i]]
+      if (v && Array.isArray(v)) {
+        ApiClient.collectNames(v as Object, out)
+        return
+      }
+    }
+    const keys: string[] = Object.keys(root)
+    for (let i = 0; i < keys.length; i++) {
+      if (keys[i] === 'data') {
+        continue
+      }
+      ApiClient.pushName(out, keys[i])
+    }
+  }
+
   /**
    * 构建无线网络数据（WiFi 接口及已连接客户端）
    * 无 WiFi 设备返回空结构
@@ -1866,9 +2057,11 @@ export class ApiClient {
     const devices: Object[] = []
 
     // 0. 读取 wireless 配置，获取各无线接口的 disabled 状态（key 为 radio0 等接口名）
+    //    同时收集 radio 下挂的 interfaces[].ifname，这才是 iwinfo/assoclist 需要的真实设备名
     const disabledMap: Map<string, boolean> = new Map()
+    const cfgIfnames: string[] = []
     try {
-      const wlCfgRaw: Object | null = await this.ubusCall('network.wireless', 'status', new EmptyRecord())
+      const wlCfgRaw: Object | null = await this.ubusCallFallback('network.wireless', 'status', new EmptyRecord())
       if (wlCfgRaw) {
         let cfgRec = wlCfgRaw as Record<string, Object>
         // ubus 响应含 data 包装层
@@ -1884,33 +2077,41 @@ export class ApiClient {
           const disabled: boolean = disabledVal === 1 || disabledVal === '1' ||
             disabledVal === true || disabledVal === 'true'
           disabledMap.set(cfgKeys[i], disabled)
+          const ifs = ifaceRec['interfaces']
+          if (Array.isArray(ifs)) {
+            const arr: Object[] = ifs as Object[]
+            for (let j = 0; j < arr.length; j++) {
+              const one = arr[j] as Record<string, Object>
+              const ifname: string = ApiUtils.strOf(one, 'ifname')
+              if (ifname.length > 0 && cfgIfnames.indexOf(ifname) < 0) {
+                cfgIfnames.push(ifname)
+              }
+            }
+          }
         }
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'buildWirelessData config err')
     }
 
-    // 1. 收集候选无线设备名：hostapd.* ubus 对象
+    // 1. 候选无线设备名（按可靠性排序，逐个去重）
     const candidates: string[] = []
+    // 1.1 iwinfo devices：ACL 中 iwinfo 全放行，是拿到 wlan0/phy0-ap0 最可靠的来源
+    const iwDevRaw: Object | null = await this.ubusCallFallback('iwinfo', 'devices', new EmptyRecord())
+    ApiClient.collectNames(iwDevRaw, candidates)
+    // 1.2 network.wireless status 里的 interfaces[].ifname
+    for (let i = 0; i < cfgIfnames.length; i++) {
+      ApiClient.pushName(candidates, cfgIfnames[i])
+    }
+    // 1.3 hostapd.* ubus 对象（部分固件不开放 list 权限，可能为空）
     const hostapd: string[] = await this.ubusList('hostapd.*')
     for (let i = 0; i < hostapd.length; i++) {
-      const dev: string = hostapd[i].replace('hostapd.', '')
-      if (dev && candidates.indexOf(dev) < 0) {
-        candidates.push(dev)
-      }
+      ApiClient.pushName(candidates, hostapd[i].replace('hostapd.', ''))
     }
+    // 1.4 luci-rpc getWirelessDevices
+    const wlDevs: Object | null = await this.ubusCallFallback('luci-rpc', 'getWirelessDevices', new EmptyRecord())
+    ApiClient.collectNames(wlDevs, candidates)
 
-    // 2. 补充候选：luci-rpc getWirelessDevices
-    const wlDevs: Object | null = await this.ubusCall('luci-rpc', 'getWirelessDevices', new EmptyRecord())
-    if (wlDevs) {
-      const rec = wlDevs as Record<string, Object>
-      const keys = Object.keys(rec)
-      for (let i = 0; i < keys.length; i++) {
-        if (candidates.indexOf(keys[i]) < 0) {
-          candidates.push(keys[i])
-        }
-      }
-    }
 
     // 3. 逐个设备获取信息与客户端列表
     for (let i = 0; i < candidates.length; i++) {
@@ -1926,7 +2127,7 @@ export class ApiClient {
       let encryption: string = ''
       let quality: number = 0
       let hwmode: string = ''
-      const info: Object | null = await this.ubusCall('iwinfo', 'info', dp)
+      const info: Object | null = await this.ubusCallFallback('iwinfo', 'info', dp)
       if (info) {
         const infoRec = info as Record<string, Object>
         ssid = ApiUtils.strOf(infoRec, 'ssid') || ApiUtils.strOf(infoRec, 'essid')
@@ -1940,7 +2141,7 @@ export class ApiClient {
       }
 
       const clients: Object[] = []
-      const assoc: Object | null = await this.ubusCall('iwinfo', 'assoclist', dp)
+      const assoc: Object | null = await this.ubusCallFallback('iwinfo', 'assoclist', dp)
       if (assoc) {
         const results = (assoc as Record<string, Object>)['results']
         if (Array.isArray(results)) {
@@ -2638,6 +2839,372 @@ export class ApiClient {
       return result.data
     }
     return new EmptyRecord()
+  }
+
+  /**
+   * 读取网桥转发表（MAC → 端口），用于区分「直连路由器」与「经交换机/AP 接入」
+   * 优先走 ubus file.exec（bridge / brctl），无权限时退回 SSH；都失败返回空表
+   * @param bridge 网桥接口名，默认 br-lan
+   */
+  async getBridgePortMap(bridge: string = 'br-lan'): Promise<Map<string, string>> {
+    this.lastBridgeDebug = ''
+
+    // 第一轮：ubus file.exec 直接读转发表
+    let fdb: Map<string, string> = await this.tryBridgeExec(bridge)
+    if (fdb.size > 0) {
+      return fdb
+    }
+
+    // stdout 全为空说明命令被 rpcd ACL 拒绝 → 补写一次 ACL 后重试（每次启动只尝试一次）
+    if (await this.ensureExecAcl()) {
+      this.lastBridgeDebug += '[acl upgraded, retry]\n'
+      fdb = await this.tryBridgeExec(bridge)
+      if (fdb.size > 0) {
+        return fdb
+      }
+    }
+
+    // ubus 无命令执行权限 → 借用 SSH（与登录账号同源），每次会话只尝试一次
+    if (this.sshBridgeTried) {
+      return new Map<string, string>()
+    }
+    this.sshBridgeTried = true
+    try {
+      const host: string = this.getConfigHost()
+      if (host && this.username && this.password) {
+        const sshSvc: SshService = SshService.getInstance()
+        const device: SavedDevice = {
+          id: '', label: host, host: host, port: '22', token: '',
+          useHttps: false, lastConnected: 0, version: 0,
+          username: this.username, password: this.password,
+          favorite: false, group: ''
+        }
+        const connected: boolean = await sshSvc.connect(device)
+        if (connected) {
+          const fdbOut: string = await sshSvc.exec(
+            `bridge fdb show br ${bridge} 2>/dev/null || brctl showmacs ${bridge} 2>/dev/null || echo`)
+          this.lastBridgeDebug += `[ssh fdb] len=${fdbOut.length} ${fdbOut.substring(0, 60).replace(/\n/g, '|')}\n`
+          let parsed: Map<string, string> = ApiClient.parseBridgeFdb(fdbOut, bridge)
+          // brctl 分支只有端口序号，用 ip/brctl 换成真实接口名
+          if (parsed.size > 0 && ApiClient.hasBrctlPortParam(parsed)) {
+            const linksOut: string = await sshSvc.exec(
+              `ip -o link show master ${bridge} 2>/dev/null || brctl show ${bridge} 2>/dev/null || ls /sys/class/net/${bridge}/brif 2>/dev/null || echo`)
+            this.lastBridgeDebug += `[ssh links] len=${linksOut.length} ${linksOut.substring(0, 80).replace(/\n/g, '|')}\n`
+            let ifaces: string[] = ApiClient.parseIpMasterLinks(linksOut)
+            if (ifaces.length === 0) {
+              ifaces = ApiClient.parseBrctlIfaces(linksOut)
+            }
+            if (ifaces.length === 0) {
+              const rows: string[] = linksOut.split('\n')
+              for (let r = 0; r < rows.length; r++) {
+                const name: string = rows[r].trim()
+                if (name.length > 0 && name.indexOf(' ') < 0 && name !== 'echo') {
+                  ifaces.push(name)
+                }
+              }
+            }
+            parsed = ApiClient.remapBrctlPorts(parsed, ifaces)
+          }
+          sshSvc.disconnect()
+          if (parsed.size > 0) {
+            return parsed
+          }
+        }
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `getBridgePortMap ssh err: ${e}`)
+    }
+    return new Map<string, string>()
+  }
+
+  /**
+   * 用 ubus file.exec 依次尝试 bridge fdb / brctl showmacs
+   * 命令不在 rpcd ACL 白名单时 stdout 为空，调用方据此判断是否需要补授权
+   */
+  private async tryBridgeExec(bridge: string): Promise<Map<string, string>> {
+    const cmds: string[][] = [
+      ['/sbin/bridge', 'fdb', 'show', 'br', bridge],
+      ['/usr/sbin/bridge', 'fdb', 'show', 'br', bridge],
+      ['/sbin/bridge', 'fdb', 'show'],
+      ['/usr/sbin/bridge', 'fdb', 'show'],
+      ['/sbin/brctl', 'showmacs', bridge],
+      ['/usr/sbin/brctl', 'showmacs', bridge]
+    ]
+    for (let i = 0; i < cmds.length; i++) {
+      try {
+        const cmd: string = cmds[i][0]
+        const args: string[] = []
+        for (let k = 1; k < cmds[i].length; k++) {
+          args.push(cmds[i][k])
+        }
+        let out: string = await this.ubusExec(cmd, args)
+        if (out.length === 0) {
+          // rpcd ACL 白名单没有该命令 → 改用 LuCI 会话代理执行
+          out = await this.luciExec(cmd, args)
+          this.lastBridgeDebug += `[luci exec ${cmd} ${args.join(' ')}] len=${out.length}\n`
+        }
+        this.lastBridgeDebug += `[exec ${cmd} ${args.join(' ')}] len=${out.length} ${out.substring(0, 60).replace(/\n/g, '|')}\n`
+        if (out.length === 0) {
+          continue
+        }
+        let parsed: Map<string, string> = ApiClient.parseBridgeFdb(out, bridge)
+        if (parsed.size === 0) {
+          continue
+        }
+        // brctl showmacs 只给端口序号，再换成 lan1/lan2
+        if (ApiClient.hasBrctlPortParam(parsed)) {
+          let ifaces: string[] = await this.getBridgeMembers(bridge)
+          if (ifaces.length === 0) {
+            const showOut: string = await this.ubusExec(cmd.indexOf('brctl') >= 0 ? cmd : '/sbin/brctl',
+              ['show', bridge])
+            ifaces = ApiClient.parseBrctlIfaces(showOut)
+          }
+          parsed = ApiClient.remapBrctlPorts(parsed, ifaces)
+        }
+        return parsed
+      } catch (e) { /* 该命令不在 ACL 白名单内，继续尝试下一条 */ }
+    }
+    return new Map<string, string>()
+  }
+
+  /**
+   * 主动重写 rpcd ACL（补齐 bridge / brctl / ip link 等命令执行权限）
+   * 需要设备已开启 SSH 且账号密码与登录密码一致
+   */
+  async upgradeAcl(): Promise<boolean> {
+    this.aclUpgradeTried = true
+    const ok: boolean = await this.qwrtAutoFix()
+    if (ok) {
+      await this.ensureSession(true)
+    }
+    return ok
+  }
+
+  /**
+   * 命令执行被 rpcd ACL 拒绝时，通过 SSH 补写一份新版 ACL 并重启 rpcd
+   * 每次启动只尝试一次，避免反复建立 SSH 连接
+   */
+  private async ensureExecAcl(): Promise<boolean> {
+    if (this.aclUpgradeTried) {
+      return false
+    }
+    this.aclUpgradeTried = true
+    if (!this.username || !this.password) {
+      return false
+    }
+    try {
+      const ok: boolean = await this.qwrtAutoFix()
+      if (ok) {
+        await this.ensureSession(true)
+      }
+      return ok
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `ensureExecAcl err: ${e}`)
+      return false
+    }
+  }
+  private static hasBrctlPortParam(map: Map<string, string>): boolean {
+    let found: boolean = false
+    map.forEach((port: string) => {
+      if (/^port\d+$/.test(port)) {
+        found = true
+      }
+    })
+    return found
+  }
+
+  /**
+   * 解析 bridge fdb / brctl showmacs 输出
+   * bridge fdb：00:11:22:33:44:55 dev lan2 master br-lan
+   * brctl：  2  00:11:22:33:44:55  no  1.23（端口为序号，输出 port2）
+   */
+  private static parseBridgeFdb(out: string, bridge: string): Map<string, string> {
+    const map: Map<string, string> = new Map()
+    const lines: string[] = out.split('\n')
+    const macRe: RegExp = new RegExp('[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}')
+    for (let i = 0; i < lines.length; i++) {
+      const line: string = lines[i].trim()
+      if (line.length === 0) {
+        continue
+      }
+      const macMatch: RegExpMatchArray | null = line.match(macRe)
+      if (!macMatch) {
+        continue
+      }
+      const mac: string = macMatch[0].toUpperCase()
+      // bridge fdb 格式：带 dev 与 master，permanent/self 属于本机接口本身
+      const devMatch: RegExpMatchArray | null = line.match(/\bdev\s+(\S+)/)
+      if (devMatch) {
+        if (line.indexOf('permanent') >= 0 || line.indexOf(' self') >= 0) {
+          continue
+        }
+        // 只接受挂在目标网桥上的条目（`bridge fdb show` 不带 br 参数时会混入其他网桥）
+        const masterMatch: RegExpMatchArray | null = line.match(/\bmaster\s+(\S+)/)
+        if (!masterMatch || masterMatch[1] !== bridge) {
+          continue
+        }
+        const portName: string = devMatch[1]
+        if (portName !== bridge) {
+          map.set(mac, portName)
+        }
+        continue
+      }
+      // brctl showmacs 格式：首列为端口号，第二列为 MAC，第三列为 is local
+      const brctlMatch: RegExpMatchArray | null = line.match(/^(\d+)\s+([0-9a-fA-F:]{17})\s+(\S+)/)
+      if (brctlMatch) {
+        if (brctlMatch[3].toLowerCase() === 'yes') {
+          continue
+        }
+        map.set(brctlMatch[2].toUpperCase(), `port${brctlMatch[1]}`)
+      }
+    }
+    return map
+  }
+
+  /**
+   * 取桥成员接口名（luci-rpc getNetworkDevices 的 bridge-members）
+   * 数组顺序与内核端口号（brctl showmacs 的 port no）一致，用于把 portN 还原成 lan1/lan2
+   */
+  private async getBridgeMembers(bridge: string): Promise<string[]> {
+    // 1) iproute2：ip -o link show master br-lan，输出顺序即端口顺序
+    const ipArgs: string[][] = [
+      ['-o', 'link', 'show', 'master', bridge],
+      ['link', 'show', 'master', bridge]
+    ]
+    for (let i = 0; i < ipArgs.length; i++) {
+      try {
+        let out: string = await this.ubusExec('/sbin/ip', ipArgs[i])
+        if (out.length === 0) {
+          out = await this.luciExec('/sbin/ip', ipArgs[i])
+        }
+        const listed: string[] = ApiClient.parseIpMasterLinks(out)
+        this.lastBridgeDebug += `[members ip ${ipArgs[i].join(' ')}] len=${out.length} n=${listed.length} ${out.substring(0, 50).replace(/\n/g, '|')}\n`
+        if (listed.length > 0) {
+          return listed
+        }
+      } catch (e) { /* ip 不支持该参数，继续下一种方式 */ }
+    }
+
+    // 2) busybox/brctl：brctl show br-lan
+    try {
+      let showOut: string = await this.ubusExec('/sbin/brctl', ['show', bridge])
+      if (showOut.length === 0) {
+        showOut = await this.luciExec('/sbin/brctl', ['show', bridge])
+      }
+      const listed: string[] = ApiClient.parseBrctlIfaces(showOut)
+      this.lastBridgeDebug += `[members brctl show] len=${showOut.length} n=${listed.length} ${showOut.substring(0, 60).replace(/\n/g, '|')}\n`
+      if (listed.length > 0) {
+        return listed
+      }
+    } catch (e) { /* 继续 */ }
+    try {
+      const showAll: string = await this.ubusExec('/sbin/brctl', ['show'])
+      const listed: string[] = ApiClient.parseBrctlIfaces(showAll)
+      if (listed.length > 0) {
+        return listed
+      }
+    } catch (e) { /* 继续 */ }
+
+    // 3) luci-rpc getNetworkDevices 的 bridge-members
+    const names: string[] = []
+    try {
+      const data: Object | null = await this.ubusCall('luci-rpc', 'getNetworkDevices', new EmptyRecord())
+      if (!data) {
+        return names
+      }
+      const root: Record<string, Object> = data as Record<string, Object>
+      const dev: Object | undefined = root[bridge]
+      if (!dev) {
+        return names
+      }
+      const devRec: Record<string, Object> = dev as Record<string, Object>
+      const members: Object | undefined = devRec['bridge-members']
+      if (members && Array.isArray(members)) {
+        const arr: Object[] = members as Object[]
+        for (let i = 0; i < arr.length; i++) {
+          const name: string = String(arr[i])
+          if (name.length > 0 && name !== 'undefined' && name !== 'null') {
+            names.push(name)
+          }
+        }
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `getBridgeMembers err: ${e}`)
+    }
+    return names
+  }
+
+  /**
+   * 解析 `ip link show master br-lan` 的输出，按出现顺序返回接口名
+   * 3: lan1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br-lan ...
+   */
+  private static parseIpMasterLinks(out: string): string[] {
+    const names: string[] = []
+    if (!out) {
+      return names
+    }
+    const lines: string[] = out.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const m: RegExpMatchArray | null = lines[i].match(/^\s*\d+:\s+([^:@\s]+)/)
+      if (m) {
+        const name: string = m[1]
+        if (name.length > 0) {
+          names.push(name)
+        }
+      }
+    }
+    return names
+  }
+
+  /**
+   * 解析 brctl show <bridge> 的接口列表（顺序与端口号一一对应）
+   * br-lan   7fff.aabbccddeeff   no    lan1
+   *                                   lan2
+   */
+  private static parseBrctlIfaces(out: string): string[] {
+    const names: string[] = []
+    if (!out) {
+      return names
+    }
+    const lines: string[] = out.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const line: string = lines[i].replace(/\r/g, '')
+      if (line.trim().length === 0 || line.indexOf('bridge name') >= 0) {
+        continue
+      }
+      // 兼容 tab 与空格两种对齐方式：取该行最后一个字段作为接口名
+      const parts: string[] = line.split(/\s+/).filter((s: string) => s.length > 0)
+      if (parts.length === 0) {
+        continue
+      }
+      const name: string = parts[parts.length - 1]
+      const lower: string = name.toLowerCase()
+      if (lower === 'no' || lower === 'yes' || lower === 'interfaces') {
+        continue
+      }
+      if (name.length > 0 && name !== 'br-lan') {
+        names.push(name)
+      }
+    }
+    return names
+  }
+
+  /** 把 brctl 的 portN 序号替换成真实接口名（序号从 1 开始） */
+  private static remapBrctlPorts(map: Map<string, string>, ifaces: string[]): Map<string, string> {
+    if (ifaces.length === 0) {
+      return map
+    }
+    const out: Map<string, string> = new Map()
+    map.forEach((port: string, mac: string) => {
+      const m: RegExpMatchArray | null = port.match(/^port(\d+)$/)
+      if (m) {
+        const idx: number = parseInt(m[1]) - 1
+        out.set(mac, (idx >= 0 && idx < ifaces.length) ? ifaces[idx] : port)
+      } else {
+        out.set(mac, port)
+      }
+    })
+    return out
   }
 
   /** 获取内存详细信息 */

@@ -135,6 +135,10 @@ export class ApiService {
   private static interfacesCache: Object | null = null
   private static cacheStamp: number = 0
   private static readonly CACHE_TTL_MS: number = 1200
+  // 网桥转发表缓存（MAC → 端口）：读取需要执行命令或 SSH，开销大，单独放长 TTL
+  private static bridgePortCache: Map<string, string> = new Map()
+  private static bridgePortStamp: number = 0
+  private static readonly BRIDGE_TTL_MS: number = 30000
 
   constructor() {
     this.client = ApiClient.getInstance()
@@ -146,6 +150,42 @@ export class ApiService {
     ApiService.rateMapCache = null
     ApiService.statsCache = new Map()
     ApiService.cacheStamp = 0
+    ApiService.bridgePortCache = new Map()
+    ApiService.bridgePortStamp = 0
+  }
+
+  /** 清掉网桥转发表缓存，下次读取重新执行命令（用户点刷新时调用） */
+  refreshBridgeCache(): void {
+    ApiService.bridgePortCache = new Map()
+    ApiService.bridgePortStamp = 0
+  }
+
+  /**
+   * 修复端口读取权限：重写路由器 rpcd ACL（补齐 bridge/brctl 等命令），需设备开启 SSH
+   * 成功后清空缓存，下一次读取即可拿到端口
+   */
+  async repairPortAccess(): Promise<boolean> {
+    const ok: boolean = await this.client.upgradeAcl()
+    if (ok) {
+      this.refreshBridgeCache()
+    }
+    return ok
+  }
+
+  /** 取网桥 MAC→端口映射（TTL 内复用，失败也缓存空表避免反复执行 SSH） */
+  private async getBridgePortMap(): Promise<Map<string, string>> {
+    if ((Date.now() - ApiService.bridgePortStamp) < ApiService.BRIDGE_TTL_MS) {
+      return ApiService.bridgePortCache
+    }
+    let map: Map<string, string> = new Map()
+    try {
+      map = await this.client.getBridgePortMap()
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `getBridgePortMap err: ${String(e)}`)
+    }
+    ApiService.bridgePortCache = map
+    ApiService.bridgePortStamp = Date.now()
+    return map
   }
 
   /**
@@ -518,6 +558,12 @@ export class ApiService {
         }
       } catch (_e) { /* WiFi 数据获取失败不阻塞主流程 */ }
 
+      // 构建桥接端口查找表（MAC → lan1/lan2…），用于区分直连与经交换机/AP 接入
+      let portMap: Map<string, string> = new Map()
+      try {
+        portMap = await this.getBridgePortMap()
+      } catch (_e) { /* 拿不到转发表时退化为不标注端口 */ }
+
       const now = Math.floor(Date.now() / 1000)
       const list: ConnectedDevice[] = []
 
@@ -555,17 +601,20 @@ export class ApiService {
 
         // 厂商识别不到时置空，避免页面出现无意义的 "Unknown" 占位
         const vendorName: string = FormatUtils.getVendorName(mac)
+        // 转发表的端口名同时代表「该 MAC 从哪个接口学习到」：wlan0 说明无线接入，lan1 说明物理口
+        const fdbPort: string = portMap.get(mac.toUpperCase()) || ''
         const item: ConnectedDevice = {
           mac: mac,
           ip: ip,
           hostname: hostname,
           vendor: vendorName === 'Unknown' ? '' : vendorName,
-          interface: interfaceName,
+          interface: interfaceName || fdbPort,
           onlineTime: displayOnlineTime,
           signalStrength: signalStrength,
           rxRate: rxRate,
           txRate: txRate,
-          isOnline: isOnline
+          isOnline: isOnline,
+          bridgePort: fdbPort
         }
         list.push(item)
       }

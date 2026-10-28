@@ -24,3 +24,21 @@
 -enable-toplevel-obfuscation
 -enable-filename-obfuscation
 -enable-export-obfuscation
+
+# libentry.so（libssh2 NAPI 封装）的导入名必须保留：
+# 导出名一旦被混淆，运行时找不到 native 导出（does not provide an export name），
+# SSH 终端/文件管理以及「用 SSH 重写 rpcd ACL」都会直接失败。
+-keep-global-name
+openProtocol
+sendTerminalCommand
+closeProtocol
+initSftp
+listDirectory
+SftpFileInfo
+deleteFile
+createDirectory
+deleteDirectory
+rename
+uploadFile
+downloadFile
+cancelTransfer

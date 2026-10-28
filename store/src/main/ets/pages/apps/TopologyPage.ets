@@ -11,8 +11,10 @@ import { AppNav } from '../../common/utils/AppNav'
 
 /** 拓扑节点（胶囊）布局信息 */
 interface TopoNode {
-  dev: ConnectedDevice
+  dev: ConnectedDevice | null
   isWifi: boolean
+  kind: number          // 0=本机无线 1=直连 2=经AP/交换机 3=未知有线 4=分组标签
+  gi: number            // 所属分组下标
   x: number
   y: number
   sx: number
@@ -21,6 +23,17 @@ interface TopoNode {
   h: number
   fs: number
   text: string
+}
+
+/** 接入分组：本机无线 / 某个桥接口 / 未知有线 */
+interface TopoGroup {
+  key: string
+  label: string
+  kind: number
+  devs: ConnectedDevice[]
+  total: number         // 组内设备总数（折叠时 devs 不参与绘制但总数仍保留）
+  angle: number
+  span: number
 }
 
 /** 胶囊尺寸测量结果 */
@@ -50,10 +63,20 @@ export struct TopologyPage {
   @State errorText: string = ''
   @State devices: ConnectedDevice[] = []
   @State wifiMacs: string[] = []
+  @State onlineCount: number = 0
+  /** 路由器不允许执行网络命令 → 端口信息拿不到 */
+  @State portAccessDenied: boolean = false
+  @State repairing: boolean = false
   private canvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private canvasW: number = 360
   private canvasH: number = 420
   private deviceName: string = '路由器'
+  /** 已折叠的分组 key */
+  private collapsed: string[] = []
+  /** 当前帧节点几何信息，用于点击命中检测 */
+  private hitNodes: TopoNode[] = []
+  /** 当前帧分组顺序，用于折叠状态切换 */
+  private groupKeys: string[] = []
 
   aboutToAppear(): void {
 this.theme = AppState.getInstance().getTheme()
@@ -78,12 +101,23 @@ this.theme = AppState.getInstance().getTheme()
     } catch (e) {}
   }
 
+  /** 画布高度：在线设备越多给的高度越大，保证全部设备都能铺开 */
+  private canvasHeightValue(): number {
+    const n: number = this.onlineCount
+    if (n <= 6) {
+      return 460
+    }
+    return Math.min(600, 460 + (n - 6) * 20)
+  }
+
   /** 加载设备与无线客户端（区分有线/无线） */
   async loadData(): Promise<void> {
     this.isLoading = true
     this.errorText = ''
     try {
       const api = new ApiService()
+      // 每次进入/刷新都重新读一次转发表，避免 30s 缓存挡住刚接入的设备
+      api.refreshBridgeCache()
       const devs: ConnectedDevice[] = await api.fetchConnectedDevices()
       const wifiClients = await api.fetchWifiClients()
       const macs: string[] = []
@@ -92,6 +126,25 @@ this.theme = AppState.getInstance().getTheme()
       }
       this.wifiMacs = macs
       this.devices = devs
+      let online: number = 0
+      let withPort: number = 0
+      let wireless: number = 0
+      for (let i = 0; i < devs.length; i++) {
+        if (devs[i].isOnline) {
+          online++
+        }
+        const bpOpt: string | undefined = devs[i].bridgePort
+        const bp: string = bpOpt === undefined ? '' : bpOpt
+        if (bp.length > 0) {
+          withPort++
+        }
+        if (this.isWifiDevice(devs[i])) {
+          wireless++
+        }
+      }
+      this.onlineCount = online
+      // 一个端口/无线都识别不出来，说明路由器没放行执行网络命令
+      this.portAccessDenied = devs.length > 0 && withPort === 0 && wireless === 0
     } catch (e) {
       this.errorText = '加载设备信息失败'
     }
@@ -99,9 +152,59 @@ this.theme = AppState.getInstance().getTheme()
     this.draw()
   }
 
+  /** 一键修复端口读取权限：通过 SSH 重写路由器 ACL（需设备开启 SSH） */
+  async repairAccess(): Promise<void> {
+    if (this.repairing) {
+      return
+    }
+    this.repairing = true
+    this.errorText = ''
+    try {
+      const api = new ApiService()
+      const ok: boolean = await api.repairPortAccess()
+      this.repairing = false
+      if (ok) {
+        await this.loadData()
+        return
+      }
+      this.errorText = api.getLastError() || '修复失败：请确认路由器已开启 SSH，且账号密码正确'
+    } catch (e) {
+      this.repairing = false
+      this.errorText = '修复失败，请稍后重试'
+    }
+  }
+
+  /** 端口名是否属于无线接口（wlan0 / phy0-ap0 / ra0 / ath0 …） */
+  private isWifiPort(port: string): boolean {
+    const p: string = port.toLowerCase()
+    if (p.length === 0) {
+      return false
+    }
+    const prefixes: string[] = ['wlan', 'phy', 'ra', 'rai', 'ath', 'wl', 'mt', 'apcli']
+    for (let i = 0; i < prefixes.length; i++) {
+      if (p.indexOf(prefixes[i]) === 0) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * 判定无线设备：三重依据，任一命中即可
+   * 1) iwinfo assoclist 关联列表命中 MAC
+   * 2) 有信号强度（无线才会合并到负值 dBm，有线恒为 0）
+   * 3) 转发表学习端口是无线接口（wlan0/phy0-ap0…）
+   */
   isWifiDevice(dev: ConnectedDevice): boolean {
     const m: string = dev.mac.toUpperCase()
-    return this.wifiMacs.indexOf(m) >= 0
+    if (this.wifiMacs.indexOf(m) >= 0) {
+      return true
+    }
+    if (dev.signalStrength < 0) {
+      return true
+    }
+    const port: string = dev.bridgePort ? dev.bridgePort : ''
+    return port.length > 0 && this.isWifiPort(port)
   }
 
   /** 按最大宽度裁剪文本（超出加省略号） */
@@ -128,8 +231,8 @@ this.theme = AppState.getInstance().getTheme()
   }
 
   /** 测量胶囊尺寸：优先缩小字号以完整容纳设备名 */
-  private capsuleMetrics(ctx: CanvasRenderingContext2D, name: string): CapMetrics {
-    const maxW: number = Math.min(this.canvasW * 0.52, 176)
+  private capsuleMetrics(ctx: CanvasRenderingContext2D, name: string, maxWOverride: number = 0): CapMetrics {
+    const maxW: number = maxWOverride > 0 ? maxWOverride : Math.min(this.canvasW * 0.48, 168)
     const padX: number = 9
     const innerW: number = maxW - padX * 2
     let fs: number = 9
@@ -156,29 +259,167 @@ this.theme = AppState.getInstance().getTheme()
   }
 
   /**
-   * 环形节点坐标
-   * side: 0=上半圆（有线） 1=下半圆（无线） 2=整圈（某一类为空时避免半边空洞）
-   * 返回 [x, y, 角度]
+   * 按接入点分组
+   * 本机无线（iwinfo assoclist 命中）→ 各桥接口（lan1/lan2…）→ 未知有线
+   * 端口下挂多台设备说明该端口接的是交换机/AP，UI 上用独立颜色区分
    */
-  private nodePos(i: number, n: number, side: number): number[] {
-    const w: number = this.canvasW
-    const h: number = this.canvasH
-    const cx: number = w / 2
-    const cy: number = h / 2
-    const rx: number = Math.min(w * 0.40, 165)
-    const ry: number = Math.min(h * 0.34, 155)
-    let a: number = 0
-    if (side === 2) {
-      a = -Math.PI / 2 + (i * Math.PI * 2) / Math.max(n, 1)
-    } else {
-      const span: number = Math.PI * 0.94
-      const start: number = Math.PI / 2 - span / 2
-      a = n === 1 ? Math.PI / 2 : start + (i * span) / (n - 1)
+  private buildGroups(all: ConnectedDevice[]): TopoGroup[] {
+    const groups: TopoGroup[] = []
+    const wifi: TopoGroup = { key: 'wifi', label: 'WiFi', kind: 0, devs: [], total: 0, angle: 0, span: 0 }
+    const portMap: Map<string, ConnectedDevice[]> = new Map()
+    const unknown: ConnectedDevice[] = []
+    for (let i = 0; i < all.length; i++) {
+      const d: ConnectedDevice = all[i]
+      if (!d.isOnline) {
+        continue
+      }
+      if (this.isWifiDevice(d)) {
+        wifi.devs.push(d)
+        continue
+      }
+      const port: string = d.bridgePort ? d.bridgePort : ''
+      if (port.length === 0) {
+        unknown.push(d)
+        continue
+      }
+      const list: ConnectedDevice[] | undefined = portMap.get(port)
+      if (list) {
+        list.push(d)
+      } else {
+        const created: ConnectedDevice[] = [d]
+        portMap.set(port, created)
+      }
     }
-    const x: number = cx + Math.cos(a) * rx
-    const y: number = side === 0 ? cy - Math.sin(a) * ry
-      : (side === 1 ? cy + Math.sin(a) * ry : cy + Math.sin(a) * ry)
-    return [x, y, a]
+    if (wifi.devs.length > 0) {
+      wifi.total = wifi.devs.length
+      groups.push(wifi)
+    }
+    const ports: string[] = []
+    portMap.forEach((list: ConnectedDevice[], key: string) => {
+      if (key.length > 0) {
+        ports.push(key)
+      }
+    })
+    ports.sort()
+    for (let i = 0; i < ports.length; i++) {
+      const devs: ConnectedDevice[] | undefined = portMap.get(ports[i])
+      if (!devs || devs.length === 0) {
+        continue
+      }
+      const g: TopoGroup = {
+        key: ports[i], label: ports[i], kind: devs.length > 1 ? 2 : 1,
+        devs: devs, total: devs.length, angle: 0, span: 0
+      }
+      groups.push(g)
+    }
+    if (unknown.length > 0) {
+      const g: TopoGroup = {
+        key: 'wired', label: '有线', kind: 3, devs: unknown, total: unknown.length, angle: 0, span: 0
+      }
+      groups.push(g)
+    }
+    return groups
+  }
+
+  /** 端口名美化：brctl 只给出序号时显示「端口 N」 */
+  private prettyPort(port: string): string {
+    const m: RegExpMatchArray | null = port.match(/^port(\d+)$/)
+    return m ? `端口 ${m[1]}` : port
+  }
+
+  /** 分组是否已折叠 */
+  private isCollapsed(key: string): boolean {
+    return this.collapsed.indexOf(key) >= 0
+  }
+
+  /** 分组在圆环上占用的角度权重 */
+  private groupWeight(g: TopoGroup): number {
+    if (this.isCollapsed(g.key)) {
+      return 1
+    }
+    return Math.max(1, g.total)
+  }
+
+  /** 折叠 / 展开某个分组 */
+  private toggleGroup(gi: number): void {
+    if (gi < 0 || gi >= this.groupKeys.length) {
+      return
+    }
+    const key: string = this.groupKeys[gi]
+    const idx: number = this.collapsed.indexOf(key)
+    if (idx >= 0) {
+      const next: string[] = this.collapsed.slice()
+      next.splice(idx, 1)
+      this.collapsed = next
+    } else {
+      this.collapsed = this.collapsed.concat([key])
+    }
+    this.draw()
+  }
+
+  /** 点击命中检测：只有分组标签可切换折叠 */
+  private handleTap(px: number, py: number): void {
+    for (let i = 0; i < this.hitNodes.length; i++) {
+      const n: TopoNode = this.hitNodes[i]
+      if (n.kind !== 4) {
+        continue
+      }
+      // 分组胶囊较窄，命中区向外扩一圈，方便手指点中
+      if (Math.abs(px - n.x) <= n.w / 2 + 14 && Math.abs(py - n.y) <= n.h / 2 + 18) {
+        this.toggleGroup(n.gi)
+        return
+      }
+    }
+  }
+
+  /** 分组标签文字（带展开/收起指示） */
+  private groupLabel(g: TopoGroup): string {
+    const folded: boolean = this.isCollapsed(g.key)
+    let head: string = ''
+    if (g.kind === 0) {
+      head = `WiFi ${g.total}`
+    } else if (g.kind === 3) {
+      head = `未识别 ${g.total}`
+    } else {
+      const name: string = this.prettyPort(g.label)
+      head = g.total > 1 ? `${name} · ${g.total}` : name
+    }
+    return head + (folded ? ' ▸' : ' ▾')
+  }
+
+  private linkColor(kind: number): string {
+    if (kind === 0) {
+      return 'rgba(16,185,129,0.42)'
+    }
+    if (kind === 2) {
+      return 'rgba(139,92,246,0.42)'
+    }
+    if (kind === 3) {
+      return 'rgba(148,163,184,0.42)'
+    }
+    return 'rgba(59,130,246,0.42)'
+  }
+
+  private nodeColor(kind: number): string {
+    if (kind === 0) {
+      return '#10B981'
+    }
+    if (kind === 2) {
+      return '#8B5CF6'
+    }
+    if (kind === 3) {
+      return '#94A3B8'
+    }
+    return '#3B82F6'
+  }
+
+  private findGroupNode(list: TopoNode[], gi: number): TopoNode | null {
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].gi === gi) {
+        return list[i]
+      }
+    }
+    return null
   }
 
   /** 绘制拓扑图（中心路由器 + 无线/有线半圆分布） */
@@ -193,26 +434,33 @@ this.theme = AppState.getInstance().getTheme()
     }
     ctx.clearRect(0, 0, w, h)
 
-    // 无线设备（下半区）与有线设备（上半区）分组
-    const wifiDevs: ConnectedDevice[] = []
-    const wiredDevs: ConnectedDevice[] = []
-    for (let i = 0; i < this.devices.length; i++) {
-      const d: ConnectedDevice = this.devices[i]
-      if (!d.isOnline) continue
-      if (this.isWifiDevice(d)) {
-        wifiDevs.push(d)
-      } else {
-        wiredDevs.push(d)
-      }
-    }
-    // 两类都有 → 上下半圆；只有一类 → 整圈排布，避免半边空洞
-    const bothSides: boolean = wifiDevs.length > 0 && wiredDevs.length > 0
-    const showWifi: ConnectedDevice[] = bothSides ? wifiDevs.slice(0, 8) : []
-    const showWired: ConnectedDevice[] = bothSides ? wiredDevs.slice(0, 8) : []
-    const singleRing: ConnectedDevice[] = bothSides ? [] : wifiDevs.concat(wiredDevs).slice(0, 12)
-    const ringRx: number = Math.min(w * 0.40, 165)
-    const ringRy: number = Math.min(h * 0.34, 155)
+    // 按「接入点」分组：本机无线 / 各桥接口（lan1/lan2…）/ 未知有线
+    const groups: TopoGroup[] = this.buildGroups(this.devices)
+    const ringRx: number = Math.min(w * 0.40, Math.max(150, h * 0.52))
+    const ringRy: number = Math.min(h * 0.36, 190)
     const glowR: number = Math.max(ringRx, ringRy)
+
+    // 记录分组顺序，供点击折叠命中后定位分组
+    const keys: string[] = []
+    for (let i = 0; i < groups.length; i++) {
+      keys.push(groups[i].key)
+    }
+    this.groupKeys = keys
+
+    // 角度分配：按组内实际设备数加权（已折叠的组只占最小份额），避免大组挤在一起
+    let totalWeight: number = 0
+    for (let i = 0; i < groups.length; i++) {
+      totalWeight += this.groupWeight(groups[i])
+    }
+    let cursor: number = -Math.PI / 2
+    for (let i = 0; i < groups.length; i++) {
+      const g: TopoGroup = groups[i]
+      const weight: number = this.groupWeight(g)
+      const span: number = (Math.PI * 2) * weight / Math.max(totalWeight, 1)
+      g.angle = cursor + span / 2
+      g.span = span
+      cursor += span
+    }
 
     // ---- 背景光晕 ----
     const glow = ctx.createRadialGradient(cx, cy, 8, cx, cy, glowR + 60)
@@ -235,28 +483,38 @@ this.theme = AppState.getInstance().getTheme()
     }
     ctx.restore()
 
-    // ---- 测量胶囊尺寸并计算布局（完整名称 + 互不遮挡）----
+    // ---- 生成节点：内圈分组标签 + 外圈设备 ----
     const capH: number = 22
     const nodes: TopoNode[] = []
-    const addNodes = (list: ConnectedDevice[], side: number, wifiMode: number): void => {
-      for (let i = 0; i < list.length; i++) {
-        const dev: ConnectedDevice = list[i]
+    for (let gi = 0; gi < groups.length; gi++) {
+      const g: TopoGroup = groups[gi]
+      const gx: number = cx + Math.cos(g.angle) * ringRx * 0.54
+      const gy: number = cy + Math.sin(g.angle) * ringRy * 0.54
+      const gName: string = this.groupLabel(g)
+      const gm: CapMetrics = this.capsuleMetrics(ctx, gName, Math.min(this.canvasW * 0.34, 116))
+      const gNode: TopoNode = {
+        dev: null, isWifi: g.kind === 0, kind: 4, gi: gi,
+        x: gx, y: gy, sx: gx, sy: gy, w: gm.w, h: capH - 4, fs: gm.fs, text: gm.text
+      }
+      nodes.push(gNode)
+
+      const shown: ConnectedDevice[] = this.isCollapsed(g.key) ? [] : g.devs.slice()
+      const spread: number = Math.min(g.span * 0.90, Math.PI * 1.9)
+      const step: number = shown.length > 1 ? spread / (shown.length - 1) : 0
+      for (let i = 0; i < shown.length; i++) {
+        const dev: ConnectedDevice = shown[i]
         const name: string = dev.hostname || dev.mac || '未知设备'
         const m: CapMetrics = this.capsuleMetrics(ctx, name)
-        const p: number[] = this.nodePos(i, list.length, side)
-        const isWifiDev: boolean = wifiMode === 1 ? true : (wifiMode === 0 ? false : this.isWifiDevice(dev))
+        const off: number = shown.length === 1 ? 0 : (i - (shown.length - 1) / 2) * step
+        const a: number = g.angle + off
+        const x: number = cx + Math.cos(a) * ringRx
+        const y: number = cy + Math.sin(a) * ringRy
         const node: TopoNode = {
-          dev: dev, isWifi: isWifiDev, x: p[0], y: p[1], sx: p[0], sy: p[1],
-          w: m.w, h: capH, fs: m.fs, text: m.text
+          dev: dev, isWifi: g.kind === 0, kind: g.kind, gi: gi,
+          x: x, y: y, sx: x, sy: y, w: m.w, h: capH, fs: m.fs, text: m.text
         }
         nodes.push(node)
       }
-    }
-    if (bothSides) {
-      addNodes(showWired, 0, 0)
-      addNodes(showWifi, 1, 1)
-    } else {
-      addNodes(singleRing, 2, 2)
     }
 
     // 迭代消解重叠：沿重叠较小的一侧把两个胶囊对推开
@@ -319,13 +577,31 @@ this.theme = AppState.getInstance().getTheme()
     }
 
     const centerEdge: number = 30
+    const groupNodes: TopoNode[] = []
+    const devNodes: TopoNode[] = []
     for (let i = 0; i < nodes.length; i++) {
-      const n: TopoNode = nodes[i]
-      const color: string = n.isWifi ? 'rgba(16,185,129,0.45)' : 'rgba(59,130,246,0.45)'
-      const dx: number = n.x - cx
-      const dy: number = n.y - cy
+      if (nodes[i].kind === 4) {
+        groupNodes.push(nodes[i])
+      } else {
+        devNodes.push(nodes[i])
+      }
+    }
+    // 中心 → 接入分组
+    for (let i = 0; i < groupNodes.length; i++) {
+      const gn: TopoNode = groupNodes[i]
+      const gk: number = groups[gn.gi].kind
+      const dx: number = gn.x - cx
+      const dy: number = gn.y - cy
       const len: number = Math.sqrt(dx * dx + dy * dy) || 1
-      drawLink(cx + (dx / len) * centerEdge, cy + (dy / len) * centerEdge, n.x, n.y, color)
+      drawLink(cx + (dx / len) * centerEdge, cy + (dy / len) * centerEdge, gn.x, gn.y, this.linkColor(gk))
+    }
+    // 接入分组 → 该组设备
+    for (let i = 0; i < devNodes.length; i++) {
+      const dn: TopoNode = devNodes[i]
+      const gn: TopoNode | null = this.findGroupNode(groupNodes, dn.gi)
+      if (gn) {
+        drawLink(gn.x, gn.y, dn.x, dn.y, this.linkColor(groups[dn.gi].kind))
+      }
     }
 
     // ---- 中心路由器节点 ----
@@ -363,34 +639,41 @@ this.theme = AppState.getInstance().getTheme()
     // ---- 设备节点（椭圆胶囊，完整名称居中）----
     for (let i = 0; i < nodes.length; i++) {
       const n: TopoNode = nodes[i]
-      const color: string = n.isWifi ? '#10B981' : '#3B82F6'
+      const kind: number = n.kind === 4 ? groups[n.gi].kind : n.kind
+      const color: string = this.nodeColor(kind)
       const x0: number = n.x - n.w / 2
       const y0: number = n.y - n.h / 2
       const r: number = n.h / 2
 
       // 白色胶囊底 + 同色投影
       ctx.save()
-      ctx.shadowColor = n.isWifi ? 'rgba(16,185,129,0.28)' : 'rgba(59,130,246,0.28)'
+      ctx.shadowColor = n.kind === 4 ? 'rgba(100,116,139,0.22)'
+        : (kind === 0 ? 'rgba(16,185,129,0.28)'
+          : (kind === 2 ? 'rgba(139,92,246,0.28)'
+            : (kind === 3 ? 'rgba(148,163,184,0.28)' : 'rgba(59,130,246,0.28)')))
       ctx.shadowBlur = 8
       ctx.shadowOffsetY = 3
       this.capsulePath(ctx, x0, y0, n.w, n.h, r)
-      ctx.fillStyle = '#FFFFFF'
+      ctx.fillStyle = n.kind === 4 ? 'rgba(255,255,255,0.94)' : '#FFFFFF'
       ctx.fill()
       ctx.restore()
 
-      // 彩色胶囊描边
+      // 彩色胶囊描边（分组标签略细，视觉上退到设备之后）
       this.capsulePath(ctx, x0, y0, n.w, n.h, r)
-      ctx.lineWidth = 1.8
+      ctx.lineWidth = n.kind === 4 ? 1.2 : 1.8
       ctx.strokeStyle = color
       ctx.stroke()
 
       // 设备名称：完整居中塞进胶囊
       ctx.fillStyle = color
-      ctx.font = n.fs.toString() + 'vp sans-serif'
+      ctx.font = (n.kind === 4 ? 'bold ' : '') + n.fs.toString() + 'vp sans-serif'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText(n.text, n.x, n.y + 0.5)
     }
+
+    // 保存本帧节点几何信息，供点击命中检测
+    this.hitNodes = nodes
   }
 
   build() {
@@ -453,9 +736,12 @@ this.theme = AppState.getInstance().getTheme()
         // 拓扑画布（尺寸随容器变化，避免固定宽度导致错位）
         Canvas(this.canvasCtx)
           .width('100%')
-          .height(460)
+          .height(this.canvasHeightValue())
           .onReady(() => {
             this.draw()
+          })
+          .onClick((event: ClickEvent) => {
+            this.handleTap(event.x, event.y)
           })
           .onAreaChange((oldValue: Area, newValue: Area) => {
             const w: number = Number.parseFloat(newValue.width.toString())
@@ -473,15 +759,25 @@ this.theme = AppState.getInstance().getTheme()
           Row() {
             Row() {
               Circle({ width: 8, height: 8 }).fill('#10B981')
-              Text(' 无线连接').fontSize(11).fontColor(this.theme.textSecondary)
+              Text(' 无线').fontSize(11).fontColor(this.theme.textSecondary)
             }
             Row() {
               Circle({ width: 8, height: 8 }).fill('#3B82F6')
-              Text(' 有线连接').fontSize(11).fontColor(this.theme.textSecondary)
+              Text(' 直连').fontSize(11).fontColor(this.theme.textSecondary)
             }
-            .margin({ left: 18 })
+            .margin({ left: 14 })
+            Row() {
+              Circle({ width: 8, height: 8 }).fill('#8B5CF6')
+              Text(' 经 AP/交换机').fontSize(11).fontColor(this.theme.textSecondary)
+            }
+            .margin({ left: 14 })
+            Row() {
+              Circle({ width: 8, height: 8 }).fill('#94A3B8')
+              Text(' 未识别').fontSize(11).fontColor(this.theme.textSecondary)
+            }
+            .margin({ left: 14 })
             Blank()
-            Text(`共 ${this.devices.length} 台`)
+            Text(`共 ${this.onlineCount} 台在线`)
               .fontSize(11).fontColor(this.theme.textTertiary)
           }
           .width('100%')
@@ -489,10 +785,45 @@ this.theme = AppState.getInstance().getTheme()
           Row() {
             SymbolGlyph($r('sys.symbol.info_circle'))
               .fontSize(11).fontColor([this.theme.textTertiary])
-            Text(' 每侧最多展示 8 台，名称过长自动省略')
+            Text(' 无线设备归入 WiFi 组；有线按路由器 LAN 端口分组，同一端口下多台设备视为经交换机/AP 接入；未识别表示转发表暂无该设备端口信息；点击分组节点可收起或展开')
               .fontSize(10).fontColor(this.theme.textTertiary)
+              .layoutWeight(1)
           }
           .margin({ top: 8 })
+
+          if (this.portAccessDenied) {
+            Column() {
+              Row() {
+                SymbolGlyph($r('sys.symbol.info_circle'))
+                  .fontSize(11).fontColor([this.theme.warning])
+                Text(' 路由器未放行端口查询命令，暂时读不到设备接在哪个口')
+                  .fontSize(10).fontColor(this.theme.warning)
+                  .layoutWeight(1)
+                if (this.repairing) {
+                  LoadingProgress().width(14).height(14).color(this.theme.primary)
+                    .margin({ left: 6 })
+                } else {
+                  Text('立即修复')
+                    .fontSize(10).fontColor(this.theme.primary)
+                    .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                    .borderRadius(10)
+                    .backgroundColor('rgba(68,138,255,0.1)')
+                    .margin({ left: 6 })
+                }
+              }
+              .width('100%')
+              // 整行可点，避免小字按钮点不中
+              .onClick(() => { this.repairAccess() })
+
+              if (this.errorText.length > 0) {
+                Text(this.errorText)
+                  .fontSize(10).fontColor(this.theme.warning)
+                  .margin({ top: 4 })
+              }
+            }
+            .width('100%')
+            .margin({ top: 8 })
+          }
         }
         .width('100%')
         .padding(16)

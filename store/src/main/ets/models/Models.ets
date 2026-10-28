@@ -92,6 +92,7 @@ export interface ConnectedDevice {
   rxRate: number            // 下载速率
   txRate: number            // 上传速率
   isOnline: boolean         // 是否在线
+  bridgePort?: string       // 桥接端口（lan1/lan2…），用于区分直连与经交换机/AP 接入
 }
 
 /**
