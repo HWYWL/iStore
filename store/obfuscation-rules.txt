@@ -17,7 +17,10 @@
 # -keep-property-name: specifies property names that you want to keep
 # -keep-global-name: specifies names that you want to keep in the global scope
 
--enable-property-obfuscation
+# 关闭属性混淆：本应用大量与路由器 ubus（JSON-RPC）/ Immich / Jellyfin / Docker 交互，
+# 请求体字段名一旦被混淆（如 jsonrpc 被改成 q57），设备端会直接返回 Parse error，
+# 表现为「登录请求被拒绝」。持久化的 JSON 数据也会因字段改名而无法读取旧数据。
+# -enable-property-obfuscation
 -enable-toplevel-obfuscation
 -enable-filename-obfuscation
 -enable-export-obfuscation
