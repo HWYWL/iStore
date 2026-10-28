@@ -1,0 +1,41 @@
+{
+  "footer": "iStore 路由管家 · v3.4.2",
+  "items": [
+    {
+      "id": "pet",
+      "shot": "images/promo/shot_pet.jpg",
+      "badge": "小管家 · 养成式陪伴",
+      "title": "小管家",
+      "subtitle": "会撒娇的路由器看板",
+      "points": [
+        { "title": "陪伴养成", "desc": "喂数据、摸头、换装扮", "color": "#34D3FF" },
+        { "title": "状态可视", "desc": "饱食度、能量、心情一眼看", "color": "#8B7CFF" },
+        { "title": "每日成长", "desc": "完成任务加 XP，一天天升级", "color": "#3DE1A0" }
+      ]
+    },
+    {
+      "id": "store",
+      "shot": "images/promo/shot_store.jpg",
+      "badge": "iStore 商店 · 插件市场",
+      "title": "iStore 商店",
+      "subtitle": "常用插件，一键装好",
+      "points": [
+        { "title": "插件齐全", "desc": "下载、Docker 面板、监控都有", "color": "#34D3FF" },
+        { "title": "版本可见", "desc": "已装版本与更新状态一眼看清", "color": "#8B7CFF" },
+        { "title": "一键安装", "desc": "点一下就好，无需命令行", "color": "#3DE1A0" }
+      ]
+    },
+    {
+      "id": "docker",
+      "shot": "images/promo/shot_docker.jpg",
+      "badge": "Docker · 容器管理",
+      "title": "Docker 管理",
+      "subtitle": "手机上看住每个容器",
+      "points": [
+        { "title": "状态总览", "desc": "Daemon、容器、镜像、版本", "color": "#34D3FF" },
+        { "title": "容器操作", "desc": "停止、重启，点一下就好", "color": "#8B7CFF" },
+        { "title": "资源占用", "desc": "CPU 与内存实时可见", "color": "#3DE1A0" }
+      ]
+    }
+  ]
+}
