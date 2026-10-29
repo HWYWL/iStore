@@ -59,6 +59,7 @@ export struct AppsPage {
         { icon: $r('sys.symbol.heart'), name: '小管家', desc: '养成式网络管家 · 每日任务', route: 'pages/pet/PetPage' },
         { icon: $r('sys.symbol.bag'), name: 'iStore 商店', desc: '浏览与安装路由器插件', route: 'pages/apps/StorePage' },
         { icon: $r('sys.symbol.square_stack_3d'), name: 'Docker', desc: '容器、镜像与网络管理', route: 'pages/apps/DockerPage' },
+        { icon: $r('sys.symbol.wifi_router'), name: 'OpenWRT 首页', desc: '打开路由器管理后台', route: 'pages/apps/WebViewPage' },
       ]
     },
     {
@@ -123,7 +124,6 @@ export struct AppsPage {
     {
       title: '系统',
       items: [
-        { icon: $r('sys.symbol.wifi_router'), name: 'OpenWRT 首页', desc: '打开路由器管理后台', route: 'pages/apps/WebViewPage' },
         { icon: $r('sys.symbol.arrow_clockwise'), name: '网络重启',  desc: '只重启网络服务不动整机', route: 'pages/system/NetworkRestartPage' },
         { icon: $r('sys.symbol.card_package'), name: '软件包管理', desc: 'opkg/apk 安装卸载软件', route: 'pages/system/PackageManagerPage' },
         { icon: $r('sys.symbol.doc_plaintext'), name: '系统日志',  desc: '实时查看路由器日志', route: 'pages/system/SystemLogPage' },

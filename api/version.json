@@ -1,7 +1,8 @@
 {
-  "version": "3.4.2",
-  "versionCode": 4,
-  "description": "修复部分路由器 SSH 连接崩溃，优化网络拓扑与设备外号",
-  "releaseDate": "2026-10-28",
+
+  "version": "3.5.0",
+  "versionCode": 5,
+  "description": "支持域名登录、地址格式智能提示、SSH 端口自动探测，修复网络拓扑端口识别",
+  "releaseDate": "2026-10-29",
   "downloadUrl": "https://github.com/HWYWL/iStore/releases"
 }
