@@ -32,6 +32,8 @@ export interface SavedDevice {
   favorite: boolean
   /** 分组名称（空串表示未分组） */
   group: string
+  /** 自动探测到的 SSH 端口（Dropbear 配置，空/未定义时按 22 及常见端口依次尝试） */
+  sshPort?: string
 }
 
 export class DeviceStore {
@@ -168,7 +170,8 @@ export class DeviceStore {
           username: list[i].username,
           password: encrypt(list[i].password),
           favorite: list[i].favorite === true,
-          group: list[i].group ? list[i].group : ''
+          group: list[i].group ? list[i].group : '',
+          sshPort: list[i].sshPort
         }
         encList.push(d)
       }

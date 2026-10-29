@@ -384,7 +384,8 @@ this.theme = AppState.getInstance().getTheme()
       const name: string = this.prettyPort(g.label)
       head = g.total > 1 ? `${name} · ${g.total}` : name
     }
-    return head + (folded ? ' ▸' : ' ▾')
+    // Canvas 字体对 ▾/▸ 支持不稳定，统一用 ASCII 符号表示可收起/可展开
+    return folded ? `${head} +` : `${head} -`
   }
 
   private linkColor(kind: number): string {

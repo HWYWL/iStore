@@ -15,6 +15,7 @@ import { preferences } from '@kit.ArkData'
 import { ApiClient } from '../../api/ApiClient'
 import { ConnectionConfig } from '../../models/Models'
 import { DeviceStore, SavedDevice } from './DeviceStore'
+import { SshService } from '../ssh/SshService'
 import { LIGHT_THEME, ThemePalette, SKINS, SkinDef, getSkinById } from '../theme/ThemeColors'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -414,10 +415,36 @@ export class AppState {
       this.deviceStore.recordConnect(deviceId)
       this.deviceStore.saveActiveId(deviceId)
       this.notifyDeviceListeners()
+      // 后台探测路由器 SSH 端口（Dropbear 配置），供 SSH 终端/文件管理/体检等功能复用
+      this.detectSshPortAsync(device)
       return true
     } else {
       this.lastError = client.lastError || '连接失败'
       return false
+    }
+  }
+
+  /**
+   * 后台探测 SSH 端口并回写到设备记录（失败不影响主流程）
+   * 已记录过端口的设备直接复用，不再重复探测
+   */
+  private async detectSshPortAsync(device: SavedDevice): Promise<void> {
+    try {
+      const cached: string = device.sshPort ? device.sshPort : ''
+      if (cached.length > 0) {
+        SshService.getInstance().preferredPort = cached
+        return
+      }
+      const port: string = await ApiClient.getInstance().detectSshPort()
+      if (port.length > 0) {
+        SshService.getInstance().preferredPort = port
+        device.sshPort = port
+        device.version = (device.version ? device.version : 0) + 1
+        await this.saveDevice(device)
+        this.notifyDeviceListeners()
+      }
+    } catch (e) {
+      hilog.warn(0x0001, 'AppState', `detectSshPort failed: ${String(e)}`)
     }
   }
 

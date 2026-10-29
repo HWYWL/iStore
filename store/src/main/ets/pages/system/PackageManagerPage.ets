@@ -128,7 +128,7 @@ export struct PackageManagerPage {
     const detail: string = this.ssh.lastError
     this.statusMsg = detail
       ? `⚠️ ${detail}`
-      : '⚠️ 无法通过 SSH 连接路由器，请检查 SSH 服务是否开启（默认端口 22）以及防火墙是否放行'
+      : '⚠️ 无法通过 SSH 连接路由器，请检查 SSH 服务是否开启（默认 22，可自定义）以及防火墙是否放行'
   }
 
   /** 重试检测（重置本次会话标记，允许重新建连） */

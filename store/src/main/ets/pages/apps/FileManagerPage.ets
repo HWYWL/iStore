@@ -119,7 +119,7 @@ export struct FileManagerPage {
     }
     const ok: boolean = await this.ssh.connect(device)
     if (!ok) {
-      this.connError = this.ssh.lastError || 'SSH 连接失败，请确认路由器已开启 SSH（端口 22）'
+      this.connError = this.ssh.lastError || 'SSH 连接失败，请确认路由器已开启 SSH（端口可能不是 22）'
       this.isLoading = false
       return
     }

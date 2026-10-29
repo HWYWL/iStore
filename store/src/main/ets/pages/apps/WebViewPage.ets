@@ -58,7 +58,11 @@ this.theme = AppState.getInstance().getTheme()
       return
     }
     const protocol: string = activeDevice.useHttps ? 'https://' : 'http://'
-    this.webUrl = `${protocol}${activeDevice.host}`
+    // 端口必须带上，否则非 80/443 的域名/映射端口打不开后台
+    const port: string = activeDevice.port ? activeDevice.port : ''
+    this.webUrl = port.length > 0
+      ? `${protocol}${activeDevice.host}:${port}`
+      : `${protocol}${activeDevice.host}`
     hilog.info(DOMAIN, TAG, `OpenWRT Web URL: ${this.webUrl}`)
   }
 

@@ -45,6 +45,10 @@ export class SshService {
   private hostName: string = ''
   /** 最近一次操作错误信息（页面诊断用） */
   lastError: string = ''
+  /** 自动探测到的 SSH 端口（由 ApiClient 读取 Dropbear 配置后写入） */
+  preferredPort: string = ''
+  /** 最近一次连接成功的端口 */
+  private lastGoodPort: string = ''
   private sftpInited: boolean = false
 
   static getInstance(): SshService {
@@ -57,17 +61,51 @@ export class SshService {
   private constructor() {
   }
 
-  /** 连接路由器（libssh2 交互会话） */
+  /** 连接路由器（libssh2 交互会话），端口自动探测：设备记录 → 探测结果 → 上次成功 → 常见端口 */
   async connect(device: SavedDevice): Promise<boolean> {
     this.disconnect()
     // 等待 closeProtocol 异步完成，避免 C++ 侧 "Session busy" 拒绝
     await this.sleep(400)
     this.lastError = ''
+    const ports: string[] = this.portCandidates(device)
+    for (let i = 0; i < ports.length; i++) {
+      const ok: boolean = await this.tryConnect(device, ports[i])
+      if (ok) {
+        this.lastGoodPort = ports[i]
+        return true
+      }
+    }
+    this.lastError = `SSH 连接失败：路由器未开启 SSH 或端口不是 22（已尝试 ${ports.join('/')}），请确认账号密码`
+    return false
+  }
+
+  /** 端口候选顺序：设备记录 → 自动探测 → 上次成功 → 22 → 常见自定义端口 */
+  private portCandidates(device: SavedDevice): string[] {
+    const ports: string[] = []
+    const push = (p: string): void => {
+      if (p && p.length > 0 && ports.indexOf(p) < 0) {
+        ports.push(p)
+      }
+    }
+    const savedPort: string = device.sshPort ? device.sshPort : ''
+    push(savedPort)
+    push(this.preferredPort)
+    push(this.lastGoodPort)
+    push('22')
+    push('2222')
+    push('2022')
+    push('2202')
+    push('8022')
+    return ports
+  }
+
+  /** 用指定端口尝试建立 SSH 会话 */
+  private async tryConnect(device: SavedDevice, port: string): Promise<boolean> {
     try {
       const sessionCfg: ConnectSession = {
         connectionType: 'SSH',
         hostName: device.host,
-        port: '22',
+        port: port,
         userName: device.username,
         password: device.password,
         authType: 'password',
@@ -78,19 +116,20 @@ export class SshService {
       const cfg: string = JSON.stringify(connectCfg)
       const sid: number = await openProtocol(cfg)
       if (sid < 0) {
-        this.lastError = 'SSH 连接失败：请确认路由器已开启 SSH（端口 22）、账号密码正确'
-        hilog.error(DOMAIN, TAG, `openProtocol failed: ${sid}`)
+        this.lastError = `SSH 端口 ${port} 连接失败`
+        hilog.error(DOMAIN, TAG, `openProtocol failed on port ${port}: ${sid}`)
         return false
       }
       this.sessionId = sid
       this.connectedFlag = true
       this.hostName = device.host
       this.sftpInited = false
-      hilog.info(DOMAIN, TAG, `SSH connected: ${device.host} sid=${sid}`)
+      this.lastError = ''
+      hilog.info(DOMAIN, TAG, `SSH connected: ${device.host}:${port} sid=${sid}`)
       return true
     } catch (e) {
       const msg: string = SshService.errorMessage(e)
-      this.lastError = `连接异常: ${msg}`
+      this.lastError = `SSH 端口 ${port} 连接异常: ${msg}`
       hilog.error(DOMAIN, TAG, this.lastError)
       return false
     }

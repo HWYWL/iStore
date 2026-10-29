@@ -28,6 +28,7 @@
 				"/proc/loadavg": ["read"],
 				"/proc/stat": ["read"],
 				"/tmp/dhcp.leases": ["read"],
+				"/etc/config/dropbear": ["read"],
 				"/sys/class/thermal/*": ["read"],
 				"/etc/board.json": ["read"]
 			}

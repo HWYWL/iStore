@@ -245,6 +245,13 @@ class RpcResponse {
 /** 连接模式 */
 type ConnMode = 'none' | 'ubus' | 'legacy'
 
+/** 规范化后的设备地址 */
+export interface NormalizedAddress {
+  host: string      // 纯主机名或 IP（不含协议、端口、路径）
+  port: number      // 实际端口
+  useHttps: boolean
+}
+
 export class ApiClient {
   baseUrl: string = ''       // API 基础 URL（协议://主机:端口）
   token: string = ''         // 认证令牌（legacy 模式）
@@ -253,6 +260,7 @@ export class ApiClient {
   lastBridgeDebug: string = '' // 调试：网桥转发表读取过程中的原始输出摘要
   private aclUpgradeTried: boolean = false // 是否已尝试过「命令被 ACL 拒绝 → SSH 补授权」
   private sshBridgeTried: boolean = false  // 是否已尝试过用 SSH 读网桥转发表（每次会话只试一次）
+  private sshPortCache: string = ''        // 自动探测到的路由器 SSH 端口
 
   // ========== 连接配置 ==========
   private username: string = ''
@@ -295,12 +303,57 @@ export class ApiClient {
   }
 
   /**
+   * 规范化设备地址，让域名 / IP / 带协议的地址都能直接用：
+   * - 去掉开头的 http(s):// 与末尾的斜杠、路径
+   * - 拆出主机名里自带的端口（router.example.com:8443）
+   * - 端口缺省时按协议补 80/443，并按端口推断协议（443/8443 → https）
+   */
+  static normalizeAddress(rawHost: string, rawPort: number, useHttps: boolean): NormalizedAddress {
+    let host: string = rawHost ? rawHost.trim() : ''
+    let https: boolean = useHttps
+    let port: number = rawPort > 0 ? rawPort : 0
+    const scheme: RegExpMatchArray | null = host.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//)
+    if (scheme) {
+      https = scheme[1].toLowerCase() === 'https'
+      host = host.substring(scheme[0].length)
+    }
+    const slash: number = host.indexOf('/')
+    if (slash >= 0) {
+      host = host.substring(0, slash)
+    }
+    host = host.trim()
+    // 只有非 IPv6 字面量（不含 []）时，末尾的 :数字 才当作端口
+    const colon: number = host.lastIndexOf(':')
+    if (colon > 0 && colon < host.length - 1 && host.indexOf('[') < 0) {
+      const tail: string = host.substring(colon + 1)
+      if (/^\d+$/.test(tail)) {
+        const p: number = Number.parseInt(tail, 10)
+        if (p > 0 && p < 65536) {
+          port = p
+          host = host.substring(0, colon)
+          if (p === 443 || p === 8443) {
+            https = true
+          } else if (p === 80 || p === 8080) {
+            https = false
+          }
+        }
+      }
+    }
+    if (port <= 0) {
+      port = https ? 443 : 80
+    }
+    const addr: NormalizedAddress = { host: host, port: port, useHttps: https }
+    return addr
+  }
+
+  /**
    * 配置连接参数
    * @param config 连接配置（host, port, token, username, password, useHttps）
    */
   configure(config: ConnectionConfig): void {
-    const protocol: string = config.useHttps ? 'https' : 'http'
-    this.baseUrl = `${protocol}://${config.host}:${config.port}`
+    const addr: NormalizedAddress = ApiClient.normalizeAddress(config.host, config.port, config.useHttps)
+    const protocol: string = addr.useHttps ? 'https' : 'http'
+    this.baseUrl = `${protocol}://${addr.host}:${addr.port}`
     this.ubusUrl = `${this.baseUrl}/ubus`
     this.legacyUrl = `${this.baseUrl}/cgi-bin/router-api`
     this.token = config.token
@@ -1242,7 +1295,7 @@ export class ApiClient {
       }
       const connOk: boolean = await sshSvc.connect(device)
       if (!connOk) {
-        this.lastError = sshSvc.lastError || 'SSH 连接失败：请确认路由器已开启 SSH（端口 22）、账号密码正确'
+        this.lastError = sshSvc.lastError || 'SSH 连接失败：请确认路由器已开启 SSH、账号密码正确'
         return false
       }
 
@@ -1276,7 +1329,7 @@ export class ApiClient {
       return false
     } catch (e) {
       hilog.error(DOMAIN, TAG, `qwrtAutoFix error: ${e}`)
-      this.lastError = 'SSH 连接失败，请确认路由器已开启 SSH（端口 22）'
+      this.lastError = 'SSH 连接失败，请确认路由器已开启 SSH（端口可能不是 22）'
       return false
     }
   }
@@ -1306,6 +1359,7 @@ export class ApiClient {
       '"/proc/sys/net/netfilter/nf_conntrack_max":["read"],"/proc/mounts":["read"],' +
       '"/proc/net/dev":["read"],"/proc/meminfo":["read"],"/proc/cpuinfo":["read"],' +
       '"/proc/loadavg":["read"],"/proc/stat":["read"],"/tmp/dhcp.leases":["read"],' +
+      '"/etc/config/dropbear":["read"],' +
       '"/sys/class/thermal/*":["read"],"/etc/board.json":["read"]}},' +
       '"write":{"ubus":{"system":["reboot"],"rc":["list","init"],' +
       '"service":["list","state","signal","event"],' +
@@ -3434,6 +3488,81 @@ export class ApiClient {
         return ApiUtils.strOf(values, option)
       }
       return ApiUtils.strOf(rec, 'value') || ApiUtils.strOf(rec, option)
+    }
+    return ''
+  }
+
+  /**
+   * 自动探测 router 的 SSH 端口（Dropbear 配置，对应 LuCI「系统 → 管理权 → SSH 访问 → 端口」）
+   * 依次尝试：uci get → 读 /etc/config/dropbear → LuCI 设置页表单
+   * 返回空串表示探测不到，调用方回落 22 与常见端口
+   */
+  async detectSshPort(): Promise<string> {
+    if (this.sshPortCache.length > 0) {
+      return this.sshPortCache
+    }
+    let port: string = ''
+    // 1. uci get（Dropbear 各实例的 Port）
+    port = await this.getUciOption('dropbear', '', 'Port')
+    if (port.length === 0) {
+      port = await this.getUciOption('dropbear', '@dropbear[0]', 'Port')
+    }
+    if (port.length === 0) {
+      const p: UciGetParam = new UciGetParam()
+      p.config = 'dropbear'
+      p.option = 'Port'
+      port = ApiClient.pickPortFromUci(await this.ubusCall('uci', 'get', p))
+    }
+    // 2. 直接读配置文件
+    if (port.length === 0) {
+      const cfg: string = await this.readFile('/etc/config/dropbear')
+      const m: RegExpMatchArray | null = cfg.match(/option\s+Port\s+'?(\d+)'?/)
+      if (m) {
+        port = m[1]
+      }
+    }
+    // 3. LuCI 的 SSH 设置页
+    if (port.length === 0) {
+      const page: LuciHttpResult = await this.luciGet('admin/system/admin/ssh')
+      const m: RegExpMatchArray | null = page.body.match(/name="Port"[^>]*value="(\d+)"/)
+      if (m) {
+        port = m[1]
+      }
+    }
+    const n: number = Number.parseInt(port, 10)
+    if (n > 0 && n < 65536) {
+      this.sshPortCache = String(n)
+      hilog.info(DOMAIN, TAG, `detectSshPort -> ${this.sshPortCache}`)
+      return this.sshPortCache
+    }
+    hilog.warn(DOMAIN, TAG, 'detectSshPort: not found, fallback to defaults')
+    return ''
+  }
+
+  /** 从 uci get 结果里取 Port（兼容平铺与按 section 嵌套两种结构） */
+  private static pickPortFromUci(data: Object | null): string {
+    if (!data) {
+      return ''
+    }
+    const rec = data as Record<string, Object>
+    const values = rec['values']
+    if (!values || typeof values !== 'object') {
+      return ''
+    }
+    const vrec = values as Record<string, Object>
+    const direct: string = ApiUtils.strOf(vrec, 'Port')
+    if (direct.length > 0) {
+      return direct
+    }
+    const keys: string[] = Object.keys(vrec)
+    for (let i = 0; i < keys.length; i++) {
+      const inner = vrec[keys[i]]
+      if (inner && typeof inner === 'object') {
+        const v: string = ApiUtils.strOf(inner as Record<string, Object>, 'Port')
+        if (v.length > 0) {
+          return v
+        }
+      }
     }
     return ''
   }

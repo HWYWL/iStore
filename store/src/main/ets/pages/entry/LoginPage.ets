@@ -10,6 +10,7 @@ import { AppState } from '../../common/store/AppState'
 import { SavedDevice } from '../../common/store/DeviceStore'
 import { ImmichStore } from '../../common/store/ImmichStore'
 import { ConnectionConfig } from '../../models/Models'
+import { ApiClient, NormalizedAddress } from '../../api/ApiClient'
 import {LIGHT_THEME, ThemePalette} from '../../common/theme/ThemeColors'
 import { common } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -39,6 +40,9 @@ struct LoginPage {
   @State editingId: string = ''
   @State connectingId: string = ''
   @State formVersion: number = 0
+  /** 设备地址输入提示（输入时即时纠正） */
+  @State hostHint: string = '只填 IP 或域名，如 192.168.1.1、router.example.com'
+  @State hostHintWarn: boolean = false
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44  // 状态栏高度（默认 44vp，覆盖大部分设备）
   // ========== 设备列表：搜索 / 分组 / 自动重连 ==========
@@ -170,15 +174,19 @@ struct LoginPage {
     this.savedDevices = this.appState.devices
   }
 
-  /** 从表单输入构造连接配置 */
+  /** 从表单输入构造连接配置（地址统一规范化：支持域名 / 带协议 / 带端口的写法） */
   getConfig(): ConnectionConfig {
-    const host: string = this.host.trim()
-    const port: string = this.port || '80'
+    const addr: NormalizedAddress = ApiClient.normalizeAddress(this.host, Number.parseInt(this.port, 10), this.useHttps)
+    // 回写表单，保存与显示保持一致
+    this.host = addr.host
+    this.port = String(addr.port)
+    this.useHttps = addr.useHttps
+    this.updateHostHint(addr.host)
     return {
-      host: host,
-      port: Number(port) || 80,
+      host: addr.host,
+      port: addr.port,
       token: '',
-      useHttps: false,
+      useHttps: addr.useHttps,
       username: this.username.trim(),
       password: this.password
     }
@@ -196,7 +204,9 @@ struct LoginPage {
     this.errorMessage = ''
     this.successMessage = ''
 
+    const rawHostInput: string = this.host.trim()
     const config: ConnectionConfig = this.getConfig()
+    const hostAutoFixed: boolean = rawHostInput !== config.host
     const deviceLabel: string = this.label.trim() || config.host
 
     try {
@@ -240,7 +250,7 @@ struct LoginPage {
 
       await this.appState.saveDevice(device)
       this.savedDevices = this.appState.devices
-      this.successMessage = '设备已保存'
+      this.successMessage = hostAutoFixed ? `已保存，地址自动更正为 ${config.host}` : '设备已保存'
       this.isSaving = false
       this.resetForm()
       this.showAddSheet = false
@@ -255,12 +265,18 @@ struct LoginPage {
   /** 连接设备并进入主页面，SSH 自动授权约 3~5 秒 */
   async connectAndEnter(savedDevice?: SavedDevice): Promise<void> {
     // 优先使用已保存设备的参数，否则使用表单输入值
-    const host: string = savedDevice ? savedDevice.host : this.host.trim()
+    const rawHost: string = savedDevice ? savedDevice.host : this.host.trim()
     const port: string = savedDevice ? savedDevice.port : this.port
     const token: string = savedDevice ? savedDevice.token : ''
     const username: string = savedDevice ? (savedDevice.username || '') : this.username.trim()
     const password: string = savedDevice ? (savedDevice.password || '') : this.password
-    const config: ConnectionConfig = { host, port: Number(port) || 80, token, useHttps: this.useHttps, username, password }
+    const savedHttps: boolean = savedDevice ? savedDevice.useHttps : this.useHttps
+    // 兼容历史数据：host 里可能带协议或端口，统一拆干净
+    const addr: NormalizedAddress = ApiClient.normalizeAddress(rawHost, Number.parseInt(port, 10), savedHttps)
+    const host: string = addr.host
+    const config: ConnectionConfig = {
+      host: addr.host, port: addr.port, token, useHttps: addr.useHttps, username, password
+    }
 
     if (!host) {
       this.showError('请输入设备地址')
@@ -297,7 +313,7 @@ struct LoginPage {
           host: host,
           port: String(config.port),
           token: keepLegacyToken ? existing!.token : '',
-          useHttps: this.useHttps,
+          useHttps: config.useHttps,
           lastConnected: existing ? existing.lastConnected : Date.now(),
           version: existing ? existing.version : 0,
           username: keepLegacyToken ? '' : config.username!,
@@ -316,7 +332,7 @@ struct LoginPage {
           host: config.host,
           port: String(config.port),
           token: config.token,
-          useHttps: this.useHttps,
+          useHttps: config.useHttps,
           lastConnected: Date.now(),
           version: 0,
           username: config.username!,
@@ -396,6 +412,37 @@ struct LoginPage {
     this.errorMessage = ''
     this.groupInput = ''
     this.formVersion = 0
+    this.updateHostHint('')
+  }
+
+  /**
+   * 设备地址输入提示：
+   * 地址框只接受纯 IP / 域名，输入 http://、结尾斜杠或端口时即时提醒用户
+   */
+  updateHostHint(value: string): void {
+    const s: string = value ? value.trim() : ''
+    if (s.length === 0) {
+      this.hostHint = '只填 IP 或域名，如 192.168.1.1、router.example.com'
+      this.hostHintWarn = false
+      return
+    }
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(s)) {
+      this.hostHint = '不要写 http:// 或 https://，直接填 192.168.1.1（保存时也会自动去掉）'
+      this.hostHintWarn = true
+      return
+    }
+    if (s.indexOf('/') >= 0) {
+      this.hostHint = '不要带路径或结尾斜杠，只填主机名，如 192.168.1.1'
+      this.hostHintWarn = true
+      return
+    }
+    if (/:\d+$/.test(s)) {
+      this.hostHint = '端口请填到下面的端口框，这里只填 IP 或域名'
+      this.hostHintWarn = true
+      return
+    }
+    this.hostHint = '只填 IP 或域名，如 192.168.1.1、router.example.com'
+    this.hostHintWarn = false
   }
 
   fillForm(device: SavedDevice): void {
@@ -410,6 +457,7 @@ struct LoginPage {
     this.formVersion++
     this.errorMessage = ''
     this.showAddSheet = true
+    this.updateHostHint(device.host)
   }
 
   /** 打开添加设备弹窗 */
@@ -726,18 +774,32 @@ struct LoginPage {
       .border({ width: 0.5, color: this.theme.borderGlass })
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
-      // IP 地址
+      // 设备地址（IP 或域名）
       Row() {
-        TextInput({ placeholder: 'IP 地址（如 192.168.1.1）', text: this.host })
+        TextInput({ placeholder: 'IP 或域名（如 192.168.1.1）', text: this.host })
           .placeholderColor(this.theme.textTertiary).fontColor(this.theme.textPrimary)
           .backgroundColor('transparent')
-          .onChange((v: string) => { this.host = v })
+          .onChange((v: string) => {
+            this.host = v
+            this.updateHostHint(v)
+          })
           .layoutWeight(1).height(52)
       }
       .width('100%').height(52).borderRadius(24)
       .backgroundColor(this.theme.bgCard).backdropBlur(10)
-      .border({ width: 0.5, color: this.theme.borderGlass })
-      .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
+      .border({ width: 0.5, color: this.hostHintWarn ? this.theme.warning : this.theme.borderGlass })
+      .padding({ left: 14, right: 14 })
+
+      // 输入提示：常驻说明填写规则，格式不对时转为警告色并给出纠正建议
+      Row() {
+        Text(this.hostHint)
+          .fontSize(11)
+          .fontColor(this.hostHintWarn ? this.theme.warning : this.theme.textTertiary)
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .padding({ left: 18, right: 18 })
+      .margin({ top: 6, bottom: 4 })
 
       // 端口 + https 切换
       Row() {
