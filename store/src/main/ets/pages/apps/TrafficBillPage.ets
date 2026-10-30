@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TrafficBillPage - 流量月账单（运营商账单风）
  * 本月流量总览 + 近 7 天趋势 + 设备流量排行（实时快照推测）
  */
@@ -11,6 +11,7 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { TrafficStatStore, DayTraffic, HourTraffic } from '../../common/store/TrafficStatStore'
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const DOMAIN = 0x0001
 const TAG = 'TrafficBill'
@@ -291,7 +292,7 @@ export struct TrafficBillPage {
               Column() {
                 Row() {
                   Row() {
-            SymbolGlyph($r('sys.symbol.arrow_up_right')).fontSize(13).fontColor(['#3B82F6'])
+            AppIcon({ name: 'arrow_up_right', iconSize: 13, colors: ['#3B82F6'] })
             Text(' 本月峰值日').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
           }
                   Text(this.peakDay).fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 8 })
@@ -348,7 +349,7 @@ export struct TrafficBillPage {
                 ForEach(this.devices, (d: DeviceTop, idx: number) => {
                   Row() {
                     if (idx < 3) {
-                      SymbolGlyph(this.rankSymbol(idx)).fontSize(16).fontColor([this.rankColor(idx)]).width(26)
+                      AppIcon({ name: this.rankSymbol(idx), iconSize: 16, colors: [this.rankColor(idx)] })
                     } else {
                       Text(`${idx + 1}`).fontSize(12).fontColor(this.theme.textTertiary).width(26)
                     }
@@ -382,9 +383,9 @@ export struct TrafficBillPage {
   }
 
   /** 前三名奖牌图标 */
-  private rankSymbol(idx: number): Resource {
-    if (idx === 0) return $r('sys.symbol.star_trophy')
-    return $r('sys.symbol.medal')
+  private rankSymbol(idx: number): string {
+    if (idx === 0) return 'star_trophy'
+    return 'medal'
   }
 
   /** 前三名奖牌配色 */

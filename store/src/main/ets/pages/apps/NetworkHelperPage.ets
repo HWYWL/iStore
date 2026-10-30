@@ -1,4 +1,4 @@
-﻿/**
+/**
  * NetworkHelperPage - 网络助手（快捷问答）
  * 本地规则引擎：快捷提问 + 自由输入，实时拉取路由器数据回答
  */
@@ -7,6 +7,7 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { AiHelper, ChatMsg } from '../../common/ai/AiHelper'
 import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const QUICK_QUESTIONS: string[] = [
   '谁在占带宽？',
@@ -107,9 +108,7 @@ export struct NetworkHelperPage {
       } else {
         Column() {
           Row() {
-            SymbolGlyph($r('sys.symbol.globe_badge_message'))
-              .fontSize(15)
-              .fontColor([this.theme.primary])
+            AppIcon({ name: 'globe_badge_message', iconSize: 15, colors: [this.theme.primary] })
             Text(' 网络助手')
               .fontSize(10)
               .fontColor(this.theme.textTertiary)

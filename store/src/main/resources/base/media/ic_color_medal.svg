@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="3" y1="3" x2="21" y2="21"><stop offset="0" stop-color="#FFD166"/><stop offset="1" stop-color="#C27803"/></linearGradient></defs>
+  <circle cx="12" cy="14.5" r="6" fill="url(#g)"/>
+  <polyline points="8,9.5 5.5,2.5 10.5,2.5 12,6.2" fill="none" stroke="url(#g)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="16,9.5 18.5,2.5 13.5,2.5 12,6.2" fill="none" stroke="url(#g)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12" cy="14.5" r="1.6" fill="#FFFFFF"/>
+</svg>

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * NetworkRestartPage - 网络服务重启
  * /etc/init.d/network restart 只重启网络服务不动整机（OpenWrt 24.x/25.x 通用）
  * 重启后自动 ping 网关验证恢复
@@ -9,6 +9,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const DOMAIN = 0x0001
 const TAG = 'NetRst'
@@ -152,10 +153,8 @@ export struct NetworkRestartPage {
         Column() {
           // 状态大卡
           Column() {
-            SymbolGlyph(this.resultOk === -1 ? $r('sys.symbol.globe_badge_message')
-              : (this.resultOk === 1 ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.warning')))
-              .fontSize(52)
-              .fontColor([this.resultOk === 1 ? '#10B981' : (this.resultOk === -1 ? this.theme.primary : '#F59E0B')])
+            AppIcon({ name: this.resultOk === -1 ? 'globe_badge_message'
+              : (this.resultOk === 1 ? 'checkmark_circle' : 'warning'), iconSize: 52, colors: [this.resultOk === 1 ? '#10B981' : (this.resultOk === -1 ? this.theme.primary : '#F59E0B')] })
             Text(this.busy ? '重启中...' : (this.resultOk === -1 ? '网络服务待命' : (this.resultOk === 1 ? '网络已恢复' : '验证未通过')))
               .fontSize(16).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold).margin({ top: 10 })
             Text('断网、拨号失败、DNS 异常时，先试试只重启网络服务')
@@ -168,7 +167,7 @@ export struct NetworkRestartPage {
           // 说明卡
           Column() {
             Row() {
-            SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(14).fontColor(['#F59E0B'])
+            AppIcon({ name: 'lightbulb', iconSize: 14, colors: ['#F59E0B'] })
             Text(' 与「重启路由器」的区别').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
           }
               .width('100%')

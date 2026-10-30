@@ -17,6 +17,7 @@ import { ConnectionConfig } from '../../models/Models'
 import { DeviceStore, SavedDevice } from './DeviceStore'
 import { SshService } from '../ssh/SshService'
 import { LIGHT_THEME, ThemePalette, SKINS, SkinDef, getSkinById } from '../theme/ThemeColors'
+import { DEFAULT_ICON_PACK, getIconPackById, IconPackDef } from '../theme/IconPack'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'AppState'
@@ -77,9 +78,21 @@ export class AppState {
       if (savedSkin && getSkinById(savedSkin).id === savedSkin) {
         this.currentSkinId = savedSkin
       }
+      // 恢复上次图标包（已下线的拟物 / 玻璃彩绘 / 线性符号统一回落默认包）
+      const savedIconPack: string = this.settingsPrefs.getSync('iconPackId', DEFAULT_ICON_PACK) as string
+      const validPack: boolean = savedIconPack === 'hos' || savedIconPack === 'color' ||
+        savedIconPack === 'line' || savedIconPack === 'harmony' || savedIconPack === 'ios'
+      if (validPack) {
+        this.currentIconPackId = savedIconPack
+      }
     } catch (e) {
       hilog.error(DOMAIN, TAG, `Settings pref init failed: ${JSON.stringify(e)}`)
     }
+
+    // 图标包同步到 AppStorage，AppIcon 组件通过 @StorageLink 订阅
+    AppStorage.setOrCreate('iconPackId', this.currentIconPackId)
+    // 皮肤 id 同步到 AppStorage，AppIcon 据此判断是否使用暗色图标素材
+    AppStorage.setOrCreate('skinId', this.currentSkinId)
 
     // 从持久化存储加载设备列表
     await this.loadDevices()
@@ -284,6 +297,8 @@ export class AppState {
     const skin: SkinDef = getSkinById(id)
     if (skin.id === this.currentSkinId) return
     this.currentSkinId = skin.id
+    // 同步给 AppIcon，暗色皮肤切暗色图标素材
+    AppStorage.setOrCreate('skinId', skin.id)
     try {
       if (this.settingsPrefs) {
         this.settingsPrefs.putSync('skinId', skin.id)
@@ -295,6 +310,32 @@ export class AppState {
     for (const l of this.themeListeners) {
       try { l() } catch (_e) {}
     }
+  }
+
+  // ========== 图标包管理 ==========
+
+  /** 当前图标包 id（持久化，默认彩色实心） */
+  private currentIconPackId: string = DEFAULT_ICON_PACK
+
+  /** 获取当前图标包定义 */
+  getIconPack(): IconPackDef {
+    return getIconPackById(this.currentIconPackId)
+  }
+
+  /** 切换图标包并持久化；通过 AppStorage 驱动所有 AppIcon 即时刷新 */
+  setIconPack(id: string): void {
+    const pack: IconPackDef = getIconPackById(id)
+    if (pack.id === this.currentIconPackId) return
+    this.currentIconPackId = pack.id
+    try {
+      if (this.settingsPrefs) {
+        this.settingsPrefs.putSync('iconPackId', pack.id)
+        this.settingsPrefs.flush()
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `save iconPackId err: ${JSON.stringify(e)}`)
+    }
+    AppStorage.setOrCreate('iconPackId', pack.id)
   }
 
   // ========== 主题变更监听 ==========

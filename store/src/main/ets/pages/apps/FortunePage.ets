@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 今日网络运势
  * 每日一次占卜：结合真实数据（温度/负载/时间）生成宜忌与运势等级
  */
@@ -8,6 +8,7 @@ import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const GOOD_YI: string[] = [
   '下载 4K 电影', '开视频会议', '全家联机打游戏', '备份重要数据', '看高清直播', '挂机下载大文件'
@@ -47,7 +48,7 @@ export struct FortunePage {
     if (this.level === '平') return '#60A5FA'
     return '#94A3B8'
   }
-  @State levelIcon: Resource = $r('sys.symbol.star')
+  @State levelIcon: string = 'star'
   @State yiText: string[] = []
   @State jiText: string[] = []
   @State loaded: boolean = false
@@ -93,11 +94,11 @@ export struct FortunePage {
       if (hour >= 1 && hour <= 5) r += 5
       r = Math.max(0, Math.min(100, r))
       let lv: string = ''
-      let icon: Resource = $r('sys.symbol.star')
-      if (r >= 80) { lv = '大吉'; icon = $r('sys.symbol.sun_max') }
-      else if (r >= 55) { lv = '吉'; icon = $r('sys.symbol.star') }
-      else if (r >= 30) { lv = '平'; icon = $r('sys.symbol.cloud') }
-      else { lv = '凶'; icon = $r('sys.symbol.cloud') }
+      let icon: string = 'star'
+      if (r >= 80) { lv = '大吉'; icon = 'sun_max' }
+      else if (r >= 55) { lv = '吉'; icon = 'star' }
+      else if (r >= 30) { lv = '平'; icon = 'cloud' }
+      else { lv = '凶'; icon = 'cloud' }
       this.level = lv
       this.levelIcon = icon
       // 宜忌抽取
@@ -152,9 +153,7 @@ export struct FortunePage {
         Column() {
           // 运势主卡
           Column() {
-            SymbolGlyph(this.levelIcon)
-              .fontSize(60)
-              .fontColor([this.levelColor()])
+            AppIcon({ name: this.levelIcon, iconSize: 60, colors: [this.levelColor()] })
             Text(this.level)
               .fontSize(40).fontColor(this.theme.primary).fontWeight(FontWeight.Bold)
               .margin({ top: 6 })
@@ -168,7 +167,7 @@ export struct FortunePage {
           // 宜
           Column() {
             Row() {
-              SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(14).fontColor(['#00C853'])
+              AppIcon({ name: 'checkmark_circle', iconSize: 14, colors: ['#00C853'] })
               Text(' 宜').fontSize(13).fontColor('#00C853').fontWeight(FontWeight.Bold)
               Blank()
             }
@@ -189,7 +188,7 @@ export struct FortunePage {
           // 忌
           Column() {
             Row() {
-              SymbolGlyph($r('sys.symbol.xmark_circle')).fontSize(14).fontColor(['#FF5252'])
+              AppIcon({ name: 'xmark_circle', iconSize: 14, colors: ['#FF5252'] })
               Text(' 忌').fontSize(13).fontColor('#FF5252').fontWeight(FontWeight.Bold)
               Blank()
             }

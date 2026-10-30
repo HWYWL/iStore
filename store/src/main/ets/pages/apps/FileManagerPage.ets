@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FileManagerPage - OpenWrt 文件管理器
  * SSH 连接，浏览/查看/编辑/新建/重命名/删除/复制/移动/上传/下载
  */
@@ -16,6 +16,7 @@ import { systemShare } from '@kit.ShareKit'
 import { util } from '@kit.ArkTS'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const DOMAIN = 0x0001
 
@@ -482,15 +483,15 @@ export struct FileManagerPage {
   // ========== UI ==========
 
   /** 文件类型图标（统一符号族） */
-  entrySymbol(entry: FsEntry): Resource {
-    if (entry.isDir) return $r('sys.symbol.folder')
+  entrySymbol(entry: FsEntry): string {
+    if (entry.isDir) return 'folder'
     const lower: string = entry.name.toLowerCase()
-    if (FileManagerService.isTextFile(entry.name)) return $r('sys.symbol.doc_text')
-    if (lower.endsWith('.gz') || lower.endsWith('.tar') || lower.endsWith('.zip') || lower.endsWith('.xz')) return $r('sys.symbol.doc_zipper')
-    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return $r('sys.symbol.ohos_photo')
-    if (lower.endsWith('.mp3') || lower.endsWith('.wav')) return $r('sys.symbol.speaker_wave_1')
-    if (lower.endsWith('.mp4') || lower.endsWith('.mkv')) return $r('sys.symbol.film')
-    return $r('sys.symbol.doc_plaintext')
+    if (FileManagerService.isTextFile(entry.name)) return 'doc_text'
+    if (lower.endsWith('.gz') || lower.endsWith('.tar') || lower.endsWith('.zip') || lower.endsWith('.xz')) return 'doc_zipper'
+    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return 'ohos_photo'
+    if (lower.endsWith('.mp3') || lower.endsWith('.wav')) return 'speaker_wave_1'
+    if (lower.endsWith('.mp4') || lower.endsWith('.mkv')) return 'film'
+    return 'doc_plaintext'
   }
 
   /** 文件类型配色 */
@@ -642,9 +643,7 @@ export struct FileManagerPage {
                       .margin({ right: 10 })
                   }
                   Row() {
-                    SymbolGlyph(this.entrySymbol(entry))
-                      .fontSize(18)
-                      .fontColor([this.entryColor(entry)])
+                    AppIcon({ name: this.entrySymbol(entry), iconSize: 18, colors: [this.entryColor(entry)] })
                   }
                   .width(32)
                   .height(32)

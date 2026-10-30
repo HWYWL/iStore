@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 网络心电图
  * 每秒 ping 一次公网目标，Canvas 实时绘制延迟波形（正常绿波/卡顿红尖峰）
  */
@@ -7,6 +7,7 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const TARGET = '223.5.5.5'   // 阿里公共 DNS
 const MAX_POINTS = 30
@@ -211,11 +212,9 @@ export struct NetEcgPage {
 
           Row() {
             if (this.running) {
-              SymbolGlyph($r('sys.symbol.pause_fill'))
-                .fontSize(18).fontColor(['#FFFFFF'])
+              AppIcon({ name: 'pause_fill', iconSize: 18, colors: ['#FFFFFF'] })
             } else {
-              SymbolGlyph($r('sys.symbol.media_center'))
-                .fontSize(18).fontColor(['#FFFFFF'])
+              AppIcon({ name: 'media_center', iconSize: 18, colors: ['#FFFFFF'] })
             }
             Text(this.running ? '  停止监测' : '  开始检测')
               .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)

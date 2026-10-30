@@ -1,8 +1,9 @@
-﻿import { AppState } from '../../common/store/AppState'
+import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 /** 物理网口信息 */
 class EthPort {
@@ -102,8 +103,7 @@ this.theme = AppState.getInstance().getTheme()
         // 顶栏
         Row() {
           Row() {
-            SymbolGlyph($r('sys.symbol.square_grid_3x1_below_line_grid_1x2'))
-              .fontSize(15).fontColor(['#3B82F6'])
+            AppIcon({ name: 'square_grid_3x1_below_line_grid_1x2', iconSize: 15, colors: ['#3B82F6'] })
             Text(' 物理网口').fontSize(16).fontColor(this.theme.textPrimary)
               .fontWeight(FontWeight.Medium)
           }
@@ -124,7 +124,7 @@ this.theme = AppState.getInstance().getTheme()
         } else if (this.errorText) {
           Column() {
             Row() {
-              SymbolGlyph($r('sys.symbol.warning')).fontSize(14).fontColor([this.theme.warning])
+              AppIcon({ name: 'warning', iconSize: 14, colors: [this.theme.warning] })
               Text(' ' + this.errorText).fontSize(14).fontColor(this.theme.warning)
             }
             .margin({ bottom: 12 })
@@ -136,7 +136,7 @@ this.theme = AppState.getInstance().getTheme()
             Column() {
               // 说明
               Row() {
-                SymbolGlyph($r('sys.symbol.link')).fontSize(12).fontColor([this.theme.textTertiary])
+                AppIcon({ name: 'link', iconSize: 12, colors: [this.theme.textTertiary] })
                 Text(' 以 eth0 → eth1 → ... 顺序展示物理网口状态')
                   .fontSize(11).fontColor(this.theme.textTertiary).layoutWeight(1)
               }

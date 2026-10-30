@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 运行里程碑页
  * 展示路由器连续运行天数、App 使用天数，里程碑达成撒花庆祝
  */
@@ -8,6 +8,7 @@ import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const MILESTONES: number[] = [1, 7, 30, 100, 365]
 
@@ -174,9 +175,7 @@ export struct MileStonePage {
           Column() {
             // 主卡：连续运行
             Column() {
-              SymbolGlyph($r('sys.symbol.star_trophy'))
-                .fontSize(40)
-                .fontColor(['#F59E0B'])
+              AppIcon({ name: 'star_trophy', iconSize: 40, colors: ['#F59E0B'] })
               Text(`${this.uptimeDays}`)
                 .fontSize(56).fontColor(this.theme.primary).fontWeight(FontWeight.Bold).fontFamily('monospace')
               Text('天连续稳定运行')
@@ -201,9 +200,7 @@ export struct MileStonePage {
               Row() {
                 ForEach(MILESTONES, (m: number) => {
                   Column() {
-                    SymbolGlyph(this.uptimeDays >= m ? $r('sys.symbol.star_trophy') : $r('sys.symbol.medal'))
-                      .fontSize(22)
-                      .fontColor([this.uptimeDays >= m ? '#F59E0B' : '#94A3B8'])
+                    AppIcon({ name: this.uptimeDays >= m ? 'star_trophy' : 'medal', iconSize: 22, colors: [this.uptimeDays >= m ? '#F59E0B' : '#94A3B8'] })
                       .opacity(this.uptimeDays >= m ? 1 : 0.45)
                     Text(`${m}天`)
                       .fontSize(10).fontColor(this.uptimeDays >= m ? this.theme.primary : this.theme.textTertiary)
@@ -227,9 +224,7 @@ export struct MileStonePage {
             // App 使用卡
             Row() {
               Column() {
-                SymbolGlyph($r('sys.symbol.phone'))
-                  .fontSize(26)
-                  .fontColor(['#3B82F6'])
+                AppIcon({ name: 'phone', iconSize: 26, colors: ['#3B82F6'] })
                 Text(`${this.appDays}`)
                   .fontSize(24).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold).fontFamily('monospace')
                   .margin({ top: 6 })
@@ -239,9 +234,7 @@ export struct MileStonePage {
               .layoutWeight(1).alignItems(HorizontalAlign.Center)
 
               Column() {
-                SymbolGlyph($r('sys.symbol.calendar'))
-                  .fontSize(26)
-                  .fontColor(['#8B5CF6'])
+                AppIcon({ name: 'calendar', iconSize: 26, colors: ['#8B5CF6'] })
                 Text(this.firstDate)
                   .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium).fontFamily('monospace')
                   .margin({ top: 6 })
@@ -257,7 +250,7 @@ export struct MileStonePage {
             if (this.celebrate) {
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.star_trophy')).fontSize(15).fontColor(['#FFFFFF'])
+                  AppIcon({ name: 'star_trophy', iconSize: 15, colors: ['#FFFFFF'] })
                   Text(` 达成里程碑：连续运行 ${this.newMile} 天！`)
                     .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
                 }

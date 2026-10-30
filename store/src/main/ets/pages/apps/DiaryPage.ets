@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DiaryPage — 网络日记（每日网络事时间线）
  * 小管点评 + 4 格概览 + 事件时间线 + 日期翻页
  * 数据源：DiaryStore（事件）+ TrafficStatStore（流量）+ fetchConnectedDevices（在线）
@@ -13,6 +13,7 @@ import { NotifyStore } from '../../common/store/NotifyStore'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -226,8 +227,7 @@ export struct DiaryPage {
           // 小管点评卡
           Row() {
             Row() {
-              SymbolGlyph($r('sys.symbol.face_smiling'))
-                .fontSize(19).fontColor(['#FFFFFF'])
+              AppIcon({ name: 'face_smiling', iconSize: 19, colors: ['#FFFFFF'] })
             }
             .width(38).height(38).borderRadius(13)
             .backgroundColor(this.theme.primary)
@@ -323,7 +323,7 @@ export struct DiaryPage {
           } else {
             // 空状态
             Column() {
-              SymbolGlyph($r('sys.symbol.archivebox')).fontSize(36).fontColor(['#94A3B8'])
+              AppIcon({ name: 'archivebox', iconSize: 36, colors: ['#94A3B8'] })
               Text('这一天没有记录到事件')
                 .fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 10 })
               Text('连接路由器后会自动记录设备/流量/异常')

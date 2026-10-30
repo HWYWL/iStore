@@ -9,6 +9,7 @@ import { fileUri } from '@kit.CoreFileKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { http } from '@kit.NetworkKit'
 import { common } from '@kit.AbilityKit'
+import { AppIcon } from '../../common/components/AppIcon'
 
 /**
  * AlbumTab - Immich 相册（仿鸿蒙相册）
@@ -653,9 +654,7 @@ this.theme = AppState.getInstance().getTheme()
       Column() {
         // 标题栏
         Row() {
-          SymbolGlyph($r('sys.symbol.camera'))
-            .fontSize(22)
-            .fontColor([this.theme.primary])
+          AppIcon({ name: 'camera', iconSize: 22, colors: [this.theme.primary] })
             .margin({ right: 8 })
           Text('相册')
             .fontSize(20)
@@ -992,8 +991,7 @@ this.theme = AppState.getInstance().getTheme()
 
       // 顶部关闭（全屏时隐藏）
       if (!this.videoFullscreen) {
-        SymbolGlyph($r('sys.symbol.xmark'))
-          .fontSize(20).fontColor(['#FFFFFF'])
+        AppIcon({ name: 'xmark', iconSize: 20, colors: ['#FFFFFF'] })
           .padding(12)
           .position({ x: 16, y: 16 })
           .onClick(() => { this.closeViewer() })
@@ -1005,9 +1003,7 @@ this.theme = AppState.getInstance().getTheme()
               .fontSize(13)
               .fontColor('#FFFFFF')
           } else {
-            SymbolGlyph($r('sys.symbol.share'))
-              .fontSize(18)
-              .fontColor(['#FFFFFF'])
+            AppIcon({ name: 'share', iconSize: 18, colors: ['#FFFFFF'] })
           }
         }
         .padding(10)
@@ -1051,13 +1047,13 @@ this.theme = AppState.getInstance().getTheme()
       // 图片：加载原图按钮；视频：提示
       if (this.currentViewerAsset() && this.currentViewerAsset()!.type === 'VIDEO') {
         Row() {
-          SymbolGlyph($r('sys.symbol.film')).fontSize(12).fontColor(['#BBBBBB'])
+          AppIcon({ name: 'film', iconSize: 12, colors: ['#BBBBBB'] })
           Text(' 视频 · 点击播放').fontSize(11).fontColor('#BBBBBB')
         }
         .margin({ top: 10 })
       } else if (!this.isOriginalLoaded(this.viewerIndex)) {
         Row() {
-          SymbolGlyph($r('sys.symbol.bolt')).fontSize(13).fontColor(['#FFFFFF'])
+          AppIcon({ name: 'bolt', iconSize: 13, colors: ['#FFFFFF'] })
           Text(' 加载原图').fontSize(12).fontColor('#FFFFFF')
         }
           .padding({ left: 16, right: 16, top: 8, bottom: 8 })
@@ -1303,9 +1299,7 @@ this.theme = AppState.getInstance().getTheme()
     Scroll() {
       Column() {
         Row() {
-          SymbolGlyph($r('sys.symbol.ohos_photo'))
-            .fontSize(22)
-            .fontColor(['#EC4899'])
+          AppIcon({ name: 'ohos_photo', iconSize: 22, colors: ['#EC4899'] })
           Text(' Immich 相册')
             .fontSize(22)
             .fontColor(this.theme.textPrimary)
@@ -1338,9 +1332,7 @@ this.theme = AppState.getInstance().getTheme()
         // 检测本机 Immich
         Row() {
           Row() {
-            SymbolGlyph($r('sys.symbol.magnifyingglass'))
-              .fontSize(13)
-              .fontColor([this.theme.primary])
+            AppIcon({ name: 'magnifyingglass', iconSize: 13, colors: [this.theme.primary] })
             Text(this.isProbing ? ' 检测中…' : ' 检测本机安装的immich')
               .fontSize(13)
               .fontColor(this.theme.primary)
@@ -1353,9 +1345,7 @@ this.theme = AppState.getInstance().getTheme()
 
           if (this.probeResult === 'found') {
             Row() {
-              SymbolGlyph($r('sys.symbol.checkmark_circle'))
-                .fontSize(12)
-                .fontColor([this.theme.success])
+              AppIcon({ name: 'checkmark_circle', iconSize: 12, colors: [this.theme.success] })
               Text(' 已填入上方地址')
                 .fontSize(11)
                 .fontColor(this.theme.success)
@@ -1401,8 +1391,7 @@ this.theme = AppState.getInstance().getTheme()
 
         if (this.configError) {
           Row() {
-            SymbolGlyph($r('sys.symbol.warning'))
-              .fontSize(13).fontColor([this.theme.danger])
+            AppIcon({ name: 'warning', iconSize: 13, colors: [this.theme.danger] })
             Text(' ' + this.configError)
               .fontSize(12).fontColor(this.theme.danger)
               .layoutWeight(1)

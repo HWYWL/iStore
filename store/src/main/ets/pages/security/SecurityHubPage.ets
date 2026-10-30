@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SecurityHubPage — 家庭网络安全中心
  * R1 安全评分（0-100 三档）+ R2 一键体检（5 项）+ R4 一键处置（隔离/信任）+ R6 历史
  */
@@ -10,6 +10,7 @@ import { promptAction } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -126,9 +127,7 @@ export struct SecurityHubPage {
       // 标题栏
       Row() {
         Row() {
-          SymbolGlyph($r('sys.symbol.security_shield'))
-            .fontSize(20)
-            .fontColor(['#10B981'])
+          AppIcon({ name: 'security_shield', iconSize: 20, colors: ['#10B981'] })
           Text(' 安全中心')
             .fontSize(20)
             .fontColor(this.theme.textPrimary)
@@ -198,9 +197,7 @@ export struct SecurityHubPage {
             Column() {
               ForEach(this.items, (item: SecurityItem) => {
                 Row() {
-                  SymbolGlyph(this.itemIcon(item.level))
-                    .fontSize(20)
-                    .fontColor([this.itemColor(item.level)])
+                  AppIcon({ name: this.itemIcon(item.level), iconSize: 20, colors: [this.itemColor(item.level)] })
                   Column() {
                     Text(item.name)
                       .fontSize(14)
@@ -283,11 +280,11 @@ export struct SecurityHubPage {
     .linearGradient({ angle: 135, colors: this.theme.pageGradient })
   }
 
-  itemIcon(level: string): Resource {
-    if (level === 'safe') return $r('sys.symbol.checkmark_circle')
-    if (level === 'risk') return $r('sys.symbol.warning')
-    if (level === 'checking') return $r('sys.symbol.clock')
-    return $r('sys.symbol.info_circle')
+  itemIcon(level: string): string {
+    if (level === 'safe') return 'checkmark_circle'
+    if (level === 'risk') return 'warning'
+    if (level === 'checking') return 'clock'
+    return 'info_circle'
   }
 
   /** 等级配色 */

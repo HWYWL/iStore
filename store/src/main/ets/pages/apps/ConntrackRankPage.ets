@@ -1,10 +1,11 @@
-﻿import { AppState } from '../../common/store/AppState'
+import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ConnectedDevice } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 import { AppNav } from '../../common/utils/AppNav'
 import { Poller } from '../../common/utils/Poller'
+import { AppIcon } from '../../common/components/AppIcon'
 
 /** 每个 IP 的连接统计 */
 class IpRank {
@@ -38,7 +39,7 @@ export struct ConntrackRankPage {
   @State maxConns: number = 1
   @State errorText: string = ''
   private poller: Poller | null = null
-  private rankBadges: Resource[] = [$r('sys.symbol.star_trophy'), $r('sys.symbol.medal'), $r('sys.symbol.medal')]
+  private rankBadges: string[] = ['star_trophy', 'medal', 'medal']
 
   /** 前三名配色 */
   private rankColor(idx: number): string {
@@ -163,7 +164,7 @@ this.theme = AppState.getInstance().getTheme()
         } else if (this.errorText && this.items.length === 0) {
           Column() {
             Row() {
-            SymbolGlyph($r('sys.symbol.warning')).fontSize(14).fontColor([this.theme.warning])
+            AppIcon({ name: 'warning', iconSize: 14, colors: [this.theme.warning] })
             Text(' ' + this.errorText).fontSize(14).fontColor(this.theme.warning)
           }
           .margin({ bottom: 12 })
@@ -174,7 +175,7 @@ this.theme = AppState.getInstance().getTheme()
           Scroll() {
             Column() {
               Row() {
-                SymbolGlyph($r('sys.symbol.link')).fontSize(13).fontColor(['#EC4899'])
+                AppIcon({ name: 'link', iconSize: 13, colors: ['#EC4899'] })
                 Text(' 按 NAT 连接数降序，发现连接大户')
                   .fontSize(11).fontColor(this.theme.textTertiary)
                   .layoutWeight(1)
@@ -185,8 +186,7 @@ this.theme = AppState.getInstance().getTheme()
                 Column() {
                   Row() {
                     if (idx < 3) {
-                      SymbolGlyph(this.rankBadges[idx])
-                        .fontSize(18).fontColor([this.rankColor(idx)]).margin({ right: 10 })
+                      AppIcon({ name: this.rankBadges[idx], iconSize: 18, colors: [this.rankColor(idx)] }).margin({ right: 10 })
                     } else {
                       Text(`#${idx + 1}`)
                         .fontSize(13).fontColor(this.theme.textTertiary).margin({ right: 10 })

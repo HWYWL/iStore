@@ -1,4 +1,4 @@
-﻿import { AppState } from '../../common/store/AppState'
+import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { NetworkInterface, WanStatus } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
@@ -6,6 +6,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 // ============================================================
 // NetworkPage - 网络管理（独立页面，从应用中心进入）
@@ -82,12 +83,12 @@ this.theme = AppState.getInstance().getTheme()
     return colors[type] || this.theme.textTertiary
   }
 
-  getTypeSymbol(type: string): Resource {
-    if (type === 'wan') return $r('sys.symbol.globe_badge_message')
-    if (type === 'lan') return $r('sys.symbol.house')
-    if (type === 'wifi') return $r('sys.symbol.wifi')
-    if (type === 'vpn') return $r('sys.symbol.lock')
-    return $r('sys.symbol.link')
+  getTypeSymbol(type: string): string {
+    if (type === 'wan') return 'globe_badge_message'
+    if (type === 'lan') return 'house'
+    if (type === 'wifi') return 'wifi'
+    if (type === 'vpn') return 'lock'
+    return 'link'
   }
 
   build() {
@@ -130,9 +131,7 @@ this.theme = AppState.getInstance().getTheme()
             } else {
               if (this.errorText) {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.warning'))
-                    .fontSize(16)
-                    .fontColor([this.theme.warning])
+                  AppIcon({ name: 'warning', iconSize: 16, colors: [this.theme.warning] })
                     .margin({ right: 8 })
                   Text(this.errorText)
                     .fontSize(12)
@@ -149,9 +148,7 @@ this.theme = AppState.getInstance().getTheme()
               // LAN 网络状态卡片
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.house'))
-                    .fontSize(15)
-                    .fontColor(['#10B981'])
+                  AppIcon({ name: 'house', iconSize: 15, colors: ['#10B981'] })
                   Text(' LAN 网络状态')
                     .fontSize(14)
                     .fontColor(this.theme.textPrimary)
@@ -212,14 +209,11 @@ this.theme = AppState.getInstance().getTheme()
                 Column() {
                   Row() {
                     Row() {
-                      SymbolGlyph(this.getTypeSymbol(iface.type))
-                        .fontSize(20)
-                        .fontColor([this.getTypeColor(iface.type)])
+                      AppIcon({ name: this.getTypeSymbol(iface.type), iconSize: 20, colors: [this.getTypeColor(iface.type)] })
                     }
                     .width(40)
                     .height(40)
                     .borderRadius(10)
-                    .backgroundColor(this.theme.bgGlassLight)
                     .justifyContent(FlexAlign.Center)
 
                     Column() {

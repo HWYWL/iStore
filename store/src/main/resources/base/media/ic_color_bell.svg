@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="3" y1="3" x2="21" y2="21"><stop offset="0" stop-color="#FFB067"/><stop offset="1" stop-color="#D97706"/></linearGradient></defs>
+  <path d="M6 9 C6 5.69 8.69 3 12 3 C15.31 3 18 5.69 18 9" fill="none" stroke="url(#g)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="18,9 19.4,17 4.6,17 6,9" fill="none" stroke="url(#g)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M14 19 C14 20.1 13.1 21 12 21 C10.9 21 10 20.1 10 19" fill="none" stroke="url(#g)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

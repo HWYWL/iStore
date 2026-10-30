@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TopologyPage - 网络拓扑图
  * 可视化设备连接关系：路由器在中心，无线设备（下半区）/ 有线设备（上半区）围绕分布
  */
@@ -8,6 +8,7 @@ import { ConnectedDevice } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 /** 拓扑节点（胶囊）布局信息 */
 interface TopoNode {
@@ -682,9 +683,7 @@ this.theme = AppState.getInstance().getTheme()
       // 标题栏
       Row() {
         Row() {
-          SymbolGlyph($r('sys.symbol.circle_grid_2x2'))
-            .fontSize(15)
-            .fontColor(['#8B5CF6'])
+          AppIcon({ name: 'circle_grid_2x2', iconSize: 15, colors: ['#8B5CF6'] })
           Text(' 网络拓扑')
             .fontSize(16)
             .fontColor(this.theme.textPrimary)
@@ -699,9 +698,7 @@ this.theme = AppState.getInstance().getTheme()
         })
         Blank()
         Row() {
-          SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-            .fontSize(13)
-            .fontColor([this.theme.primary])
+          AppIcon({ name: 'arrow_clockwise', iconSize: 13, colors: [this.theme.primary] })
           Text('刷新')
             .fontSize(12).fontColor(this.theme.primary)
             .margin({ left: 4 })
@@ -722,9 +719,7 @@ this.theme = AppState.getInstance().getTheme()
         .width('100%').padding(40).alignItems(HorizontalAlign.Center).margin({ top: 60 })
       } else if (this.devices.length === 0) {
         Column() {
-          SymbolGlyph($r('sys.symbol.moon'))
-            .fontSize(34)
-            .fontColor(['#94A3B8'])
+          AppIcon({ name: 'moon', iconSize: 34, colors: ['#94A3B8'] })
           Text('还没看到在线设备，大家可能都在午休')
             .fontSize(13).fontColor(this.theme.textTertiary).margin({ top: 10 })
           if (this.errorText) {
@@ -784,8 +779,7 @@ this.theme = AppState.getInstance().getTheme()
           .width('100%')
 
           Row() {
-            SymbolGlyph($r('sys.symbol.info_circle'))
-              .fontSize(11).fontColor([this.theme.textTertiary])
+            AppIcon({ name: 'info_circle', iconSize: 11, colors: [this.theme.textTertiary] })
             Text(' 无线设备归入 WiFi 组；有线按路由器 LAN 端口分组，同一端口下多台设备视为经交换机/AP 接入；未识别表示转发表暂无该设备端口信息；点击分组节点可收起或展开')
               .fontSize(10).fontColor(this.theme.textTertiary)
               .layoutWeight(1)
@@ -795,8 +789,7 @@ this.theme = AppState.getInstance().getTheme()
           if (this.portAccessDenied) {
             Column() {
               Row() {
-                SymbolGlyph($r('sys.symbol.info_circle'))
-                  .fontSize(11).fontColor([this.theme.warning])
+                AppIcon({ name: 'info_circle', iconSize: 11, colors: [this.theme.warning] })
                 Text(' 路由器未放行端口查询命令，暂时读不到设备接在哪个口')
                   .fontSize(10).fontColor(this.theme.warning)
                   .layoutWeight(1)

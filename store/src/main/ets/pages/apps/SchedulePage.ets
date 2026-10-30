@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SchedulePage - 定时任务中心
  * 定时重启路由器 / 定时开关 WiFi
  * 配置保存到 ScheduleStore，由 NotificationWatcher 在 App 运行时到点执行
@@ -10,6 +10,7 @@ import { ScheduleStore, ScheduleTask } from '../../common/store/ScheduleStore'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const WEEK_LABELS: string[] = ['一', '二', '三', '四', '五', '六', '日']
 
@@ -288,9 +289,9 @@ this.theme = AppState.getInstance().getTheme()
 
   /** 卡片头部（开关 + 标题） */
   @Builder
-  cardHeader(icon: Resource, title: string, desc: string, enabled: boolean, tag: number) {
+  cardHeader(icon: string, title: string, desc: string, enabled: boolean, tag: number) {
     Row() {
-      SymbolGlyph(icon).fontSize(22).fontColor([this.theme.primary])
+      AppIcon({ name: icon, iconSize: 22, colors: [this.theme.primary] })
       Column() {
         Text(title)
           .fontSize(15)
@@ -354,7 +355,7 @@ this.theme = AppState.getInstance().getTheme()
           Column() {
             // ===== 定时重启卡片 =====
             Column() {
-              this.cardHeader($r('sys.symbol.arrow_clockwise'), '定时重启', '到点自动重启路由器（如每周三凌晨 4 点）',
+              this.cardHeader('arrow_clockwise', '定时重启', '到点自动重启路由器（如每周三凌晨 4 点）',
                 this.rebootEnabled, 0)
               if (this.rebootEnabled) {
                 Divider().color(this.theme.borderGlass)
@@ -379,7 +380,7 @@ this.theme = AppState.getInstance().getTheme()
 
             // ===== 定时 WiFi 卡片 =====
             Column() {
-              this.cardHeader($r('sys.symbol.wifi'), '定时开关 WiFi', '到点自动关闭/开启无线网络（夜间断网更省电）',
+              this.cardHeader('wifi', '定时开关 WiFi', '到点自动关闭/开启无线网络（夜间断网更省电）',
                 this.wifiEnabled, 1)
               if (this.wifiEnabled) {
                 Divider().color(this.theme.borderGlass)
@@ -411,9 +412,7 @@ this.theme = AppState.getInstance().getTheme()
             this.sectionTitle('说明')
             Column() {
               Row() {
-                SymbolGlyph($r('sys.symbol.lightbulb'))
-                  .fontSize(16)
-                  .fontColor(['#F59E0B'])
+                AppIcon({ name: 'lightbulb', iconSize: 16, colors: ['#F59E0B'] })
                 Column() {
                   Text('App 运行期间生效')
                     .fontSize(13)
@@ -435,9 +434,7 @@ this.theme = AppState.getInstance().getTheme()
               Divider().color(this.theme.borderGlass)
 
               Row() {
-                SymbolGlyph($r('sys.symbol.moon'))
-                  .fontSize(16)
-                  .fontColor(['#6366F1'])
+                AppIcon({ name: 'moon', iconSize: 16, colors: ['#6366F1'] })
                 Column() {
                   Text('为什么用 App 执行？')
                     .fontSize(13)

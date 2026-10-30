@@ -1,4 +1,4 @@
-﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 /**
  * 系统进程列表页面
  * 展示路由器运行中的进程，支持点击展开查看详情
@@ -10,6 +10,7 @@ import { FormatUtils } from '../../common/utils/FormatUtils'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 import { Poller } from '../../common/utils/Poller'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -78,9 +79,7 @@ this.theme = AppState.getInstance().getTheme()
       Column() {
         Row() {
           Row() {
-            SymbolGlyph($r('sys.symbol.gearshape'))
-              .fontSize(15)
-              .fontColor(['#8B5CF6'])
+            AppIcon({ name: 'gearshape', iconSize: 15, colors: ['#8B5CF6'] })
             Text(' 系统进程')
               .fontSize(16)
               .fontColor(this.theme.textPrimary)

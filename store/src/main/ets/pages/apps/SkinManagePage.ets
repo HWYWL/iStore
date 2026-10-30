@@ -1,12 +1,14 @@
-﻿/**
+/**
  * SkinManagePage - 皮肤管理
  * 展示所有可用皮肤（SKINS 注册表），点击切换，全应用即时生效并持久化
  */
 import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette, SKINS, SkinDef } from '../../common/theme/ThemeColors'
+import { ICON_PACKS, IconPackDef } from '../../common/theme/IconPack'
 import { promptAction, window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -25,10 +27,12 @@ export struct SkinManagePage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
   @State currentSkinId: string = 'white'
+  @State currentIconPackId: string = 'color'
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
     this.currentSkinId = AppState.getInstance().getSkin().id
+    this.currentIconPackId = AppState.getInstance().getIconPack().id
     this.loadTopSafeArea()
     AppState.getInstance().onThemeChange(() => {
       this.theme = AppState.getInstance().getTheme()
@@ -66,6 +70,103 @@ export struct SkinManagePage {
     try {
       this.getUIContext().getPromptAction().showToast({ message: `已切换为「${skin.name}」皮肤 ✨`, duration: 1200 })
     } catch (e) {}
+  }
+
+  /** 切换图标包 */
+  applyIconPack(pack: IconPackDef): void {
+    if (pack.id === this.currentIconPackId) return
+    this.currentIconPackId = pack.id
+    AppState.getInstance().setIconPack(pack.id)
+    this.theme = AppState.getInstance().getTheme()
+    try {
+      vibrator.startVibration({ type: 'time', duration: 25 }, { id: 0, usage: 'alarm' }).catch(() => {})
+    } catch (e) {}
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: `图标已切换为「${pack.name}」`, duration: 1200 })
+    } catch (e) {}
+  }
+
+  /** 图标包预览卡片（与皮肤卡片同版式） */
+  @Builder
+  iconCard(pack: IconPackDef, idx: number) {
+    Column() {
+      // 预览区（模拟图标在卡片中的样子）
+      Column() {
+        Row() {
+          Text('图标预览')
+            .fontSize(11)
+            .fontColor(this.theme.textTertiary)
+          Blank()
+          Text('●')
+            .fontSize(10)
+            .fontColor(this.theme.success)
+        }
+        .width('100%')
+        .padding({ left: 12, right: 12, top: 10, bottom: 6 })
+
+        Row({ space: 10 }) {
+          ForEach(pack.preview, (iconName: string) => {
+            Row() {
+              AppIcon({
+                name: iconName,
+                iconSize: 20,
+                colors: [this.theme.textPrimary],
+                forcePack: pack.id
+              })
+            }
+            .width(36)
+            .height(36)
+            .justifyContent(FlexAlign.Center)
+            .borderRadius(10)
+          }, (iconName: string, i: number): string => `${pack.id}_${i}`)
+        }
+        .width('100%')
+        .padding({ left: 12, right: 12, bottom: 12 })
+      }
+      .width('100%')
+      .borderRadius(16)
+      .backgroundColor(this.theme.bgDark)
+      .border({ width: 0.5, color: this.theme.borderGlass })
+
+      // 名称与描述
+      Row() {
+        Column() {
+          Text(pack.name)
+            .fontSize(14)
+            .fontColor(this.theme.textPrimary)
+            .fontWeight(FontWeight.Medium)
+          Text(pack.desc)
+            .fontSize(10)
+            .fontColor(this.theme.textTertiary)
+            .margin({ top: 2 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        if (pack.id === this.currentIconPackId) {
+          Row() {
+            Text('使用中')
+              .fontSize(11)
+              .fontColor(Color.White)
+          }
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          .borderRadius(12)
+          .backgroundColor(this.theme.primary)
+        }
+      }
+      .width('100%')
+      .padding({ top: 10 })
+    }
+    .layoutWeight(1)
+    .padding(12)
+    .borderRadius(20)
+    .backgroundColor(this.theme.bgCard)
+    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+    .border({
+      width: pack.id === this.currentIconPackId ? 1.5 : 0.5,
+      color: pack.id === this.currentIconPackId ? this.theme.primary : this.theme.borderGlass
+    })
+    .onClick(() => { this.applyIconPack(pack) })
   }
 
   /** 皮肤预览卡片 */
@@ -127,7 +228,7 @@ export struct SkinManagePage {
         // 选中标记
         if (skin.id === this.currentSkinId) {
           Row() {
-            SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(12).fontColor([Color.White])
+            AppIcon({ name: 'checkmark_circle', iconSize: 12, colors: [Color.White] })
             Text(' 使用中').fontSize(11).fontColor(Color.White)
           }
           .padding({ left: 10, right: 10, top: 5, bottom: 5 })
@@ -203,8 +304,39 @@ export struct SkinManagePage {
           .width('100%')
           .padding({ left: 14, right: 14, top: 4 })
 
+          // 图标风格
           Row() {
-            SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(13).fontColor(['#F59E0B'])
+            Text('选择图标')
+              .fontSize(13)
+              .fontColor(this.theme.textSecondary)
+              .fontWeight(FontWeight.Medium)
+            Blank()
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16, top: 10, bottom: 6 })
+
+          Column() {
+            ForEach(ICON_PACKS, (pack: IconPackDef, idx: number) => {
+              Row({ space: 12 }) {
+                if (idx * 2 < ICON_PACKS.length) {
+                  this.iconCard(ICON_PACKS[idx * 2], idx * 2)
+                }
+                if (idx * 2 + 1 < ICON_PACKS.length) {
+                  this.iconCard(ICON_PACKS[idx * 2 + 1], idx * 2 + 1)
+                } else {
+                  // 单数时补占位，避免最后一张卡片被拉满整行
+                  Blank().layoutWeight(1)
+                }
+              }
+              .width('100%')
+              .margin({ bottom: 14 })
+            }, (pack: IconPackDef, idx: number): string => `iconrow_${idx}`)
+          }
+          .width('100%')
+          .padding({ left: 14, right: 14 })
+
+          Row() {
+            AppIcon({ name: 'lightbulb', iconSize: 13, colors: ['#F59E0B'] })
             Text(' 切换后立即生效，选择会自动保存')
               .fontSize(11)
               .fontColor(this.theme.textTertiary)

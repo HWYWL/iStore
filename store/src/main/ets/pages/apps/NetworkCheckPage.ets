@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 智能网络体检页面
  * 一键检测：网关连通性 / 外网连通 / 公网延迟 / DNS 解析
  * 逐项展示状态（优秀/正常/警告/不可达）+ 延迟 + 丢包，并给出总评分
@@ -10,6 +10,7 @@ import { ApiService } from '../../api/ApiService'
 import { FunStore } from '../../common/store/FunStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -213,12 +214,12 @@ export struct NetworkCheckPage {
   }
 
   /** 单项状态图标与颜色 */
-  statusIcon(status: string): Resource {
-    if (status === 'ok') return $r('sys.symbol.checkmark_circle')
-    if (status === 'warn') return $r('sys.symbol.warning')
-    if (status === 'fail') return $r('sys.symbol.xmark_circle')
-    if (status === 'running') return $r('sys.symbol.clock')
-    return $r('sys.symbol.info_circle')
+  statusIcon(status: string): string {
+    if (status === 'ok') return 'checkmark_circle'
+    if (status === 'warn') return 'warning'
+    if (status === 'fail') return 'xmark_circle'
+    if (status === 'running') return 'clock'
+    return 'info_circle'
   }
 
   statusColor(status: string): string {
@@ -297,19 +298,13 @@ export struct NetworkCheckPage {
                   LoadingProgress().width(22).height(22).color(this.theme.primary)
                 } else if (item.status === 'ok') {
                   // 通过：鸿蒙原生 checkmark_circle 分层绿色
-                  SymbolGlyph($r('sys.symbol.checkmark_circle'))
-                    .fontSize(22)
-                    .fontColor(['#00C853', '#7CE495'])
+                  AppIcon({ name: 'checkmark_circle', iconSize: 22, colors: ['#00C853', '#7CE495'] })
                     .width(22)
                     .transition(TransitionEffect.opacity(0.2).combine(
                       TransitionEffect.scale({ x: 0.6, y: 0.6 }).animation({ duration: 200, curve: Curve.EaseOut })))
                 } else if (item.status === 'warn' || item.status === 'fail') {
                   // 完成：⚠/✗ 淡入缩放
-                  SymbolGlyph(this.statusIcon(item.status))
-                    .fontSize(20)
-                    .fontColor([this.statusColor(item.status)])
-                    .fontWeight(FontWeight.Bold)
-                    .width(22)
+                  AppIcon({ name: this.statusIcon(item.status), iconSize: 20, colors: [this.statusColor(item.status)] })
                     .transition(TransitionEffect.opacity(0.2).combine(
                       TransitionEffect.scale({ x: 0.6, y: 0.6 }).animation({ duration: 200, curve: Curve.EaseOut })))
                 } else {

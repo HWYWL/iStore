@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ShareCardPage - 装 B 分享卡
  * 网络状态（系统信息/网速/在线设备）生成小红书风卡片 → 截图 → 系统分享
  */
@@ -15,6 +15,7 @@ import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface } from '../../models/Models'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const DOMAIN = 0x0001
 const TAG = 'ShareCard'
@@ -205,7 +206,7 @@ export struct ShareCardPage {
             .width('100%').padding(50).alignItems(HorizontalAlign.Center)
           } else if (this.errText) {
             Column() {
-              SymbolGlyph($r('sys.symbol.warning')).fontSize(36).fontColor(['#EF4444'])
+              AppIcon({ name: 'warning', iconSize: 36, colors: ['#EF4444'] })
               Text(this.errText).fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
             }
             .width('100%').padding(40).alignItems(HorizontalAlign.Center)
@@ -282,7 +283,7 @@ export struct ShareCardPage {
 
             // 分享按钮
             Row() {
-              SymbolGlyph($r('sys.symbol.share')).fontSize(16).fontColor(['#FFFFFF'])
+              AppIcon({ name: 'share', iconSize: 16, colors: ['#FFFFFF'] })
               Text('  分享这张卡').fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
             }
             .width('100%').height(46).borderRadius(23).margin({ top: 16 })
@@ -291,7 +292,7 @@ export struct ShareCardPage {
             .onClick(() => { this.shareCard() })
 
             Row() {
-              SymbolGlyph($r('sys.symbol.arrow_clockwise')).fontSize(15).fontColor(['#FF8A3D'])
+              AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: ['#FF8A3D'] })
               Text('  刷新数据').fontSize(13).fontColor('#FF8A3D').fontWeight(FontWeight.Medium)
             }
             .width('100%').height(44).borderRadius(22).margin({ top: 10 })

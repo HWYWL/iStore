@@ -11,6 +11,7 @@ import { DeviceVisitTime, DeviceVisitRecord, ConnectedDevice, WirelessClient } f
 import { DeviceNoteStore } from '../../common/store/DeviceNoteStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 interface HasMac {
   mac: string
@@ -295,15 +296,15 @@ this.theme = AppState.getInstance().getTheme()
     this.isLoadingRecords = false
   }
 
-  getDeviceIcon(): Resource {
-    if (!this.hostname) return $r('sys.symbol.display')
+  getDeviceIcon(): string {
+    if (!this.hostname) return 'display'
     const name = this.hostname.toLowerCase()
-    if (name.includes('phone') || name.includes('iphone')) return $r('sys.symbol.phone')
-    if (name.includes('laptop') || name.includes('macbook') || name.includes('notebook')) return $r('sys.symbol.display')
-    if (name.includes('tv') || name.includes('smart tv')) return $r('sys.symbol.display')
-    if (name.includes('pi') || name.includes('raspberry')) return $r('sys.symbol.externaldrive')
-    if (name.includes('tablet') || name.includes('ipad')) return $r('sys.symbol.display')
-    return $r('sys.symbol.display')
+    if (name.includes('phone') || name.includes('iphone')) return 'phone'
+    if (name.includes('laptop') || name.includes('macbook') || name.includes('notebook')) return 'display'
+    if (name.includes('tv') || name.includes('smart tv')) return 'display'
+    if (name.includes('pi') || name.includes('raspberry')) return 'externaldrive'
+    if (name.includes('tablet') || name.includes('ipad')) return 'display'
+    return 'display'
   }
 
   /** 设备图标配色 */
@@ -360,9 +361,7 @@ this.theme = AppState.getInstance().getTheme()
         .padding({ left: 16, right: 16, top: 48, bottom: 8 })
 
         Row() {
-          SymbolGlyph(this.getDeviceIcon())
-            .fontSize(34)
-            .fontColor([this.getDeviceIconColor()])
+          AppIcon({ name: this.getDeviceIcon(), iconSize: 34, colors: [this.getDeviceIconColor()] })
           Column() {
             Text(this.hostname || '未知设备')
               .fontSize(18)
@@ -471,9 +470,7 @@ this.theme = AppState.getInstance().getTheme()
         .justifyContent(FlexAlign.Center)
       } else if (this.basicError && !this.dhcpDevice && !this.wifiClient) {
         Row() {
-          SymbolGlyph($r('sys.symbol.warning'))
-            .fontSize(16)
-            .fontColor([this.theme.warning])
+          AppIcon({ name: 'warning', iconSize: 16, colors: [this.theme.warning] })
             .margin({ right: 8 })
           Text(this.basicError)
             .fontSize(12)
@@ -522,7 +519,7 @@ this.theme = AppState.getInstance().getTheme()
   DhcpInfoSection() {
     Column() {
       Row() {
-        SymbolGlyph($r('sys.symbol.doc_plaintext')).fontSize(14).fontColor(['#3B82F6'])
+        AppIcon({ name: 'doc_plaintext', iconSize: 14, colors: ['#3B82F6'] })
         Text(' DHCP 租约信息')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
@@ -557,7 +554,7 @@ this.theme = AppState.getInstance().getTheme()
   DeviceManageSection() {
     Column() {
       Row() {
-        SymbolGlyph($r('sys.symbol.gearshape')).fontSize(14).fontColor(['#8B5CF6'])
+        AppIcon({ name: 'gearshape', iconSize: 14, colors: ['#8B5CF6'] })
         Text(' 设备管理')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
@@ -621,9 +618,7 @@ this.theme = AppState.getInstance().getTheme()
       Row() {
         // 禁用/恢复联网
         Row() {
-          SymbolGlyph(this.isDenied ? $r('sys.symbol.lock_open') : $r('sys.symbol.xmark_circle'))
-            .fontSize(13)
-            .fontColor([this.isDenied ? this.theme.success : this.theme.danger])
+          AppIcon({ name: this.isDenied ? 'lock_open' : 'xmark_circle', iconSize: 13, colors: [this.isDenied ? this.theme.success : this.theme.danger] })
           Text(this.isDenied ? ' 恢复联网' : ' 禁用联网')
             .fontSize(12)
             .fontColor(this.isDenied ? this.theme.success : this.theme.danger)
@@ -636,9 +631,7 @@ this.theme = AppState.getInstance().getTheme()
 
         // 踢下线
         Row() {
-          SymbolGlyph($r('sys.symbol.arrow_up_right'))
-            .fontSize(13)
-            .fontColor([this.theme.warning])
+          AppIcon({ name: 'arrow_up_right', iconSize: 13, colors: [this.theme.warning] })
           Text(' 踢下线')
             .fontSize(12)
             .fontColor(this.theme.warning)
@@ -679,7 +672,7 @@ this.theme = AppState.getInstance().getTheme()
             .onClick(() => this.saveDhcpBinding())
         } else if (this.dhcpBound) {
           Row() {
-            SymbolGlyph($r('sys.symbol.pin')).fontSize(12).fontColor([this.theme.success])
+            AppIcon({ name: 'pin', iconSize: 12, colors: [this.theme.success] })
             Text(` 已固定 IP：${this.bindingIp}`)
               .fontSize(12)
               .fontColor(this.theme.success)
@@ -694,7 +687,7 @@ this.theme = AppState.getInstance().getTheme()
             .onClick(() => this.removeDhcpBinding())
         } else {
           Row() {
-            SymbolGlyph($r('sys.symbol.pin')).fontSize(12).fontColor([this.theme.primary])
+            AppIcon({ name: 'pin', iconSize: 12, colors: [this.theme.primary] })
             Text(' 固定 IP')
               .fontSize(12)
               .fontColor(this.theme.primary)
@@ -740,7 +733,7 @@ this.theme = AppState.getInstance().getTheme()
   WifiInfoSection() {
     Column() {
       Row() {
-        SymbolGlyph($r('sys.symbol.wifi')).fontSize(14).fontColor(['#10B981'])
+        AppIcon({ name: 'wifi', iconSize: 14, colors: ['#10B981'] })
         Text(' 无线连接信息')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
@@ -803,9 +796,7 @@ this.theme = AppState.getInstance().getTheme()
         .justifyContent(FlexAlign.Center)
       } else if (this.statsError && this.visitTimes.length === 0) {
         Row() {
-          SymbolGlyph($r('sys.symbol.warning'))
-            .fontSize(16)
-            .fontColor([this.theme.warning])
+          AppIcon({ name: 'warning', iconSize: 16, colors: [this.theme.warning] })
             .margin({ right: 8 })
           Text(this.statsError)
             .fontSize(12)
@@ -820,7 +811,7 @@ this.theme = AppState.getInstance().getTheme()
       } else {
         Column() {
           Row() {
-            SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(14).fontColor(['#F59E0B'])
+            AppIcon({ name: 'circle_grid_2x2', iconSize: 14, colors: ['#F59E0B'] })
             Text(' 应用统计')
               .fontSize(14)
               .fontColor(this.theme.textPrimary)
@@ -915,9 +906,7 @@ this.theme = AppState.getInstance().getTheme()
         .justifyContent(FlexAlign.Center)
       } else if (this.recordsError && this.visitRecords.length === 0) {
         Row() {
-          SymbolGlyph($r('sys.symbol.warning'))
-            .fontSize(16)
-            .fontColor([this.theme.warning])
+          AppIcon({ name: 'warning', iconSize: 16, colors: [this.theme.warning] })
             .margin({ right: 8 })
           Text(this.recordsError)
             .fontSize(12)
@@ -932,7 +921,7 @@ this.theme = AppState.getInstance().getTheme()
       } else {
         Column() {
           Row() {
-            SymbolGlyph($r('sys.symbol.list_bullet')).fontSize(14).fontColor(['#EC4899'])
+            AppIcon({ name: 'list_bullet', iconSize: 14, colors: ['#EC4899'] })
             Text(' 应用记录')
               .fontSize(14)
               .fontColor(this.theme.textPrimary)

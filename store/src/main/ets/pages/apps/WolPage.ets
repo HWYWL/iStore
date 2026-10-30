@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WolPage - WOL 远程开机（局域网唤醒）
  * SSH 通道执行 etherwake / wakeonlan 发送魔法包，设备列表本地存储
  */
@@ -13,6 +13,7 @@ import { FunStore, WolDevice } from '../../common/store/FunStore'
 import { SshService } from '../../common/ssh/SshService'
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const DOMAIN = 0x0001
 const TAG = 'WolPage'
@@ -176,7 +177,7 @@ export struct WolPage {
       // 标题栏
       Row() {
         Row() {
-          SymbolGlyph($r('sys.symbol.bolt')).fontSize(18).fontColor(['#F97316'])
+          AppIcon({ name: 'bolt', iconSize: 18, colors: ['#F97316'] })
         }
         .width(34).height(34).borderRadius(17)
         .backgroundColor('rgba(255,138,61,0.14)')
@@ -202,7 +203,7 @@ export struct WolPage {
           // 说明卡
           Column() {
             Row() {
-              SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(22).fontColor(['#F59E0B'])
+              AppIcon({ name: 'lightbulb', iconSize: 22, colors: ['#F59E0B'] })
               Column() {
                 Text('支持 NAS / 电脑 / 树莓派等支持 WOL 的设备')
                   .fontSize(12).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
@@ -265,7 +266,7 @@ export struct WolPage {
 
           if (this.devices.length === 0) {
             Column() {
-              SymbolGlyph($r('sys.symbol.moon')).fontSize(36).fontColor(['#94A3B8'])
+              AppIcon({ name: 'moon', iconSize: 36, colors: ['#94A3B8'] })
               Text('还没有设备，添加一台试试').fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
             }
             .width('100%').padding(30).borderRadius(16).margin({ top: 10 })
@@ -293,7 +294,7 @@ export struct WolPage {
                   if (this.busy === d.name) {
                     LoadingProgress().width(14).height(14).color('#FFFFFF')
                   } else {
-                    SymbolGlyph($r('sys.symbol.bolt')).fontSize(13).fontColor(['#FFFFFF'])
+                    AppIcon({ name: 'bolt', iconSize: 13, colors: ['#FFFFFF'] })
                   }
                   Text(this.busy === d.name ? '  发送中' : '  开机')
                     .fontSize(12).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)

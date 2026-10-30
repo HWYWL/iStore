@@ -1,4 +1,4 @@
-﻿/**
+/**
  * JellyfinDetailPage — Jellyfin 媒体详情页（对齐 MaFei dev 视觉）
  * 光感界面：全屏模糊海报背景（blur + scale + 渐变遮罩）
  * → Hero 标题/元信息 → 播放按钮 → 简介
@@ -11,6 +11,7 @@ import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -191,9 +192,7 @@ struct JellyfinDetailPage {
         // 播放按钮（MaFei 同款：毛玻璃圆角）
         Button({ type: ButtonType.Normal }) {
           Row({ space: 8 }) {
-            SymbolGlyph($r('sys.symbol.play_circle_fill'))
-              .fontSize(20)
-              .fontColor(['#1A1E23'])
+            AppIcon({ name: 'play_circle_fill', iconSize: 20, colors: ['#1A1E23'] })
             Text(this.isPlaying ? '加载中…' : '立即播放')
               .fontSize(16).fontWeight(FontWeight.Medium).fontColor('#1A1E23')
           }

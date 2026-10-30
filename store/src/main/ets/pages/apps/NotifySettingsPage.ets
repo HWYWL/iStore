@@ -1,4 +1,4 @@
-﻿/**
+/**
  * NotifySettingsPage - 智能通知设置页
  * 开关：总开关 / 断网告警 / 新设备接入提醒
  * 请求系统通知权限，说明检测机制
@@ -11,6 +11,7 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { NotifyStore, NotifyRecord } from '../../common/store/NotifyStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -232,14 +233,14 @@ this.theme = AppState.getInstance().getTheme()
   }
 
   /** 历史记录图标（统一符号族） */
-  historySymbol(type: string): Resource {
-    if (type === 'offline') return $r('sys.symbol.warning')
-    if (type === 'recover') return $r('sys.symbol.checkmark_circle')
-    if (type === 'newDevice') return $r('sys.symbol.plus_circle')
-    if (type === 'temp') return $r('sys.symbol.thermometer')
-    if (type === 'memory') return $r('sys.symbol.circle_grid_2x2')
-    if (type === 'cpu') return $r('sys.symbol.gearshape')
-    return $r('sys.symbol.bolt')
+  historySymbol(type: string): string {
+    if (type === 'offline') return 'warning'
+    if (type === 'recover') return 'checkmark_circle'
+    if (type === 'newDevice') return 'plus_circle'
+    if (type === 'temp') return 'thermometer'
+    if (type === 'memory') return 'circle_grid_2x2'
+    if (type === 'cpu') return 'gearshape'
+    return 'bolt'
   }
 
   /** 历史记录配色 */
@@ -394,9 +395,7 @@ this.theme = AppState.getInstance().getTheme()
               ForEach(this.history, (rec: NotifyRecord, idx: number) => {
                 Row() {
                   Row() {
-                    SymbolGlyph(this.historySymbol(rec.type))
-                      .fontSize(15)
-                      .fontColor([this.historyColor(rec.type)])
+                    AppIcon({ name: this.historySymbol(rec.type), iconSize: 15, colors: [this.historyColor(rec.type)] })
                   }
                   .width(30)
                   .height(30)

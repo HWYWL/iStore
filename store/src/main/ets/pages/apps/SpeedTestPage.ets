@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 网速全国排位赛
  * wget 下载已知大小测试文件计时测速，按档位给出「击败全国 xx%」排位
  */
@@ -15,6 +15,7 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { fileUri } from '@kit.CoreFileKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 // 固定大小测速文件：完整下载后从响应体取字节数（不依赖 dataReceive 事件）
 interface TestFile {
@@ -215,14 +216,14 @@ export struct SpeedTestPage {
   }
 
   /** 段位图标（统一符号族） */
-  rankSymbol(): Resource {
-    if (this.rankKey === 'crown') return $r('sys.symbol.crown')
-    if (this.rankKey === 'rocket') return $r('sys.symbol.star')
-    if (this.rankKey === 'bolt') return $r('sys.symbol.bolt')
-    if (this.rankKey === 'smile') return $r('sys.symbol.face_smiling')
-    if (this.rankKey === 'calm') return $r('sys.symbol.heart')
-    if (this.rankKey === 'clock') return $r('sys.symbol.clock')
-    return $r('sys.symbol.battery')
+  rankSymbol(): string {
+    if (this.rankKey === 'crown') return 'crown'
+    if (this.rankKey === 'rocket') return 'star'
+    if (this.rankKey === 'bolt') return 'bolt'
+    if (this.rankKey === 'smile') return 'face_smiling'
+    if (this.rankKey === 'calm') return 'heart'
+    if (this.rankKey === 'clock') return 'clock'
+    return 'battery'
   }
 
   private rank(mbps: number): void {
@@ -279,9 +280,7 @@ export struct SpeedTestPage {
               Column() {
                 Text('⚡ 网速排位赛')
                   .fontSize(12).fontColor('rgba(255,255,255,0.85)')
-                SymbolGlyph(this.rankSymbol())
-                  .fontSize(44)
-                  .fontColor(['#FFFFFF'])
+                AppIcon({ name: this.rankSymbol(), iconSize: 44, colors: ['#FFFFFF'] })
                   .margin({ top: 10 })
                 Text(this.mbps.toFixed(1))
                   .fontSize(58).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
@@ -352,8 +351,7 @@ export struct SpeedTestPage {
             // 完成：左「再测一次」+ 右「分享测速」（同色系橙色，风格一致）
             Row({ space: 12 }) {
               Row() {
-                SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-                  .fontSize(15).fontColor(['#FFFFFF'])
+                AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: ['#FFFFFF'] })
                 Text('  再测一次')
                   .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
               }
@@ -363,8 +361,7 @@ export struct SpeedTestPage {
               .onClick(() => { this.runTest() })
 
               Row() {
-                SymbolGlyph($r('sys.symbol.share'))
-                  .fontSize(15).fontColor(['#FFFFFF'])
+                AppIcon({ name: 'share', iconSize: 15, colors: ['#FFFFFF'] })
                 Text('  分享测速')
                   .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
               }

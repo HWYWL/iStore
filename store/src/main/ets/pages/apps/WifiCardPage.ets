@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WiFi 访客卡片
  * SSID 自动获取 + 密码手输 → 生成扫码连接卡片，可截图分享给访客
  */
@@ -8,6 +8,7 @@ import { ApiService } from '../../api/ApiService'
 import { WifiApInfo } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -90,9 +91,7 @@ export struct WifiCardPage {
         Column() {
           // 卡片
           Column() {
-            SymbolGlyph($r('sys.symbol.wifi'))
-              .fontSize(38)
-              .fontColor([this.theme.primary])
+            AppIcon({ name: 'wifi', iconSize: 38, colors: [this.theme.primary] })
             Text('欢迎连我的 WiFi')
               .fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
               .margin({ top: 8 })
@@ -164,7 +163,7 @@ export struct WifiCardPage {
           .backgroundColor(this.theme.bgCard)
 
           Row() {
-            SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(13).fontColor(['#F59E0B'])
+            AppIcon({ name: 'lightbulb', iconSize: 13, colors: ['#F59E0B'] })
             Text(' 提示：密码只在本地生成二维码，不会上传或显示明文')
               .fontSize(10).fontColor(this.theme.textTertiary)
               .layoutWeight(1)

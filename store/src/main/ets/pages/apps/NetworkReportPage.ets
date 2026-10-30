@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AI 网络周报
  * 汇总近 7 天流量 + 设备活跃，生成趣味周报（本地规则引擎拼装）
  */
@@ -10,6 +10,7 @@ import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -186,7 +187,7 @@ export struct NetworkReportPage {
           if (this.generated) {
             Column() {
               Row() {
-                SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(16).fontColor(['#3B82F6'])
+                AppIcon({ name: 'circle_grid_2x2', iconSize: 16, colors: ['#3B82F6'] })
                 Text(' 本周网络周报')
                   .fontSize(16).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
               }
@@ -244,7 +245,7 @@ export struct NetworkReportPage {
               // 趣味点评
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.AI_help_write')).fontSize(12).fontColor([this.theme.primary])
+                  AppIcon({ name: 'AI_help_write', iconSize: 12, colors: [this.theme.primary] })
                   Text(' AI 点评')
                     .fontSize(11).fontColor(this.theme.primary)
                 }
@@ -261,9 +262,7 @@ export struct NetworkReportPage {
             .alignItems(HorizontalAlign.Start)
           } else {
             Column() {
-              SymbolGlyph($r('sys.symbol.circle_grid_2x2'))
-                .fontSize(44)
-                .fontColor(['#94A3B8'])
+              AppIcon({ name: 'circle_grid_2x2', iconSize: 44, colors: ['#94A3B8'] })
               Text('生成你的网络周报')
                 .fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                 .margin({ top: 10 })

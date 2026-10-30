@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WidgetSettingsPage - 桌面小组件设置
  * 选择卡片主指标：实时速率 / 今日流量 / CPU·内存 / 在线设备
  * 配置写入 WidgetDataStore，卡片下次刷新（onUpdateForm）时生效

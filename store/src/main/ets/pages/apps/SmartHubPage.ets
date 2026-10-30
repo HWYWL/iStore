@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SmartHubPage — 智能网络管家中心（v3 按小花创意设计稿重写）
  * 设计规范：prototype-smarthub.html / DesignSystemManifest-智能管家.md
  * 动画：曲线 stagger 生长 / 峰值环 sweep / 扫描光 / 状态灯脉冲 / 星空闪烁 / 时间线滑入 / 健康环滚动
@@ -14,6 +14,7 @@ import { promptAction } from '@kit.ArkUI'
 import { http } from '@kit.NetworkKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 // 设计 Token（小花创意 DesignSystemManifest）
 const NIGHT_1: string = '#3A3F6E'
@@ -24,12 +25,12 @@ const WARN_DEEP: string = '#B7791F'
 const DANGER_DEEP: string = '#C0392B'
 
 const TABS: string[] = ['预言家', '侦探', '值班员', '一句话', '周报']
-const TAB_ICONS: Resource[] = [
-  $r('sys.symbol.wand_and_stars'),
-  $r('sys.symbol.magnifyingglass'),
-  $r('sys.symbol.moon'),
-  $r('sys.symbol.bolt'),
-  $r('sys.symbol.circle_grid_2x2')
+const TAB_ICONS: string[] = [
+  'wand_and_stars',
+  'magnifyingglass',
+  'moon',
+  'bolt',
+  'circle_grid_2x2'
 ]
 
 interface Forecast {
@@ -488,9 +489,7 @@ export struct SmartHubPage {
       Row() {
         ForEach(TABS, (t: string, idx: number) => {
           Column() {
-            SymbolGlyph(TAB_ICONS[idx])
-              .fontSize(13)
-              .fontColor([this.tab === idx ? '#FFFFFF' : this.theme.textSecondary])
+            AppIcon({ name: TAB_ICONS[idx], iconSize: 13, colors: [this.tab === idx ? '#FFFFFF' : this.theme.textSecondary] })
             Text(t)
               .fontSize(10)
               .fontWeight(this.tab === idx ? FontWeight.Bold : FontWeight.Normal)
@@ -650,7 +649,7 @@ export struct SmartHubPage {
         })
       } else {
         Column() {
-          SymbolGlyph($r('sys.symbol.wifi')).fontSize(36).fontColor(['#94A3B8'])
+          AppIcon({ name: 'wifi', iconSize: 36, colors: ['#94A3B8'] })
           Text(this.forecast.advice).fontSize(12).fontColor(this.theme.textSecondary).margin({ top: 10 })
         }
         .width('100%')
@@ -670,7 +669,7 @@ export struct SmartHubPage {
     Column() {
       // 说明卡
       Row() {
-        SymbolGlyph($r('sys.symbol.magnifyingglass')).fontSize(22).fontColor(['#8B5CF6'])
+        AppIcon({ name: 'magnifyingglass', iconSize: 22, colors: ['#8B5CF6'] })
         Column() {
           Text('AI 网络侦探').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
           Text('断网/卡顿时一键排查，自动生成案发报告').fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 2 })
@@ -693,7 +692,7 @@ export struct SmartHubPage {
 
       if (this.detectItems.length === 0) {
         Column() {
-          SymbolGlyph($r('sys.symbol.security_shield')).fontSize(40).fontColor(['#10B981'])
+          AppIcon({ name: 'security_shield', iconSize: 40, colors: ['#10B981'] })
           Text('一切正常时也会安静待命').fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
         }
         .width('100%').padding({ top: 40, bottom: 40 }).alignItems(HorizontalAlign.Center)
@@ -733,7 +732,7 @@ export struct SmartHubPage {
 
         if (this.detectDone) {
           Row() {
-            SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(14).fontColor(['#FFFFFF'])
+            AppIcon({ name: 'checkmark_circle', iconSize: 14, colors: ['#FFFFFF'] })
             Text('排查完成，可根据结果判断问题').fontSize(12).fontColor('#FFFFFF').margin({ left: 8 })
           }
           .width('100%')
@@ -770,7 +769,7 @@ export struct SmartHubPage {
         }, (i: number) => `s${i}`)
 
         Row() {
-          SymbolGlyph($r('sys.symbol.moon')).fontSize(22).fontColor(['#FFFFFF'])
+          AppIcon({ name: 'moon', iconSize: 22, colors: ['#FFFFFF'] })
           Column() {
             Text('深夜值班员').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
             Text('你在睡觉，路由器在守夜').fontSize(10).fontColor('rgba(255,255,255,0.7)').margin({ top: 2 })
@@ -798,11 +797,9 @@ export struct SmartHubPage {
         ForEach(this.nightEvents, (ev: NightEvent, idx: number) => {
           Row() {
             Column() {
-              SymbolGlyph(ev.type === 'summary' ? $r('sys.symbol.moon')
-                : (ev.type === 'new_device' ? $r('sys.symbol.plus_circle')
-                : (ev.type === 'attack' ? $r('sys.symbol.security_shield') : $r('sys.symbol.moon'))))
-                .fontSize(18)
-                .fontColor([ev.type === 'attack' ? '#EF4444' : '#6366F1'])
+              AppIcon({ name: ev.type === 'summary' ? 'moon'
+                : (ev.type === 'new_device' ? 'plus_circle'
+                : (ev.type === 'attack' ? 'security_shield' : 'moon')), iconSize: 18, colors: [ev.type === 'attack' ? '#EF4444' : '#6366F1'] })
               Text(ev.time).fontSize(9).fontColor(this.theme.textTertiary).margin({ top: 3 })
             }
             .width(44).alignItems(HorizontalAlign.Center)
@@ -830,7 +827,7 @@ export struct SmartHubPage {
     Column() {
       Column() {
         Row() {
-          SymbolGlyph($r('sys.symbol.bolt')).fontSize(22).fontColor(['#F59E0B'])
+          AppIcon({ name: 'bolt', iconSize: 22, colors: ['#F59E0B'] })
           Text('一句话搞定网络').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 8 })
         }
         .width('100%')
@@ -898,7 +895,7 @@ export struct SmartHubPage {
     Column() {
       Column() {
         Row() {
-          SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(22).fontColor(['#3B82F6'])
+          AppIcon({ name: 'circle_grid_2x2', iconSize: 22, colors: ['#3B82F6'] })
           Text('家庭健康周报').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 8 })
           Blank()
           Text('生成今日')

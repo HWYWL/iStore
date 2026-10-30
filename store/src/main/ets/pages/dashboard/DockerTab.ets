@@ -1,9 +1,10 @@
-﻿import { AppState } from '../../common/store/AppState'
+import { AppState } from '../../common/store/AppState'
 import {ThemePalette} from '../../common/theme/ThemeColors'
 import { DockerOverview, DockerContainer, DockerStats, DockerImage, DockerNetwork } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { Poller } from '../../common/utils/Poller'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Component
 export struct DockerTab {
@@ -416,9 +417,7 @@ export struct DockerTab {
             if (!this.apiAvailable) {
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.lightbulb'))
-                    .fontSize(14)
-                    .fontColor(['#F59E0B'])
+                  AppIcon({ name: 'lightbulb', iconSize: 14, colors: ['#F59E0B'] })
                   Text('开启 Docker API 后，可显示容器 CPU / 内存实时统计')
                     .fontSize(12).fontColor(this.theme.textSecondary)
                     .layoutWeight(1).margin({ left: 8 })
@@ -467,9 +466,7 @@ export struct DockerTab {
             // ========== 容器 / 镜像 / 网络 切换 ==========
             Row() {
               Row() {
-                SymbolGlyph($r('sys.symbol.rectangle_stack'))
-                  .fontSize(13)
-                  .fontColor([this.viewIndex === 0 ? '#3B82F6' : this.theme.textTertiary])
+                AppIcon({ name: 'rectangle_stack', iconSize: 13, colors: [this.viewIndex === 0 ? '#3B82F6' : this.theme.textTertiary] })
                 Text(' 容器')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 0 ? this.theme.textPrimary : this.theme.textTertiary)
@@ -482,9 +479,7 @@ export struct DockerTab {
               .onClick(() => { this.switchView(0) })
 
               Row() {
-                SymbolGlyph($r('sys.symbol.archivebox'))
-                  .fontSize(13)
-                  .fontColor([this.viewIndex === 1 ? '#8B5CF6' : this.theme.textTertiary])
+                AppIcon({ name: 'archivebox', iconSize: 13, colors: [this.viewIndex === 1 ? '#8B5CF6' : this.theme.textTertiary] })
                 Text(' 镜像')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 1 ? this.theme.textPrimary : this.theme.textTertiary)
@@ -498,9 +493,7 @@ export struct DockerTab {
               .onClick(() => { this.switchView(1) })
 
               Row() {
-                SymbolGlyph($r('sys.symbol.globe_badge_message'))
-                  .fontSize(13)
-                  .fontColor([this.viewIndex === 2 ? '#10B981' : this.theme.textTertiary])
+                AppIcon({ name: 'globe_badge_message', iconSize: 13, colors: [this.viewIndex === 2 ? '#10B981' : this.theme.textTertiary] })
                 Text(' 网络')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 2 ? this.theme.textPrimary : this.theme.textTertiary)
@@ -689,9 +682,7 @@ export struct DockerTab {
                   Column() {
                     Row() {
                       Column() {
-                        SymbolGlyph($r('sys.symbol.globe_badge_message'))
-                          .fontSize(20)
-                          .fontColor(['#10B981'])
+                        AppIcon({ name: 'globe_badge_message', iconSize: 20, colors: ['#10B981'] })
                       }
                       .width(40).height(40)
                       .justifyContent(FlexAlign.Center)

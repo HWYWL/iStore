@@ -1,14 +1,15 @@
-﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { getAppVersionText } from '../../common/utils/AppVersion'
 import { ApiService } from '../../api/ApiService'
 import { SystemInfo } from '../../models/Models'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 
 interface ToolEntry {
-  icon: Resource      // 系统符号图标（sys.symbol.*），全局统一线稿风格
+  icon: string      // 系统符号图标（sys.symbol.*），全局统一线稿风格
   name: string
   desc: string
   route: string
@@ -56,82 +57,82 @@ export struct AppsPage {
     {
       title: '我的',
       items: [
-        { icon: $r('sys.symbol.heart'), name: '小管家', desc: '养成式网络管家 · 每日任务', route: 'pages/pet/PetPage' },
-        { icon: $r('sys.symbol.bag'), name: 'iStore 商店', desc: '浏览与安装路由器插件', route: 'pages/apps/StorePage' },
-        { icon: $r('sys.symbol.square_stack_3d'), name: 'Docker', desc: '容器、镜像与网络管理', route: 'pages/apps/DockerPage' },
-        { icon: $r('sys.symbol.wifi_router'), name: 'OpenWRT 首页', desc: '打开路由器管理后台', route: 'pages/apps/WebViewPage' },
+        { icon: 'heart', name: '小管家', desc: '养成式网络管家 · 每日任务', route: 'pages/pet/PetPage' },
+        { icon: 'bag', name: 'iStore 商店', desc: '浏览与安装路由器插件', route: 'pages/apps/StorePage' },
+        { icon: 'square_stack_3d', name: 'Docker', desc: '容器、镜像与网络管理', route: 'pages/apps/DockerPage' },
+        { icon: 'wifi_router', name: 'OpenWRT 首页', desc: '打开路由器管理后台', route: 'pages/apps/WebViewPage' },
       ]
     },
     {
       title: '网络',
       items: [
-        { icon: $r('sys.symbol.security_shield'), name: '安全中心', desc: '安全评分 / 陌生设备 / 危险端口', route: 'pages/security/SecurityHubPage' },
-        { icon: $r('sys.symbol.wifi'), name: 'WiFi 管理', desc: '无线网络状态与配置管理', route: 'pages/apps/WifiPage' },
-        { icon: $r('sys.symbol.globe_badge_message'), name: '网络管理', desc: '接口状态与网络信息', route: 'pages/apps/NetworkPage' },
-        { icon: $r('sys.symbol.arrow_up_right'), name: '流量排行',  desc: '按速率排名的客户端活跃度', route: 'pages/apps/TrafficRankPage' },
-        { icon: $r('sys.symbol.link'), name: '连接排行',  desc: '发现 NAT 连接数最多的设备', route: 'pages/apps/ConntrackRankPage' },
-        { icon: $r('sys.symbol.arrow_up_and_down_square_portrait'), name: '网口流量',  desc: '各接口实时速率与累计统计', route: 'pages/apps/PortTrafficPage' },
-        { icon: $r('sys.symbol.square_grid_3x1_below_line_grid_1x2'), name: '物理网口',  desc: '查看物理端口连接状态与速率', route: 'pages/apps/EthPortPage' },
-        { icon: $r('sys.symbol.list_square_bill'), name: '流量统计',  desc: '近 7/30 天每日流量趋势', route: 'pages/apps/TrafficReportPage' },
-        { icon: $r('sys.symbol.staroflife'), name: '智能体检',  desc: '一键检测网络连通与延迟', route: 'pages/apps/NetworkCheckPage' },
-        { icon: $r('sys.symbol.circle_grid_2x2'), name: '网络拓扑',  desc: '可视化设备连接关系图', route: 'pages/apps/TopologyPage' },
+        { icon: 'security_shield', name: '安全中心', desc: '安全评分 / 陌生设备 / 危险端口', route: 'pages/security/SecurityHubPage' },
+        { icon: 'wifi', name: 'WiFi 管理', desc: '无线网络状态与配置管理', route: 'pages/apps/WifiPage' },
+        { icon: 'globe_badge_message', name: '网络管理', desc: '接口状态与网络信息', route: 'pages/apps/NetworkPage' },
+        { icon: 'arrow_up_right', name: '流量排行',  desc: '按速率排名的客户端活跃度', route: 'pages/apps/TrafficRankPage' },
+        { icon: 'link', name: '连接排行',  desc: '发现 NAT 连接数最多的设备', route: 'pages/apps/ConntrackRankPage' },
+        { icon: 'arrow_up_and_down_square_portrait', name: '网口流量',  desc: '各接口实时速率与累计统计', route: 'pages/apps/PortTrafficPage' },
+        { icon: 'square_grid_3x1_below_line_grid_1x2', name: '物理网口',  desc: '查看物理端口连接状态与速率', route: 'pages/apps/EthPortPage' },
+        { icon: 'list_square_bill', name: '流量统计',  desc: '近 7/30 天每日流量趋势', route: 'pages/apps/TrafficReportPage' },
+        { icon: 'staroflife', name: '智能体检',  desc: '一键检测网络连通与延迟', route: 'pages/apps/NetworkCheckPage' },
+        { icon: 'circle_grid_2x2', name: '网络拓扑',  desc: '可视化设备连接关系图', route: 'pages/apps/TopologyPage' },
       ]
     },
     {
       title: '多媒体',
       items: [
-        { icon: $r('sys.symbol.ohos_photo'), name: '相册', desc: 'Immich 照片与视频管理', route: 'pages/apps/AlbumPage' },
-        { icon: $r('sys.symbol.movie'), name: 'Jellyfin', desc: '电影、剧集与音乐媒体中心', route: 'pages/apps/JellyfinPage' },
+        { icon: 'ohos_photo', name: '相册', desc: 'Immich 照片与视频管理', route: 'pages/apps/AlbumPage' },
+        { icon: 'movie', name: 'Jellyfin', desc: '电影、剧集与音乐媒体中心', route: 'pages/apps/JellyfinPage' },
       ]
     },
     {
       title: '趣味',
       items: [
-        { icon: $r('sys.symbol.lightbulb'), name: '智能管家', desc: '预知·侦探·值班·一句话·周报', route: 'pages/apps/SmartHubPage' },
-        { icon: $r('sys.symbol.flag'), name: '运行里程碑', desc: '连续运行天数与纪念日', route: 'pages/apps/MileStonePage' },
-        { icon: $r('sys.symbol.medal'), name: '网络成就',  desc: '收集你的网络徽章', route: 'pages/apps/AchievementPage' },
-        { icon: $r('sys.symbol.clock'), name: '设备作息',  desc: '设备 24h 活跃热力图', route: 'pages/apps/DeviceActivityPage' },
-        { icon: $r('sys.symbol.book'), name: '网络日记',  desc: '每日网络事件时间线', route: 'pages/apps/DiaryPage' },
-        { icon: $r('sys.symbol.doc_text'), name: 'AI 周报',  desc: '7 天流量汇总与点评', route: 'pages/apps/NetworkReportPage' },
-        { icon: $r('sys.symbol.wand_and_stars'), name: '今日运势',  desc: '每天一次网络占卜', route: 'pages/apps/FortunePage' },
-        { icon: $r('sys.symbol.face_smiling'), name: '路由器心情', desc: '今天路由器心情如何', route: 'pages/apps/RouterMoodPage' },
-        { icon: $r('sys.symbol.qrcode'), name: 'WiFi 访客卡', desc: '扫码连接 WiFi 卡片', route: 'pages/apps/WifiCardPage' },
-        { icon: $r('sys.symbol.waveform'), name: '网络心电图', desc: '实时延迟波形监测', route: 'pages/apps/NetEcgPage' },
-        { icon: $r('sys.symbol.gauge_with_dots_needle_33percent'), name: '网速排位赛', desc: '测速看全国排名', route: 'pages/apps/SpeedTestPage' },
-        { icon: $r('sys.symbol.label'), name: '设备外号', desc: '给设备起社交外号', route: 'pages/apps/DeviceAliasPage' },
-        { icon: $r('sys.symbol.arrow_left_arrow_right'), name: 'DNS 擂台', desc: '各家 DNS 谁最快', route: 'pages/apps/DnsBattlePage' },
-        { icon: $r('sys.symbol.bolt'), name: '远程开机', desc: 'WOL 一键唤醒设备', route: 'pages/apps/WolPage' },
-        { icon: $r('sys.symbol.share'), name: '装 B 分享卡', desc: '网络状态生成分享图', route: 'pages/apps/ShareCardPage' },
-        { icon: $r('sys.symbol.crown'), name: '路由器等级', desc: 'Lv.1 到网络之神', route: 'pages/apps/RouterLevelPage' },
-        { icon: $r('sys.symbol.yuansign_moneybag'), name: '流量月账单', desc: '运营商账单风统计', route: 'pages/apps/TrafficBillPage' },
+        { icon: 'lightbulb', name: '智能管家', desc: '预知·侦探·值班·一句话·周报', route: 'pages/apps/SmartHubPage' },
+        { icon: 'flag', name: '运行里程碑', desc: '连续运行天数与纪念日', route: 'pages/apps/MileStonePage' },
+        { icon: 'medal', name: '网络成就',  desc: '收集你的网络徽章', route: 'pages/apps/AchievementPage' },
+        { icon: 'clock', name: '设备作息',  desc: '设备 24h 活跃热力图', route: 'pages/apps/DeviceActivityPage' },
+        { icon: 'book', name: '网络日记',  desc: '每日网络事件时间线', route: 'pages/apps/DiaryPage' },
+        { icon: 'doc_text', name: 'AI 周报',  desc: '7 天流量汇总与点评', route: 'pages/apps/NetworkReportPage' },
+        { icon: 'wand_and_stars', name: '今日运势',  desc: '每天一次网络占卜', route: 'pages/apps/FortunePage' },
+        { icon: 'face_smiling', name: '路由器心情', desc: '今天路由器心情如何', route: 'pages/apps/RouterMoodPage' },
+        { icon: 'qrcode', name: 'WiFi 访客卡', desc: '扫码连接 WiFi 卡片', route: 'pages/apps/WifiCardPage' },
+        { icon: 'waveform', name: '网络心电图', desc: '实时延迟波形监测', route: 'pages/apps/NetEcgPage' },
+        { icon: 'gauge_with_dots_needle_33percent', name: '网速排位赛', desc: '测速看全国排名', route: 'pages/apps/SpeedTestPage' },
+        { icon: 'label', name: '设备外号', desc: '给设备起社交外号', route: 'pages/apps/DeviceAliasPage' },
+        { icon: 'arrow_left_arrow_right', name: 'DNS 擂台', desc: '各家 DNS 谁最快', route: 'pages/apps/DnsBattlePage' },
+        { icon: 'bolt', name: '远程开机', desc: 'WOL 一键唤醒设备', route: 'pages/apps/WolPage' },
+        { icon: 'share', name: '装 B 分享卡', desc: '网络状态生成分享图', route: 'pages/apps/ShareCardPage' },
+        { icon: 'crown', name: '路由器等级', desc: 'Lv.1 到网络之神', route: 'pages/apps/RouterLevelPage' },
+        { icon: 'yuansign_moneybag', name: '流量月账单', desc: '运营商账单风统计', route: 'pages/apps/TrafficBillPage' },
       ]
     },
     {
       title: '管理',
       items: [
-        { icon: $r('sys.symbol.rectangle_stack'), name: '设备管理',  desc: '设备列表与备注管理', route: 'pages/apps/DeviceManagePage' },
-        { icon: $r('sys.symbol.AI_help_write'), name: '设备辅助AI',  desc: '快捷问答 · 实时诊断网络', route: 'pages/apps/NetworkHelperPage' },
-        { icon: $r('sys.symbol.person_shield'), name: '家长控制',  desc: 'OAF 应用过滤引擎配置', route: 'pages/apps/OafPage' },
-        { icon: $r('sys.symbol.gearshape'), name: '系统进程',  desc: '查看和管理运行中的进程', route: 'pages/process/ProcessListPage' },
-        { icon: $r('sys.symbol.play_circle'), name: '启动项',   desc: '管理开机自启服务', route: 'pages/process/StartupPage' },
-        { icon: $r('sys.symbol.bell'), name: '智能通知',  desc: '断网告警与新设备接入提醒', route: 'pages/apps/NotifySettingsPage' },
-        { icon: $r('sys.symbol.calendar'), name: '定时任务',  desc: '定时重启与定时开关 WiFi', route: 'pages/apps/SchedulePage' },
-        { icon: $r('sys.symbol.paintbrush'), name: '皮肤管理',  desc: '更换应用主题皮肤', route: 'pages/apps/SkinManagePage' },
-        { icon: $r('sys.symbol.code_square'), name: 'SSH 终端',   desc: '命令行管理路由器', route: 'pages/apps/SshTerminalPage' },
-        { icon: $r('sys.symbol.folder'), name: '文件管理',   desc: '浏览管理 OpenWrt 文件', route: 'pages/apps/FileManagerPage' },
+        { icon: 'rectangle_stack', name: '设备管理',  desc: '设备列表与备注管理', route: 'pages/apps/DeviceManagePage' },
+        { icon: 'AI_help_write', name: '设备辅助AI',  desc: '快捷问答 · 实时诊断网络', route: 'pages/apps/NetworkHelperPage' },
+        { icon: 'person_shield', name: '家长控制',  desc: 'OAF 应用过滤引擎配置', route: 'pages/apps/OafPage' },
+        { icon: 'gearshape', name: '系统进程',  desc: '查看和管理运行中的进程', route: 'pages/process/ProcessListPage' },
+        { icon: 'play_circle', name: '启动项',   desc: '管理开机自启服务', route: 'pages/process/StartupPage' },
+        { icon: 'bell', name: '智能通知',  desc: '断网告警与新设备接入提醒', route: 'pages/apps/NotifySettingsPage' },
+        { icon: 'calendar', name: '定时任务',  desc: '定时重启与定时开关 WiFi', route: 'pages/apps/SchedulePage' },
+        { icon: 'paintbrush', name: '皮肤管理',  desc: '更换应用主题皮肤', route: 'pages/apps/SkinManagePage' },
+        { icon: 'code_square', name: 'SSH 终端',   desc: '命令行管理路由器', route: 'pages/apps/SshTerminalPage' },
+        { icon: 'folder', name: '文件管理',   desc: '浏览管理 OpenWrt 文件', route: 'pages/apps/FileManagerPage' },
       ]
     },
     {
       title: '系统',
       items: [
-        { icon: $r('sys.symbol.arrow_clockwise'), name: '网络重启',  desc: '只重启网络服务不动整机', route: 'pages/system/NetworkRestartPage' },
-        { icon: $r('sys.symbol.card_package'), name: '软件包管理', desc: 'opkg/apk 安装卸载软件', route: 'pages/system/PackageManagerPage' },
-        { icon: $r('sys.symbol.doc_plaintext'), name: '系统日志',  desc: '实时查看路由器日志', route: 'pages/system/SystemLogPage' },
-        { icon: $r('sys.symbol.externaldrive'), name: '配置备份',  desc: '备份与恢复全部配置', route: 'pages/system/ConfigBackupPage' },
-        { icon: $r('sys.symbol.power'), name: '重启',     desc: '重启路由器设备', route: 'pages/system/RebootPage' },
-        { icon: $r('sys.symbol.arrow_counterclockwise'), name: '恢复出厂', desc: '恢复设备到出厂设置', route: 'pages/system/FactoryResetPage' },
-        { icon: $r('sys.symbol.square_grid_2x2'), name: '小组件设置', desc: '选择桌面卡片显示的主指标', route: 'pages/apps/WidgetSettingsPage' },
-        { icon: $r('sys.symbol.info_circle'), name: '关于',     desc: '版本信息与更新检查', route: '__about__' },
+        { icon: 'arrow_clockwise', name: '网络重启',  desc: '只重启网络服务不动整机', route: 'pages/system/NetworkRestartPage' },
+        { icon: 'card_package', name: '软件包管理', desc: 'opkg/apk 安装卸载软件', route: 'pages/system/PackageManagerPage' },
+        { icon: 'doc_plaintext', name: '系统日志',  desc: '实时查看路由器日志', route: 'pages/system/SystemLogPage' },
+        { icon: 'externaldrive', name: '配置备份',  desc: '备份与恢复全部配置', route: 'pages/system/ConfigBackupPage' },
+        { icon: 'power', name: '重启',     desc: '重启路由器设备', route: 'pages/system/RebootPage' },
+        { icon: 'arrow_counterclockwise', name: '恢复出厂', desc: '恢复设备到出厂设置', route: 'pages/system/FactoryResetPage' },
+        { icon: 'square_grid_2x2', name: '小组件设置', desc: '选择桌面卡片显示的主指标', route: 'pages/apps/WidgetSettingsPage' },
+        { icon: 'info_circle', name: '关于',     desc: '版本信息与更新检查', route: '__about__' },
       ]
     },
   ]
@@ -268,22 +269,16 @@ this.theme = AppState.getInstance().getTheme()
     return { angle: 135, colors: [[c[0], 0], [c[1], 1]] }
   }
 
-  /** 双列功能方块（彩色图标底座 + 名称，紧凑应用商店风格） */
+  /** 双列功能项（图标 + 名称，外层套圆角方框） */
   @Builder
   toolCard(tool: ToolEntry, slideIdx: number) {
     Column() {
-      // 统一图标：同一形状规范的渐变底座 + 白色系统符号
       Row() {
-        SymbolGlyph(tool.icon)
-          .fontSize(19)
-          .fontColor(['#FFFFFF'])
+        AppIcon({ name: tool.icon, iconSize: 34 })
       }
       .width(36)
       .height(36)
-      .borderRadius(12)
       .justifyContent(FlexAlign.Center)
-      .linearGradient(this.iconGradient(slideIdx))
-      .shadow({ radius: 6, color: 'rgba(37,99,235,0.18)', offsetY: 2 })
 
       Text(tool.name)
         .fontSize(11)

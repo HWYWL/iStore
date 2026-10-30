@@ -1,10 +1,11 @@
-﻿import { AppState } from '../../common/store/AppState'
+import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { OafStatus, AppFilterBase, AppClass, AppItem, AppFilterTime, AppFilterUser, TimeSlot } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 /** 星期常量映射 */
 const WEEKDAYS: string[] = ['日', '一', '二', '三', '四', '五', '六']
@@ -219,7 +220,7 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 引擎状态卡片 ========
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.gearshape')).fontSize(15).fontColor(['#3B82F6'])
+                  AppIcon({ name: 'gearshape', iconSize: 15, colors: ['#3B82F6'] })
                   Text(' OAF 引擎状态')
                     .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                 }
@@ -241,7 +242,7 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 基础配置卡片 ========
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(15).fontColor(['#8B5CF6'])
+                  AppIcon({ name: 'circle_grid_2x2', iconSize: 15, colors: ['#8B5CF6'] })
                   Text(' 基础配置')
                     .fontSize(14).fontColor(this.theme.textPrimary)
                     .fontWeight(FontWeight.Medium)
@@ -270,7 +271,7 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 应用分类管控 ========
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.square_grid_2x2')).fontSize(15).fontColor(['#EC4899'])
+                  AppIcon({ name: 'square_grid_2x2', iconSize: 15, colors: ['#EC4899'] })
                   Text(' 应用管控')
                     .fontSize(14).fontColor(this.theme.textPrimary)
                     .fontWeight(FontWeight.Medium)
@@ -357,7 +358,7 @@ this.theme = AppState.getInstance().getTheme()
               if (this.appTime) {
                 Column() {
                   Row() {
-                    SymbolGlyph($r('sys.symbol.clock')).fontSize(15).fontColor(['#F59E0B'])
+                    AppIcon({ name: 'clock', iconSize: 15, colors: ['#F59E0B'] })
                     Text(' 时间段配置')
                       .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                   }
@@ -396,7 +397,7 @@ this.theme = AppState.getInstance().getTheme()
               if (this.appUser) {
                 Column() {
                   Row() {
-                    SymbolGlyph($r('sys.symbol.person_2')).fontSize(15).fontColor(['#06B6D4'])
+                    AppIcon({ name: 'person_2', iconSize: 15, colors: ['#06B6D4'] })
                     Text(' 管控用户')
                       .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                   }

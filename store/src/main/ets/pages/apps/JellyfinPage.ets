@@ -1,4 +1,4 @@
-﻿/**
+/**
  * JellyfinPage — Jellyfin 媒体首页（对齐 MaFei dev 分支视觉）
  * 结构：chip 横向选择器（最近添加 + 媒体库）→ 3 列海报网格
  * 副标题规则（MaFei 同款）：
@@ -13,6 +13,7 @@ import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const RECENT_ID: string = '__recent__'
 const CARD_GAP: number = 8
@@ -384,9 +385,7 @@ export struct JellyfinPage {
                         .backgroundColor('rgba(246,242,234,0.8)')
                     } else {
                       Column() {
-                        SymbolGlyph($r('sys.symbol.template_fill'))
-                          .fontSize(30)
-                          .fontColor(['#B4AFA4'])
+                        AppIcon({ name: 'template_fill', iconSize: 30, colors: ['#B4AFA4'] })
                       }
                         .width('100%')
                         .aspectRatio(0.67)

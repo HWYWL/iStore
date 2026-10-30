@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 设备外号生成器
  * 根据设备厂商 / 类型 / 信号 / 速率生成趣味「社交外号」，图标统一为系统符号 + 同色系底座
  */
@@ -8,17 +8,18 @@ import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 interface AliasItem {
   alias: string
-  icon: Resource
+  icon: string
   /** 用自绘的鸿蒙标志替代系统符号 */
   harmony?: boolean
 }
 
 interface AliasDef {
   alias: string
-  icon: Resource
+  icon: string
   color: string
   harmony?: boolean
 }
@@ -26,7 +27,7 @@ interface AliasDef {
 interface AliasRow {
   name: string
   alias: string
-  icon: Resource
+  icon: string
   color: string
   isOnline: boolean
   harmony: boolean
@@ -34,119 +35,119 @@ interface AliasRow {
 
 /** 兜底外号池（每个外号一个专属图标，刷新会重新洗牌） */
 const GENERIC_POOL: AliasDef[] = [
-  { alias: '神秘访客', icon: $r('sys.symbol.person_shield'), color: '#64748B' },
-  { alias: '网速刺客', icon: $r('sys.symbol.bolt'), color: '#F97316' },
-  { alias: '隐形设备', icon: $r('sys.symbol.eye_slash'), color: '#8B5CF6' },
-  { alias: '蹭网嫌疑犯', icon: $r('sys.symbol.link'), color: '#EC4899' },
-  { alias: '深夜下载党', icon: $r('sys.symbol.moon'), color: '#6366F1' },
-  { alias: '老实巴交设备', icon: $r('sys.symbol.checkmark_circle'), color: '#10B981' },
-  { alias: '局域网宅', icon: $r('sys.symbol.house'), color: '#0EA5E9' },
-  { alias: '待机之王', icon: $r('sys.symbol.battery'), color: '#94A3B8' },
-  { alias: '摸鱼达人', icon: $r('sys.symbol.fish'), color: '#06B6D4' },
-  { alias: '早起打卡机', icon: $r('sys.symbol.sun_max'), color: '#F59E0B' },
-  { alias: '夜间冲浪者', icon: $r('sys.symbol.waveform'), color: '#14B8A6' },
-  { alias: '沉默的网线', icon: $r('sys.symbol.arrow_left_arrow_right'), color: '#3B82F6' }
+  { alias: '神秘访客', icon: 'person_shield', color: '#64748B' },
+  { alias: '网速刺客', icon: 'bolt', color: '#F97316' },
+  { alias: '隐形设备', icon: 'eye_slash', color: '#8B5CF6' },
+  { alias: '蹭网嫌疑犯', icon: 'link', color: '#EC4899' },
+  { alias: '深夜下载党', icon: 'moon', color: '#6366F1' },
+  { alias: '老实巴交设备', icon: 'checkmark_circle', color: '#10B981' },
+  { alias: '局域网宅', icon: 'house', color: '#0EA5E9' },
+  { alias: '待机之王', icon: 'battery', color: '#94A3B8' },
+  { alias: '摸鱼达人', icon: 'fish', color: '#06B6D4' },
+  { alias: '早起打卡机', icon: 'sun_max', color: '#F59E0B' },
+  { alias: '夜间冲浪者', icon: 'waveform', color: '#14B8A6' },
+  { alias: '沉默的网线', icon: 'arrow_left_arrow_right', color: '#3B82F6' }
 ]
 
 /** Apple 系 */
 const APPLE_POOL: AliasItem[] = [
-  { alias: '果粉大户', icon: $r('sys.symbol.crown') },
-  { alias: '全家桶信徒', icon: $r('sys.symbol.rectangle_stack') },
-  { alias: '灵动岛居民', icon: $r('sys.symbol.phone') },
-  { alias: 'iCloud 搬运工', icon: $r('sys.symbol.download') }
+  { alias: '果粉大户', icon: 'crown' },
+  { alias: '全家桶信徒', icon: 'rectangle_stack' },
+  { alias: '灵动岛居民', icon: 'phone' },
+  { alias: 'iCloud 搬运工', icon: 'download' }
 ]
 
 /** 小米系 */
 const XIAOMI_POOL: AliasItem[] = [
-  { alias: '小米钉子户', icon: $r('sys.symbol.pin') },
-  { alias: '为发烧而生', icon: $r('sys.symbol.bolt') },
-  { alias: '性价比战士', icon: $r('sys.symbol.yuansign_moneybag') },
-  { alias: 'MIUI 老兵', icon: $r('sys.symbol.medal') }
+  { alias: '小米钉子户', icon: 'pin' },
+  { alias: '为发烧而生', icon: 'bolt' },
+  { alias: '性价比战士', icon: 'yuansign_moneybag' },
+  { alias: 'MIUI 老兵', icon: 'medal' }
 ]
 
 /** 华为 / 荣耀 */
 const HUAWEI_POOL: AliasItem[] = [
-  { alias: '国产之光', icon: $r('sys.symbol.flag') },
-  { alias: '鸿蒙先锋', icon: $r('sys.symbol.arrow_up_right'), harmony: true },
-  { alias: '信号堡垒', icon: $r('sys.symbol.wifi') },
-  { alias: '多屏协同官', icon: $r('sys.symbol.square_grid_2x2') }
+  { alias: '国产之光', icon: 'flag' },
+  { alias: '鸿蒙先锋', icon: 'arrow_up_right', harmony: true },
+  { alias: '信号堡垒', icon: 'wifi' },
+  { alias: '多屏协同官', icon: 'square_grid_2x2' }
 ]
 
 /** NAS / 存储 */
 const NAS_POOL: AliasItem[] = [
-  { alias: '数据仓库管理员', icon: $r('sys.symbol.folder') },
-  { alias: '备份狂魔', icon: $r('sys.symbol.archivebox') },
-  { alias: '硬盘守夜人', icon: $r('sys.symbol.externaldrive') },
-  { alias: '全家照片保管员', icon: $r('sys.symbol.ohos_photo') }
+  { alias: '数据仓库管理员', icon: 'folder' },
+  { alias: '备份狂魔', icon: 'archivebox' },
+  { alias: '硬盘守夜人', icon: 'externaldrive' },
+  { alias: '全家照片保管员', icon: 'ohos_photo' }
 ]
 
 /** 电视 / 盒子 */
 const TV_POOL: AliasItem[] = [
-  { alias: '客厅剧粉', icon: $r('sys.symbol.movie') },
-  { alias: '投屏主任', icon: $r('sys.symbol.share') },
-  { alias: '沙发土豆', icon: $r('sys.symbol.face_smiling') },
-  { alias: '追剧永动机', icon: $r('sys.symbol.play_circle') }
+  { alias: '客厅剧粉', icon: 'movie' },
+  { alias: '投屏主任', icon: 'share' },
+  { alias: '沙发土豆', icon: 'face_smiling' },
+  { alias: '追剧永动机', icon: 'play_circle' }
 ]
 
 /** 打印机 */
 const PRINTER_POOL: AliasItem[] = [
-  { alias: '打印小工', icon: $r('sys.symbol.printer') },
-  { alias: '卡纸克星', icon: $r('sys.symbol.doc_text') },
-  { alias: '作业救星', icon: $r('sys.symbol.book') }
+  { alias: '打印小工', icon: 'printer' },
+  { alias: '卡纸克星', icon: 'doc_text' },
+  { alias: '作业救星', icon: 'book' }
 ]
 
 /** 摄像头 */
 const CAMERA_POOL: AliasItem[] = [
-  { alias: '监控探头', icon: $r('sys.symbol.camera') },
-  { alias: '门口哨兵', icon: $r('sys.symbol.security_shield') },
-  { alias: '夜视担当', icon: $r('sys.symbol.moon') }
+  { alias: '监控探头', icon: 'camera' },
+  { alias: '门口哨兵', icon: 'security_shield' },
+  { alias: '夜视担当', icon: 'moon' }
 ]
 
 /** 音箱 / 语音助手 */
 const SPEAKER_POOL: AliasItem[] = [
-  { alias: '语音小助手', icon: $r('sys.symbol.speaker') },
-  { alias: '喊麦担当', icon: $r('sys.symbol.message') },
-  { alias: '闹钟管理员', icon: $r('sys.symbol.clock') }
+  { alias: '语音小助手', icon: 'speaker' },
+  { alias: '喊麦担当', icon: 'message' },
+  { alias: '闹钟管理员', icon: 'clock' }
 ]
 
 /** 手表 / 手环 */
 const WATCH_POOL: AliasItem[] = [
-  { alias: '腕上健康管家', icon: $r('sys.symbol.heart') },
-  { alias: '步数卷王', icon: $r('sys.symbol.medal') }
+  { alias: '腕上健康管家', icon: 'heart' },
+  { alias: '步数卷王', icon: 'medal' }
 ]
 
 /** 电脑 */
 const PC_POOL: AliasItem[] = [
-  { alias: '远程办公侠', icon: $r('sys.symbol.display') },
-  { alias: '键盘侠', icon: $r('sys.symbol.code_square') },
-  { alias: '生产力工具人', icon: $r('sys.symbol.gearshape') }
+  { alias: '远程办公侠', icon: 'display' },
+  { alias: '键盘侠', icon: 'code_square' },
+  { alias: '生产力工具人', icon: 'gearshape' }
 ]
 
 /** 中继 / AP */
 const AP_POOL: AliasItem[] = [
-  { alias: '信号中继站', icon: $r('sys.symbol.wifi_router') },
-  { alias: '穿墙小能手', icon: $r('sys.symbol.wifi') }
+  { alias: '信号中继站', icon: 'wifi_router' },
+  { alias: '穿墙小能手', icon: 'wifi' }
 ]
 
 /** 速率大户 */
 const FAST_POOL: AliasItem[] = [
-  { alias: '大水管', icon: $r('sys.symbol.arrow_down') },
-  { alias: '带宽吞噬者', icon: $r('sys.symbol.arrow_up_and_down_square_portrait') },
-  { alias: '下载永动机', icon: $r('sys.symbol.arrow_clockwise') }
+  { alias: '大水管', icon: 'arrow_down' },
+  { alias: '带宽吞噬者', icon: 'arrow_up_and_down_square_portrait' },
+  { alias: '下载永动机', icon: 'arrow_clockwise' }
 ]
 
 /** 弱信号 */
 const WEAK_POOL: AliasItem[] = [
-  { alias: '信号难民', icon: $r('sys.symbol.wifi') },
-  { alias: '墙角蹲守者', icon: $r('sys.symbol.circle_grid_2x2') },
-  { alias: '隔墙听雨', icon: $r('sys.symbol.waveform') }
+  { alias: '信号难民', icon: 'wifi' },
+  { alias: '墙角蹲守者', icon: 'circle_grid_2x2' },
+  { alias: '隔墙听雨', icon: 'waveform' }
 ]
 
 /** 贴脸蹭网 */
 const NEAR_POOL: AliasItem[] = [
-  { alias: '贴脸蹭网选手', icon: $r('sys.symbol.hand_tap') },
-  { alias: '带宽独占者', icon: $r('sys.symbol.crown') },
-  { alias: '路由器邻居', icon: $r('sys.symbol.house') }
+  { alias: '贴脸蹭网选手', icon: 'hand_tap' },
+  { alias: '带宽独占者', icon: 'crown' },
+  { alias: '路由器邻居', icon: 'house' }
 ]
 
 /** 鸿蒙标志（自绘）：与系统符号一致的单色描边风格 */
@@ -352,9 +353,7 @@ export struct DeviceAliasPage {
                 if (row.harmony) {
                   HarmonyMark({ markColor: row.color })
                 } else {
-                  SymbolGlyph(row.icon)
-                    .fontSize(21)
-                    .fontColor([row.color])
+                  AppIcon({ name: row.icon, iconSize: 21, colors: [row.color] })
                 }
               }
               .width(44)
@@ -394,8 +393,7 @@ export struct DeviceAliasPage {
 
           if (this.rows.length === 0 && !this.loading) {
             Column() {
-              SymbolGlyph($r('sys.symbol.eye_slash'))
-                .fontSize(32).fontColor(['#94A3B8'])
+              AppIcon({ name: 'eye_slash', iconSize: 32, colors: ['#94A3B8'] })
               Text('没有在线设备，外号无处安放')
                 .fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 10 })
             }
@@ -405,8 +403,7 @@ export struct DeviceAliasPage {
 
           // 重新洗牌
           Row() {
-            SymbolGlyph($r('sys.symbol.arrow_clockwise'))
-              .fontSize(15).fontColor(['#FFFFFF'])
+            AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: ['#FFFFFF'] })
             Text(' 换一批外号')
               .fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
           }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 路由器心情
  * 根据温度/负载/运行天数生成路由器「心情」表情与吐槽
  */
@@ -7,9 +7,10 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 interface MoodInfo {
-  icon: Resource
+  icon: string
   title: string
   talk: string
   color: string
@@ -34,7 +35,7 @@ export struct RouterMoodPage {
   @State temp: number = 0
   @State load: number = 0
   @State uptimeDays: number = 0
-  @State mood: MoodInfo = { icon: $r('sys.symbol.face_smiling'), title: '思考中', talk: '让我想想今天心情如何...', color: '#FF8A3D' }
+  @State mood: MoodInfo = { icon: 'face_smiling', title: '思考中', talk: '让我想想今天心情如何...', color: '#FF8A3D' }
   @State loaded: boolean = false
 
   private api: ApiService = new ApiService()
@@ -60,24 +61,24 @@ export struct RouterMoodPage {
 
   private judge(temp: number, load: number, days: number): MoodInfo {
     if (temp >= 65) {
-      return { icon: $r('sys.symbol.thermometer'), title: '热到变形', talk: `我这体温都 ${temp.toFixed(0)}°C 了，快中暑了，能不能开空调…（把风扇对着我吹也行）`, color: '#FF5252' }
+      return { icon: 'thermometer', title: '热到变形', talk: `我这体温都 ${temp.toFixed(0)}°C 了，快中暑了，能不能开空调…（把风扇对着我吹也行）`, color: '#FF5252' }
     }
     if (load >= 85) {
-      return { icon: $r('sys.symbol.bolt'), title: '压力山大', talk: `CPU 都飙到 ${load.toFixed(0)}% 了！家里是不是有人在开矿？`, color: '#E6A800' }
+      return { icon: 'bolt', title: '压力山大', talk: `CPU 都飙到 ${load.toFixed(0)}% 了！家里是不是有人在开矿？`, color: '#E6A800' }
     }
     if (days >= 100) {
-      return { icon: $r('sys.symbol.heart'), title: '佛系运行', talk: `已连续运行 ${days} 天，老夫稳如磐石，连觉都不用睡。`, color: '#00C853' }
+      return { icon: 'heart', title: '佛系运行', talk: `已连续运行 ${days} 天，老夫稳如磐石，连觉都不用睡。`, color: '#00C853' }
     }
     if (days >= 7) {
-      return { icon: $r('sys.symbol.face_smiling'), title: '心情舒畅', talk: `连续跑了一周多，温温柔柔，不急不躁，状态正好。`, color: '#00C853' }
+      return { icon: 'face_smiling', title: '心情舒畅', talk: `连续跑了一周多，温温柔柔，不急不躁，状态正好。`, color: '#00C853' }
     }
     if (load >= 60) {
-      return { icon: $r('sys.symbol.clock'), title: '小忙一下', talk: `负载 ${load.toFixed(0)}%，还行还行，忙里偷闲。`, color: '#FF8A3D' }
+      return { icon: 'clock', title: '小忙一下', talk: `负载 ${load.toFixed(0)}%，还行还行，忙里偷闲。`, color: '#FF8A3D' }
     }
     if (temp <= 0) {
-      return { icon: $r('sys.symbol.info_circle'), title: '数据缺失', talk: '传感器没传来温度，我就先装个深沉。', color: '#B0A99A' }
+      return { icon: 'info_circle', title: '数据缺失', talk: '传感器没传来温度，我就先装个深沉。', color: '#B0A99A' }
     }
-    return { icon: $r('sys.symbol.sun_max'), title: '元气满满', talk: `温度 ${temp.toFixed(0)}°C，负载 ${load.toFixed(0)}%，本路由器今天状态拉满！`, color: '#00C853' }
+    return { icon: 'sun_max', title: '元气满满', talk: `温度 ${temp.toFixed(0)}°C，负载 ${load.toFixed(0)}%，本路由器今天状态拉满！`, color: '#00C853' }
   }
 
   build() {
@@ -105,9 +106,7 @@ export struct RouterMoodPage {
         Column() {
           // 心情主卡
           Column() {
-            SymbolGlyph(this.mood.icon)
-              .fontSize(64)
-              .fontColor([this.mood.color])
+            AppIcon({ name: this.mood.icon, iconSize: 64, colors: [this.mood.color] })
               .scale({ x: 1, y: 1 })
             Text(this.mood.title)
               .fontSize(22).fontColor(this.mood.color).fontWeight(FontWeight.Bold)

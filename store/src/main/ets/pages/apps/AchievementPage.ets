@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 网络成就系统
  * 徽章收集：运行稳定 / 夜猫子 / 流量之王 / 设备云集 / 七日全勤 / 体检卫士
  */
@@ -9,10 +9,11 @@ import { TrafficStatStore } from '../../common/store/TrafficStatStore'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 interface AchDef {
   id: string
-  icon: Resource
+  icon: string
   color: string
   name: string
   desc: string
@@ -20,16 +21,16 @@ interface AchDef {
 }
 
 const ACHS: AchDef[] = [
-  { id: 'health', icon: $r('sys.symbol.staroflife'), color: '#10B981', name: '体检卫士', desc: '完成一次智能网络体检', hint: '去应用中心跑一次体检' },
-  { id: 'stable', icon: $r('sys.symbol.medal'), color: '#F59E0B', name: '稳如泰山', desc: '路由器连续运行 7 天以上', hint: '别重启，继续跑' },
-  { id: 'owl', icon: $r('sys.symbol.clock'), color: '#6366F1', name: '夜猫子', desc: '凌晨 0~4 点还在用 App', hint: '今晚熬个夜试试' },
-  { id: 'giant', icon: $r('sys.symbol.arrow_up_right'), color: '#3B82F6', name: '流量之王', desc: '某天流量超过 100GB', hint: '下一个大文件冲一冲' },
-  { id: 'crowd', icon: $r('sys.symbol.person_3'), color: '#EC4899', name: '门庭若市', desc: '同时在线设备 15 台以上', hint: '家里人多时解锁' },
-  { id: 'week', icon: $r('sys.symbol.flame'), color: '#F97316', name: '七日全勤', desc: '最近 7 天使用 App 5 天以上', hint: '每天打开一次' },
-  { id: 'refresh_master', icon: $r('sys.symbol.arrow_clockwise'), color: '#8B5CF6', name: '数据狂人', desc: '累计下拉刷新 50 次', hint: '首页多下拉几次' },
-  { id: 'archaeologist', icon: $r('sys.symbol.magnifyingglass'), color: '#0891B2', name: '数据考古学家', desc: '翻看 3 天前的历史数据', hint: '查看历史流量/排名页' },
-  { id: 'midnight_flow', icon: $r('sys.symbol.waveform'), color: '#14B8A6', name: '午夜洪流', desc: '凌晨 0~5 点单小时流量超 1GB', hint: '深夜下个大文件' },
-  { id: 'peak_master', icon: $r('sys.symbol.calendar'), color: '#EF4444', name: '准点下班', desc: '18~20 点单小时流量超 2GB', hint: '下班回家刷剧试试' }
+  { id: 'health', icon: 'staroflife', color: '#10B981', name: '体检卫士', desc: '完成一次智能网络体检', hint: '去应用中心跑一次体检' },
+  { id: 'stable', icon: 'medal', color: '#F59E0B', name: '稳如泰山', desc: '路由器连续运行 7 天以上', hint: '别重启，继续跑' },
+  { id: 'owl', icon: 'clock', color: '#6366F1', name: '夜猫子', desc: '凌晨 0~4 点还在用 App', hint: '今晚熬个夜试试' },
+  { id: 'giant', icon: 'arrow_up_right', color: '#3B82F6', name: '流量之王', desc: '某天流量超过 100GB', hint: '下一个大文件冲一冲' },
+  { id: 'crowd', icon: 'person_3', color: '#EC4899', name: '门庭若市', desc: '同时在线设备 15 台以上', hint: '家里人多时解锁' },
+  { id: 'week', icon: 'flame', color: '#F97316', name: '七日全勤', desc: '最近 7 天使用 App 5 天以上', hint: '每天打开一次' },
+  { id: 'refresh_master', icon: 'arrow_clockwise', color: '#8B5CF6', name: '数据狂人', desc: '累计下拉刷新 50 次', hint: '首页多下拉几次' },
+  { id: 'archaeologist', icon: 'magnifyingglass', color: '#0891B2', name: '数据考古学家', desc: '翻看 3 天前的历史数据', hint: '查看历史流量/排名页' },
+  { id: 'midnight_flow', icon: 'waveform', color: '#14B8A6', name: '午夜洪流', desc: '凌晨 0~5 点单小时流量超 1GB', hint: '深夜下个大文件' },
+  { id: 'peak_master', icon: 'calendar', color: '#EF4444', name: '准点下班', desc: '18~20 点单小时流量超 2GB', hint: '下班回家刷剧试试' }
 ]
 
 @Entry
@@ -183,9 +184,7 @@ export struct AchievementPage {
           ForEach(ACHS, (a: AchDef) => {
             Row() {
               Row() {
-                SymbolGlyph(a.icon)
-                  .fontSize(21)
-                  .fontColor([this.doneMap[a.id] ? a.color : '#94A3B8'])
+                AppIcon({ name: a.icon, iconSize: 21, colors: [this.doneMap[a.id] ? a.color : '#94A3B8'] })
               }
               .width(42)
               .height(42)
@@ -209,13 +208,9 @@ export struct AchievementPage {
               .alignItems(HorizontalAlign.Start).layoutWeight(1)
               .margin({ left: 12 })
               if (this.doneMap[a.id]) {
-                SymbolGlyph($r('sys.symbol.checkmark_circle'))
-                  .fontSize(20)
-                  .fontColor(['#00C853', '#7CE495'])
+                AppIcon({ name: 'checkmark_circle', iconSize: 20, colors: ['#00C853', '#7CE495'] })
               } else {
-                SymbolGlyph($r('sys.symbol.lock'))
-                  .fontSize(16)
-                  .fontColor(['#94A3B8'])
+                AppIcon({ name: 'lock', iconSize: 16, colors: ['#94A3B8'] })
                   .opacity(0.7)
               }
             }

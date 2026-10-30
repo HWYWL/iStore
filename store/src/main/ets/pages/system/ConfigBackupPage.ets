@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ConfigBackupPage - 配置备份 / 恢复
  * sysupgrade -b 备份配置 → SFTP 下载到手机；本地备份 → 上传 → sysupgrade -r 恢复
  * OpenWrt 24.x / 25.x 的 sysupgrade -b/-r 均为标准命令，通用
@@ -15,6 +15,7 @@ import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { FileManagerService } from '../../common/fs/FileManagerService'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const DOMAIN = 0x0001
 const TAG = 'CfgBak'
@@ -196,7 +197,7 @@ export struct ConfigBackupPage {
           // 说明卡
           Column() {
             Row() {
-              SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(20).fontColor(['#F59E0B'])
+              AppIcon({ name: 'lightbulb', iconSize: 20, colors: ['#F59E0B'] })
               Column() {
                 Text('sysupgrade 标准备份格式，OpenWrt 24.x / 25.x 通用')
                   .fontSize(12).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
@@ -213,7 +214,7 @@ export struct ConfigBackupPage {
           // 备份卡
           Column() {
             Row() {
-              SymbolGlyph($r('sys.symbol.download')).fontSize(16).fontColor(['#3B82F6'])
+              AppIcon({ name: 'download', iconSize: 16, colors: ['#3B82F6'] })
               Text(' 备份当前配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
             }
             .width('100%')
@@ -224,7 +225,7 @@ export struct ConfigBackupPage {
               Row() {
                 Column() {
                   Row() {
-                    SymbolGlyph($r('sys.symbol.archivebox')).fontSize(12).fontColor(['#F59E0B'])
+                    AppIcon({ name: 'archivebox', iconSize: 12, colors: ['#F59E0B'] })
                     Text(' 已保存备份').fontSize(11).fontColor(this.theme.textSecondary)
                   }
                   Text(`${this.backupSize}`).fontSize(13).fontColor(this.theme.primary).fontWeight(FontWeight.Bold)
@@ -262,7 +263,7 @@ export struct ConfigBackupPage {
           // 恢复卡
           Column() {
             Row() {
-              SymbolGlyph($r('sys.symbol.share')).fontSize(16).fontColor(['#F97316'])
+              AppIcon({ name: 'share', iconSize: 16, colors: ['#F97316'] })
               Text(' 恢复配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
             }
             .width('100%')

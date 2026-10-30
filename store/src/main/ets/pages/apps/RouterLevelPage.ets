@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RouterLevelPage - 路由器等级（Lv.1 新手上路 → Lv.99 网络之神）
  * 按使用天数 + 操作次数升级，数据存 FunStore
  */
@@ -10,6 +10,7 @@ import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
+import { AppIcon } from '../../common/components/AppIcon'
 
 const DOMAIN = 0x0001
 const TAG = 'RouterLevel'
@@ -182,9 +183,9 @@ export struct RouterLevelPage {
 
           // 统计卡
           Row({ space: 10 }) {
-            this.stat($r('sys.symbol.calendar'), `${this.upDays}`, '使用天数')
-            this.stat($r('sys.symbol.bolt'), `${this.actions}`, '活跃次数')
-            this.stat($r('sys.symbol.clock'), `${this.upDaysRun()}`, '连续运行(天)')
+            this.stat('calendar', `${this.upDays}`, '使用天数')
+            this.stat('bolt', `${this.actions}`, '活跃次数')
+            this.stat('clock', `${this.upDaysRun()}`, '连续运行(天)')
           }
           .width('100%').margin({ top: 12 })
 
@@ -226,9 +227,9 @@ export struct RouterLevelPage {
   }
 
   @Builder
-  stat(icon: Resource, value: string, label: string) {
+  stat(icon: string, value: string, label: string) {
     Column() {
-      SymbolGlyph(icon).fontSize(18).fontColor([this.theme.primary])
+      AppIcon({ name: icon, iconSize: 18, colors: [this.theme.primary] })
       Text(value).fontSize(22).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold).fontFamily('monospace')
         .margin({ top: 4 })
       Text(label).fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 2 })

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PetPage — 小管家宠物养成（路由器拟人，按 HTML 原型完整还原）
  * 动画：bob 浮动 / 云漂移 / 太阳旋转 / 星光闪烁 / 喂食跳跃+粒子 / 摸头倾斜+爱心 / 升级爆发
  */
@@ -9,6 +9,7 @@ import { PetStore, PetState } from '../../common/store/PetStore'
 import { common } from '@kit.AbilityKit'
 import { promptAction } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 /** 皮肤 → 小管家配色（HTML 原型同款） */
 interface PetSkinColor {
@@ -413,21 +414,21 @@ export struct PetView {
           // 互动按钮
           Row() {
             Column() {
-              SymbolGlyph($r('sys.symbol.fork_knife')).fontSize(20).fontColor(['#0F766E'])
+              AppIcon({ name: 'fork_knife', iconSize: 20, colors: ['#0F766E'] })
               Text('喂数据').fontSize(13).fontWeight(FontWeight.Bold).fontColor('#1B7A6A').margin({ top: 4 })
             }
             .layoutWeight(1).padding({ top: 13, bottom: 13 }).borderRadius(16)
             .backgroundColor('#E4F3EE')
             .onClick(() => { this.onFeed() })
             Column() {
-              SymbolGlyph($r('sys.symbol.hand_tap')).fontSize(20).fontColor(['#BE185D'])
+              AppIcon({ name: 'hand_tap', iconSize: 20, colors: ['#BE185D'] })
               Text('摸摸头').fontSize(13).fontWeight(FontWeight.Bold).fontColor('#B0567A').margin({ top: 4 })
             }
             .layoutWeight(1).padding({ top: 13, bottom: 13 }).borderRadius(16).margin({ left: 10 })
             .backgroundColor('#FBEAF0')
             .onClick(() => { this.onPat() })
             Column() {
-              SymbolGlyph($r('sys.symbol.shirt')).fontSize(20).fontColor(['#B45309'])
+              AppIcon({ name: 'shirt', iconSize: 20, colors: ['#B45309'] })
               Text('换装扮').fontSize(13).fontWeight(FontWeight.Bold).fontColor('#8A5A00').margin({ top: 4 })
             }
             .layoutWeight(1).padding({ top: 13, bottom: 13 }).borderRadius(16).margin({ left: 10 })
@@ -459,11 +460,11 @@ export struct PetView {
               Text(`${this.doneCount()} / 5 完成`).fontSize(11).fontColor('#2FBFA8').fontWeight(FontWeight.Bold)
             }
             .width('100%').margin({ bottom: 6 })
-            this.taskRow(0, $r('sys.symbol.staroflife'), '完成一次安全体检', '+20 能量', 20, 'pages/security/SecurityHubPage')
-            this.taskRow(1, $r('sys.symbol.message'), '和小管聊一次天', '+15 能量', 15, 'pages/apps/NetworkHelperPage')
-            this.taskRow(2, $r('sys.symbol.wifi'), '查看今日流量', '+10 能量', 10, 'pages/apps/TrafficReportPage')
-            this.taskRow(3, $r('sys.symbol.battery'), '查看设备电量排行', '+10 能量', 10, 'pages/apps/DeviceActivityPage')
-            this.taskRow(4, $r('sys.symbol.security_shield'), '打开安全中心', '+15 能量', 15, 'pages/security/SecurityHubPage')
+            this.taskRow(0, 'staroflife', '完成一次安全体检', '+20 能量', 20, 'pages/security/SecurityHubPage')
+            this.taskRow(1, 'message', '和小管聊一次天', '+15 能量', 15, 'pages/apps/NetworkHelperPage')
+            this.taskRow(2, 'wifi', '查看今日流量', '+10 能量', 10, 'pages/apps/TrafficReportPage')
+            this.taskRow(3, 'battery', '查看设备电量排行', '+10 能量', 10, 'pages/apps/DeviceActivityPage')
+            this.taskRow(4, 'security_shield', '打开安全中心', '+15 能量', 15, 'pages/security/SecurityHubPage')
           }
           .width('100%').padding(16).borderRadius(22).margin({ top: 12 })
           .backgroundColor(this.theme.bgCard)
@@ -546,10 +547,10 @@ export struct PetView {
 
   /** 任务行 */
   @Builder
-  taskRow(idx: number, ico: Resource, name: string, reward: string, energy: number, route: string) {
+  taskRow(idx: number, ico: string, name: string, reward: string, energy: number, route: string) {
     Row() {
       Row() {
-        SymbolGlyph(ico).fontSize(17).fontColor([this.taskPalette(idx)[1]])
+        AppIcon({ name: ico, iconSize: 17, colors: [this.taskPalette(idx)[1]] })
       }
       .width(34).height(34).borderRadius(11)
       .backgroundColor(this.taskPalette(idx)[0])

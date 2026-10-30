@@ -1,4 +1,4 @@
-﻿import { AppState } from '../../common/store/AppState'
+import { AppState } from '../../common/store/AppState'
 import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ConnectedDevice } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
@@ -6,6 +6,7 @@ import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 import { AppNav } from '../../common/utils/AppNav'
 import { Poller } from '../../common/utils/Poller'
+import { AppIcon } from '../../common/components/AppIcon'
 
 @Entry
 @Component
@@ -27,7 +28,7 @@ export struct TrafficRankPage {
   @State maxRate: number = 1
   @State errorText: string = ''
   private poller: Poller | null = null
-  private rankBadges: Resource[] = [$r('sys.symbol.star_trophy'), $r('sys.symbol.medal'), $r('sys.symbol.medal')]
+  private rankBadges: string[] = ['star_trophy', 'medal', 'medal']
 
   /** 前三名配色 */
   private rankColor(idx: number): string {
@@ -143,7 +144,7 @@ this.theme = AppState.getInstance().getTheme()
         } else if (this.errorText && this.devices.length === 0) {
           Column() {
             Row() {
-            SymbolGlyph($r('sys.symbol.warning')).fontSize(14).fontColor([this.theme.warning])
+            AppIcon({ name: 'warning', iconSize: 14, colors: [this.theme.warning] })
             Text(' ' + this.errorText).fontSize(14).fontColor(this.theme.warning)
           }
           .margin({ bottom: 12 })
@@ -155,7 +156,7 @@ this.theme = AppState.getInstance().getTheme()
             Column() {
               // 说明
               Row() {
-                SymbolGlyph($r('sys.symbol.wifi')).fontSize(13).fontColor(['#10B981'])
+                AppIcon({ name: 'wifi', iconSize: 13, colors: ['#10B981'] })
                 Text(' 按实时下载+上传速率降序排列')
                   .fontSize(11).fontColor(this.theme.textTertiary)
                   .layoutWeight(1)
@@ -167,8 +168,7 @@ this.theme = AppState.getInstance().getTheme()
                   // 排名 + 设备名 + 标签
                   Row() {
                     if (idx < 3) {
-                      SymbolGlyph(this.rankBadges[idx])
-                        .fontSize(18).fontColor([this.rankColor(idx)]).margin({ right: 10 })
+                      AppIcon({ name: this.rankBadges[idx], iconSize: 18, colors: [this.rankColor(idx)] }).margin({ right: 10 })
                     } else {
                       Text(`#${idx + 1}`)
                         .fontSize(13).fontColor(this.theme.textTertiary).margin({ right: 10 })

@@ -1,4 +1,4 @@
-﻿import { AppState } from '../../common/store/AppState'
+import { AppState } from '../../common/store/AppState'
 import {ThemePalette} from '../../common/theme/ThemeColors'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
@@ -12,6 +12,7 @@ import { Whimsy } from '../../common/utils/WhimsyUtil'
 import { FunStore } from '../../common/store/FunStore'
 import { AppNav } from '../../common/utils/AppNav'
 import { Poller } from '../../common/utils/Poller'
+import { AppIcon } from '../../common/components/AppIcon'
 
 // ============================================================
 // DashboardTab - 首页
@@ -900,20 +901,15 @@ export struct DashboardTab {
     return this.lanStatus.ipAddress !== '0.0.0.0' ? this.lanStatus.ipAddress : '--'
   }
 
-  /** 快捷功能图标项（2 行 5 列，彩色渐变圆底 + 白色系统符号图标） */
+  /** 快捷功能图标项（2 行 5 列，彩色实心图标直接浮在主背景上，不套圆底） */
   @Builder
-  quickItem(name: string, route: string, bg: string, icon: Resource) {
+  quickItem(name: string, route: string, bg: string, icon: string) {
     Column() {
       Row() {
-        SymbolGlyph(icon)
-          .fontSize(23)
-          .fontColor(['#FFFFFF'])
+        AppIcon({ name: icon, iconSize: 40 })
       }
       .width(48)
       .height(48)
-      .borderRadius(24)
-      .linearGradient({ angle: 140, colors: [[bg, 0], [this.deepTint(bg), 1]] })
-      .shadow({ radius: 8, color: this.shadowTint(bg), offsetY: 3 })
       .justifyContent(FlexAlign.Center)
       Text(name)
         .fontSize(10)
@@ -1068,9 +1064,7 @@ export struct DashboardTab {
       Row() {
         // 左侧仪表盘图标（系统符号，统一线稿风格）
         Row() {
-          SymbolGlyph($r('sys.symbol.gauge_with_dots_needle_33percent'))
-            .fontSize(21)
-            .fontColor([this.theme.primary])
+          AppIcon({ name: 'gauge_with_dots_needle_33percent', iconSize: 21, colors: [this.theme.primary] })
         }
         .width(40)
         .height(40)
@@ -1106,9 +1100,7 @@ export struct DashboardTab {
 
         // 右侧：铃铛（无角标）
         Stack() {
-          SymbolGlyph($r('sys.symbol.bell'))
-            .fontSize(21)
-            .fontColor([this.theme.primary])
+          AppIcon({ name: 'bell', iconSize: 21, colors: [this.theme.primary] })
         }
         .width(36)
         .height(36)
@@ -1121,9 +1113,7 @@ export struct DashboardTab {
 
         // 右侧：皮肤管理
         Stack() {
-          SymbolGlyph($r('sys.symbol.paintbrush'))
-            .fontSize(21)
-            .fontColor([this.theme.primary])
+          AppIcon({ name: 'paintbrush', iconSize: 21, colors: [this.theme.primary] })
         }
         .width(36)
         .height(36)
@@ -1267,19 +1257,19 @@ export struct DashboardTab {
             // ============ 2 快捷功能区（2 行 5 列，直接浮在主背景上，无卡片框） ============
             Column() {
               Row() {
-                this.quickItem('文件', 'pages/apps/FileManagerPage', '#34D399', $r('sys.symbol.folder'))
-                this.quickItem('网络助手', 'pages/apps/NetworkHelperPage', '#A78BFA', $r('sys.symbol.AI_help_write'))
-                this.quickItem('Docker', 'pages/apps/DockerPage', '#60A5FA', $r('sys.symbol.square_stack_3d'))
-                this.quickItem('SSH', 'pages/apps/SshTerminalPage', '#38BDF8', $r('sys.symbol.code_square'))
-                this.quickItem('应用中心', 'apps:', '#FB923C', $r('sys.symbol.square_grid_2x2'))
+                this.quickItem('文件', 'pages/apps/FileManagerPage', '#34D399', 'folder')
+                this.quickItem('网络助手', 'pages/apps/NetworkHelperPage', '#A78BFA', 'AI_help_write')
+                this.quickItem('Docker', 'pages/apps/DockerPage', '#60A5FA', 'square_stack_3d')
+                this.quickItem('SSH', 'pages/apps/SshTerminalPage', '#38BDF8', 'code_square')
+                this.quickItem('应用中心', 'apps:', '#FB923C', 'square_grid_2x2')
               }
               .width('100%')
               Row() {
-                this.quickItem('排行', 'pages/apps/TrafficRankPage', '#FBBF24', $r('sys.symbol.arrow_up_right'))
-                this.quickItem('WiFi', 'pages/apps/WifiPage', '#3B82F6', $r('sys.symbol.wifi'))
-                this.quickItem('相册', 'pages/apps/AlbumPage', '#F472B6', $r('sys.symbol.ohos_photo'))
-                this.quickItem('体检', 'pages/apps/NetworkCheckPage', '#10B981', $r('sys.symbol.staroflife'))
-                this.quickItem('商店', 'pages/apps/StorePage', '#EC4899', $r('sys.symbol.bag'))
+                this.quickItem('排行', 'pages/apps/TrafficRankPage', '#FBBF24', 'arrow_up_right')
+                this.quickItem('WiFi', 'pages/apps/WifiPage', '#3B82F6', 'wifi')
+                this.quickItem('相册', 'pages/apps/AlbumPage', '#F472B6', 'ohos_photo')
+                this.quickItem('体检', 'pages/apps/NetworkCheckPage', '#10B981', 'staroflife')
+                this.quickItem('商店', 'pages/apps/StorePage', '#EC4899', 'bag')
               }
               .width('100%')
               .margin({ top: 2 })
@@ -1292,7 +1282,7 @@ export struct DashboardTab {
               // 卡片1：处理器（大字 CPU% + 折线趋势 + 型号）
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.gearshape')).fontSize(15).fontColor(['#3B82F6'])
+                  AppIcon({ name: 'gearshape', iconSize: 15, colors: ['#3B82F6'] })
                   Text('处理器').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                 }
@@ -1340,7 +1330,7 @@ export struct DashboardTab {
               // 卡片2：系统资源（进度条列表：内存/硬盘/存储/日志）
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(15).fontColor(['#8B5CF6'])
+                  AppIcon({ name: 'circle_grid_2x2', iconSize: 15, colors: ['#8B5CF6'] })
                   Text('系统资源').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                 }
@@ -1365,7 +1355,7 @@ export struct DashboardTab {
               // 卡片3：主板（型号大字 + 制造商/版本键值）
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.rectangle_on_rectangle')).fontSize(15).fontColor(['#F59E0B'])
+                  AppIcon({ name: 'rectangle_on_rectangle', iconSize: 15, colors: ['#F59E0B'] })
                   Text('主板').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                 }
@@ -1393,7 +1383,7 @@ export struct DashboardTab {
               // 卡片4：网络（状态 + 实时速率）
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right')).fontSize(15).fontColor(['#10B981'])
+                  AppIcon({ name: 'dot_radiowaves_left_and_right', iconSize: 15, colors: ['#10B981'] })
                   Text('网络').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                 }
@@ -1446,7 +1436,7 @@ export struct DashboardTab {
             Row() {
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.person_2')).fontSize(15).fontColor(['#06B6D4'])
+                  AppIcon({ name: 'person_2', iconSize: 15, colors: ['#06B6D4'] })
                   Text('在线设备').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                 }
@@ -1473,7 +1463,7 @@ export struct DashboardTab {
 
               Column() {
                 Row() {
-                  SymbolGlyph($r('sys.symbol.link')).fontSize(15).fontColor(['#EC4899'])
+                  AppIcon({ name: 'link', iconSize: 15, colors: ['#EC4899'] })
                   Text('连接数').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
                 }
@@ -1505,9 +1495,7 @@ export struct DashboardTab {
             // ============ 磁盘详情 ============
             Column() {
               Row() {
-                SymbolGlyph($r('sys.symbol.externaldrive'))
-                  .fontSize(15)
-                  .fontColor(['#F97316'])
+                AppIcon({ name: 'externaldrive', iconSize: 15, colors: ['#F97316'] })
                 Text('磁盘使用')
                   .fontSize(13)
                   .fontColor(this.theme.textPrimary)

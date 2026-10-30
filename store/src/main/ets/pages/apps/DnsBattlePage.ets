@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DNS 速度擂台
  * 对多个公共 DNS 依次 ping 测延迟，出排行榜 + 推荐
  */
@@ -7,6 +7,7 @@ import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { AppIcon } from '../../common/components/AppIcon'
 
 interface DnsRow {
   name: string
@@ -99,11 +100,11 @@ export struct DnsBattlePage {
     return 0
   }
 
-  private rankIcon(r: number): Resource {
-    if (r === 1) return $r('sys.symbol.star_trophy')
-    if (r === 2) return $r('sys.symbol.medal')
-    if (r === 3) return $r('sys.symbol.medal')
-    return $r('sys.symbol.medal')
+  private rankIcon(r: number): string {
+    if (r === 1) return 'star_trophy'
+    if (r === 2) return 'medal'
+    if (r === 3) return 'medal'
+    return 'medal'
   }
 
   private rankColor(r: number): string {
@@ -148,7 +149,7 @@ export struct DnsBattlePage {
           // 排行榜
           ForEach(this.rows, (row: DnsRow) => {
             Row() {
-              SymbolGlyph(this.rankIcon(row.rank)).fontSize(22).fontColor([this.rankColor(row.rank)]).width(36)
+              AppIcon({ name: this.rankIcon(row.rank), iconSize: 22, colors: [this.rankColor(row.rank)] })
               Column() {
                 Text(row.name)
                   .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
@@ -176,7 +177,7 @@ export struct DnsBattlePage {
           if (this.recommend) {
             Column() {
               Row() {
-                SymbolGlyph($r('sys.symbol.lightbulb')).fontSize(13).fontColor(['#F59E0B'])
+                AppIcon({ name: 'lightbulb', iconSize: 13, colors: ['#F59E0B'] })
                 Text(' ' + this.recommend)
                   .fontSize(12).fontColor(this.theme.textPrimary).lineHeight(19)
                   .layoutWeight(1)

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="3" y1="3" x2="21" y2="21"><stop offset="0" stop-color="#8FA8FF"/><stop offset="1" stop-color="#4C51BF"/></linearGradient></defs>
+  <rect x="3" y="4" width="18" height="16" rx="2.5" fill="url(#g)"/>
+  <line x1="7.5" y1="4" x2="7.5" y2="20" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="16.5" y1="4" x2="16.5" y2="20" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="3" y1="9.5" x2="7.5" y2="9.5" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="3" y1="14.5" x2="7.5" y2="14.5" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="16.5" y1="9.5" x2="21" y2="9.5" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="16.5" y1="14.5" x2="21" y2="14.5" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

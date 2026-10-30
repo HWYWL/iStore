@@ -1,10 +1,11 @@
-﻿import { AppState } from '../../common/store/AppState'
+import { AppState } from '../../common/store/AppState'
 import {ThemePalette} from '../../common/theme/ThemeColors'
 import { ConnectedDevice, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
 import { DeviceNoteStore } from '../../common/store/DeviceNoteStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
+import { AppIcon } from '../../common/components/AppIcon'
 
 // ============================================================
 // DeviceTab - 设备列表（DHCP客户端）
@@ -129,17 +130,17 @@ export struct DeviceTab {
   }
 
   /** 设备类型图标（统一符号族） */
-  getDeviceSymbol(mac: string, hostname: string): Resource {
+  getDeviceSymbol(mac: string, hostname: string): string {
     const icon: string = FormatUtils.getDeviceIcon(mac, hostname)
-    if (icon === 'phone') return $r('sys.symbol.phone')
-    if (icon === 'laptop') return $r('sys.symbol.display')
-    if (icon === 'tv') return $r('sys.symbol.display')
-    if (icon === 'server') return $r('sys.symbol.externaldrive')
-    if (icon === 'camera') return $r('sys.symbol.camera')
-    if (icon === 'printer') return $r('sys.symbol.printer')
-    if (icon === 'speaker') return $r('sys.symbol.speaker')
-    if (icon === 'watch') return $r('sys.symbol.watch')
-    return $r('sys.symbol.display')
+    if (icon === 'phone') return 'phone'
+    if (icon === 'laptop') return 'display'
+    if (icon === 'tv') return 'display'
+    if (icon === 'server') return 'externaldrive'
+    if (icon === 'camera') return 'camera'
+    if (icon === 'printer') return 'printer'
+    if (icon === 'speaker') return 'speaker'
+    if (icon === 'watch') return 'watch'
+    return 'display'
   }
 
   /** 设备类型配色（多彩但统一色板） */
@@ -173,9 +174,7 @@ export struct DeviceTab {
       Row() {
         // 设备图标（彩色符号 + 同色系浅底）
         Row() {
-          SymbolGlyph(this.getDeviceSymbol(device.mac, device.hostname))
-            .fontSize(20)
-            .fontColor([this.getDeviceColor(device.mac, device.hostname)])
+          AppIcon({ name: this.getDeviceSymbol(device.mac, device.hostname), iconSize: 20, colors: [this.getDeviceColor(device.mac, device.hostname)] })
         }
         .width(40)
         .height(40)
