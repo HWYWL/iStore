@@ -9,10 +9,14 @@ import { BusinessError, deviceInfo } from '@kit.BasicServicesKit'
 import { TrafficStatStore } from '../common/store/TrafficStatStore'
 import { FunStore } from '../common/store/FunStore'
 import { DiaryStore } from '../common/store/DiaryStore'
+import { applyRotationBySystemLock } from '../common/utils/WindowUtils'
 
 const DOMAIN = 0x0000
 
 export default class StoreAbility extends UIAbility {
+  // 主窗口引用：回到前台时按系统旋转锁状态重新套用方向
+  private mainWindow: window.Window | null = null
+
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET)
@@ -43,6 +47,7 @@ export default class StoreAbility extends UIAbility {
     let mainWindow: window.Window
     try {
       mainWindow = windowStage.getMainWindowSync()
+      this.mainWindow = mainWindow
     } catch (err) {
       hilog.error(0xFF00, 'iStore', 'Failed to get main window: %{public}s', String(err))
       return
@@ -65,6 +70,11 @@ export default class StoreAbility extends UIAbility {
       })
     }
 
+    // 方向：跟随传感器但受系统「旋转锁定」开关管控（AUTO_ROTATION_RESTRICTED）
+    applyRotationBySystemLock(this.context, mainWindow).catch((e: BusinessError) => {
+      hilog.error(DOMAIN, 'StoreAbility', 'applyRotationBySystemLock failed: %{public}s', JSON.stringify(e))
+    })
+
     windowStage.loadContent('pages/entry/LoginPage', (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'StoreAbility', 'Failed to load content: %{public}s', JSON.stringify(err))
@@ -76,10 +86,17 @@ export default class StoreAbility extends UIAbility {
 
   onWindowStageDestroy(): void {
     hilog.info(DOMAIN, 'StoreAbility', 'Ability onWindowStageDestroy')
+    this.mainWindow = null
   }
 
   onForeground(): void {
     hilog.info(DOMAIN, 'StoreAbility', 'Ability onForeground')
+    // 回前台重新声明一次方向策略，避免异常场景下方向模式被重置
+    if (this.mainWindow !== null) {
+      applyRotationBySystemLock(this.context, this.mainWindow).catch((e: BusinessError) => {
+        hilog.error(DOMAIN, 'StoreAbility', 'foreground rotation sync failed: %{public}s', JSON.stringify(e))
+      })
+    }
   }
 
   onBackground(): void {

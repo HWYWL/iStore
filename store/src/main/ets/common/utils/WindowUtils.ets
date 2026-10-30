@@ -52,3 +52,25 @@ export async function setWindowOrientation(context: Context, orientation: window
     hilog.error(DOMAIN, TAG, `getLastWindow err: ${JSON.stringify(e)}`)
   }
 }
+
+/**
+ * 应用方向策略：跟随传感器，但由系统「旋转锁定」开关管控
+ *
+ * 注意 AUTO_ROTATION(5) 的语义是 ignore auto rotation lock —— 会无视系统旋转锁，
+ * 必须用 AUTO_ROTATION_RESTRICTED(8)（controlled by auto rotation lock）。
+ * 锁定状态由框架自己处理，无需读取系统设置，锁一开一关立即生效。
+ * @param context 页面/Ability 上下文
+ * @param targetWin 可复用的主窗口，不传则内部获取
+ */
+export async function applyRotationBySystemLock(context: Context, targetWin?: window.Window): Promise<void> {
+  if (deviceInfo.deviceType === '2in1') {
+    return
+  }
+  try {
+    const win: window.Window = targetWin ?? await window.getLastWindow(context)
+    await win.setPreferredOrientation(window.Orientation.AUTO_ROTATION_RESTRICTED)
+    hilog.info(DOMAIN, TAG, 'rotation applied: AUTO_ROTATION_RESTRICTED')
+  } catch (e) {
+    hilog.error(DOMAIN, TAG, `applyRotationBySystemLock err: ${JSON.stringify(e)}`)
+  }
+}
