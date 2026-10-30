@@ -1295,7 +1295,6 @@ export struct DashboardTab {
                   SymbolGlyph($r('sys.symbol.gearshape')).fontSize(15).fontColor(['#3B82F6'])
                   Text('处理器').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
-                  Text('›').fontSize(14).fontColor(this.theme.textTertiary)
                 }
                 .width('100%')
                 Row() {
@@ -1344,7 +1343,6 @@ export struct DashboardTab {
                   SymbolGlyph($r('sys.symbol.circle_grid_2x2')).fontSize(15).fontColor(['#8B5CF6'])
                   Text('系统资源').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
-                  Text('›').fontSize(14).fontColor(this.theme.textTertiary)
                 }
                 .width('100%')
                 this.resBar('内存', this.memoryPercent(), this.theme.success)
@@ -1370,7 +1368,6 @@ export struct DashboardTab {
                   SymbolGlyph($r('sys.symbol.rectangle_on_rectangle')).fontSize(15).fontColor(['#F59E0B'])
                   Text('主板').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
-                  Text('›').fontSize(14).fontColor(this.theme.textTertiary)
                 }
                 .width('100%')
                 Text(this.systemInfo.boardName || this.systemInfo.model || '--')
@@ -1399,7 +1396,6 @@ export struct DashboardTab {
                   SymbolGlyph($r('sys.symbol.dot_radiowaves_left_and_right')).fontSize(15).fontColor(['#10B981'])
                   Text('网络').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
                   Blank()
-                  Text('›').fontSize(14).fontColor(this.theme.textTertiary)
                 }
                 .width('100%')
                 Row() {
