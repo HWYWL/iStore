@@ -42,6 +42,8 @@ export struct DashboardTab {
   private boomTimer: number = -1       // 彩蛋定时器
   private lastBoomTime: number = 0     // 上次彩蛋时间（冷却）
   @State onlineClientCount: number = 0
+  // 在线设备（设备旋转视图：一台设备一个光点 + 名称）
+  @State orbitDevices: ConnectedDevice[] = []
   private lastScrollY: number = 0
   private poller: Poller | null = null
   private isVisible: boolean = false
@@ -71,10 +73,22 @@ export struct DashboardTab {
   @State netHistory: number[] = []
   private netChartCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private netMiniCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
+  // 实时速率卡片：「设备旋转」视图（≒ 切换）
+  @State orbitMode: boolean = false
+  private orbitCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
+  private orbitTimer: number = -1
+  private orbitTick: number = 0
   // CPU 半环仪表画布
   private cpuArcCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
 
   aboutToAppear(): void {
+    // 恢复「设备旋转」视图开关：持久化到本地，退出重进 / 重启应用后保持上次选择
+    PersistentStorage.persistProp('dashboardOrbitMode', false)
+    const savedOrbit: boolean = AppStorage.get<boolean>('dashboardOrbitMode') ?? false
+    this.orbitMode = savedOrbit
+    if (savedOrbit) {
+      this.startOrbit()
+    }
     // 底部导航占位（适配手势条 + 悬浮导航，随机型变化实时更新）
     this.bottomInset = AppState.getInstance().getBottomNavInset()
     this.navInsetListener = (inset: number) => {
@@ -124,6 +138,7 @@ export struct DashboardTab {
       clearInterval(this.gaugeAnimTimer)
       this.gaugeAnimTimer = -1
     }
+    this.stopOrbit()
     if (this.tabChangeListener) {
       AppState.getInstance().offTabChange(this.tabChangeListener)
       this.tabChangeListener = null
@@ -161,7 +176,9 @@ export struct DashboardTab {
       this.mountPoints = results[2]
       this.conntrack = results[3]
       this.networkInterfaces = results[4]
-      this.onlineClientCount = this.countOnlineClients(results[5])
+      const devs1: ConnectedDevice[] = results[5] as ConnectedDevice[]
+      this.onlineClientCount = this.countOnlineClients(devs1)
+      this.orbitDevices = devs1.filter((d: ConnectedDevice): boolean => d.isOnline)
       this.isOnline = true
       // ===== 情感触点：首次连接 / 断网恢复 / 周年纪念 / 状态播报 =====
       this.handleConnectMoments()
@@ -208,7 +225,9 @@ export struct DashboardTab {
       this.wanStatus = results[1]
       this.mountPoints = results[2]
       this.conntrack = results[3]
-      this.onlineClientCount = this.countOnlineClients(results[4])
+      const devs2: ConnectedDevice[] = results[4] as ConnectedDevice[]
+      this.onlineClientCount = this.countOnlineClients(devs2)
+      this.orbitDevices = devs2.filter((d: ConnectedDevice): boolean => d.isOnline)
       this.isOnline = true
       // 流量统计：累计字节增量记入当天
       this.recordTraffic()
@@ -713,6 +732,248 @@ export struct DashboardTab {
       this.drawSpark(this.netMiniCtx, false, [this.tint(this.theme.info, 0.55), this.theme.info])
     } catch (e) {
       hilog.error(0x0001, 'Dashboard', `drawNetMini failed: ${e}`)
+    }
+  }
+
+  // ================= 实时速率卡片：设备旋转视图 =================
+
+  /** ≒ 切换：折线 ↔ 设备旋转 */
+  private toggleOrbit(): void {
+    this.orbitMode = !this.orbitMode
+    // 记忆选择，下次进入直接是上次的视图
+    AppStorage.setOrCreate('dashboardOrbitMode', this.orbitMode)
+    if (this.orbitMode) {
+      this.orbitTick = 0
+      this.startOrbit()
+    } else {
+      this.stopOrbit()
+      setTimeout(() => {
+        this.drawNetChart()
+      }, 40)
+    }
+  }
+
+  private startOrbit(): void {
+    this.stopOrbit()
+    this.orbitTimer = setInterval(() => {
+      this.orbitTick += 0.02
+      this.drawOrbit()
+    }, 40)
+  }
+
+  private stopOrbit(): void {
+    if (this.orbitTimer !== -1) {
+      clearInterval(this.orbitTimer)
+      this.orbitTimer = -1
+    }
+  }
+
+  /** 设备旋转视图：核心刻度环 + 双椭圆轨道 + 设备节点（参考 neural 仪表盘） */
+  private drawOrbit(): void {
+    try {
+      const ctx: CanvasRenderingContext2D = this.orbitCtx
+      const w: number = ctx.width
+      const h: number = ctx.height
+      if (w <= 0 || h <= 0) {
+        return
+      }
+      ctx.clearRect(0, 0, w, h)
+      const cx: number = w / 2
+      const cy: number = h / 2
+      const t: number = this.orbitTick
+      const base: number = Math.min(w, h) * 0.34
+
+      // 大气光（跟随皮肤主色，不铺深色底）
+      const glow: CanvasGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, base * 2.4)
+      glow.addColorStop(0, this.tint(this.theme.primary, 0.16))
+      glow.addColorStop(0.35, this.tint(this.theme.primary, 0.05))
+      glow.addColorStop(1, this.tint(this.theme.primary, 0))
+      ctx.fillStyle = glow
+      ctx.fillRect(0, 0, w, h)
+
+      // 主环
+      ctx.strokeStyle = this.tint(this.theme.primary, 0.28)
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(cx, cy, base * 0.62, 0, Math.PI * 2)
+      ctx.stroke()
+
+      // 刻度（底部亮、顶部淡）
+      for (let i = 0; i < 48; i++) {
+        const ang: number = (i / 48) * Math.PI * 2 - Math.PI / 2
+        const major: boolean = i % 6 === 0
+        const len: number = major ? 6 : 3
+        const mod: number = Math.max(0, Math.sin(ang + Math.PI / 2))
+        const a: number = 0.06 + 0.4 * mod * mod
+        const r0: number = base * 0.65
+        ctx.strokeStyle = this.tint(this.theme.primary, a)
+        ctx.lineWidth = major ? 1.4 : 1
+        ctx.beginPath()
+        ctx.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0)
+        ctx.lineTo(cx + Math.cos(ang) * (r0 + len), cy + Math.sin(ang) * (r0 + len))
+        ctx.stroke()
+      }
+
+      // 扫描弧
+      const sc: number = (t * 1.2) % (Math.PI * 2) - Math.PI / 2
+      for (let k = 0; k < 9; k++) {
+        const aa: number = sc - k * 0.06
+        const r1: number = base * 0.66
+        const r2: number = base * 0.82
+        ctx.strokeStyle = this.tint(this.theme.primary, 0.5 * (1 - k / 9))
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(cx + Math.cos(aa) * r1, cy + Math.sin(aa) * r1)
+        ctx.lineTo(cx + Math.cos(aa) * r2, cy + Math.sin(aa) * r2)
+        ctx.stroke()
+      }
+
+      // 虚线外环（反向旋转）
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(-t * 0.5)
+      ctx.setLineDash([2.4, 8])
+      ctx.strokeStyle = this.tint(this.theme.primary, 0.32)
+      ctx.lineWidth = 1.1
+      ctx.beginPath()
+      ctx.arc(0, 0, base * 0.92, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.restore()
+
+      // 双椭圆轨道
+      const orbits: number[] = [base * 1.02, base * 1.22]
+      const ryRatio: number[] = [0.44, 0.92]
+      const spins: number[] = [0.5, -0.32]
+      const rots: number[] = [-0.19, 0.28]
+      for (let o = 0; o < orbits.length; o++) {
+        const rx: number = orbits[o]
+        const ry: number = rx * ryRatio[o]
+        const rot: number = rots[o] + t * spins[o]
+        ctx.beginPath()
+        ctx.ellipse(cx, cy, rx, ry, rot, Math.PI, Math.PI * 2)
+        ctx.strokeStyle = this.tint(this.theme.primary, 0.1)
+        ctx.lineWidth = 1
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.ellipse(cx, cy, rx, ry, rot, 0, Math.PI)
+        ctx.strokeStyle = this.tint(this.theme.primary, 0.26)
+        ctx.lineWidth = 1.3
+        ctx.stroke()
+      }
+
+      // 设备节点：每台在线设备一个光点，并在旁边标注设备名称
+      const devs: ConnectedDevice[] = this.orbitDevices
+      const count: number = devs.length
+      const half: number = Math.ceil(count / 2)
+      for (let i = 0; i < count; i++) {
+        const o: number = i < half ? 0 : 1
+        const idxInOrbit: number = o === 0 ? i : i - half
+        const perOrbit: number = o === 0 ? half : (count - half)
+        const rx: number = orbits[o]
+        const ry: number = rx * ryRatio[o]
+        const rot: number = rots[o] + t * spins[o]
+        const baseAng: number = perOrbit > 0 ? (idxInOrbit / perOrbit) * Math.PI * 2 : 0
+        const th: number = baseAng + t * 0.26 * (o === 0 ? 1 : -1)
+        const lx: number = Math.cos(th) * rx
+        const ly: number = Math.sin(th) * ry
+        const c: number = Math.cos(rot)
+        const s: number = Math.sin(rot)
+        const px: number = cx + lx * c - ly * s
+        const py: number = cy + lx * s + ly * c
+        const depth: number = 0.34 + 0.66 * (Math.sin(th) * 0.5 + 0.5)
+        const rad: number = 1.8 + 2.6 * depth
+
+        // 节点光晕
+        const hg: CanvasGradient = ctx.createRadialGradient(px, py, 0, px, py, rad * 7)
+        hg.addColorStop(0, this.tint(this.theme.primary, 0.45 * depth))
+        hg.addColorStop(0.35, this.tint(this.theme.primary, 0.14 * depth))
+        hg.addColorStop(1, this.tint(this.theme.primary, 0))
+        ctx.fillStyle = hg
+        ctx.beginPath()
+        ctx.arc(px, py, rad * 7, 0, Math.PI * 2)
+        ctx.fill()
+
+        // 节点本体
+        ctx.fillStyle = this.tint(this.theme.primary, 0.35 + 0.65 * depth)
+        ctx.beginPath()
+        ctx.arc(px, py, rad, 0, Math.PI * 2)
+        ctx.fill()
+
+        // 连接核心的弧线
+        const dx: number = px - cx
+        const dy: number = py - cy
+        const dl: number = Math.sqrt(dx * dx + dy * dy) || 1
+        const ux: number = dx / dl
+        const uy: number = dy / dl
+        const sx0: number = cx + ux * base * 0.6
+        const sy0: number = cy + uy * base * 0.6
+        const lg: CanvasGradient = ctx.createLinearGradient(cx, cy, px, py)
+        lg.addColorStop(0, this.tint(this.theme.primary, 0.08 + 0.32 * depth))
+        lg.addColorStop(1, this.tint(this.theme.info, 0.2))
+        ctx.strokeStyle = lg
+        ctx.lineWidth = 0.55 + 0.75 * depth
+        ctx.beginPath()
+        ctx.moveTo(sx0, sy0)
+        ctx.quadraticCurveTo((sx0 + px) / 2 + dy * 0.11, (sy0 + py) / 2 - dx * 0.11, px, py)
+        ctx.stroke()
+
+        // 设备名称
+        const dev: ConnectedDevice = devs[i]
+        const rawName: string = dev.hostname.length > 0
+          ? dev.hostname : (dev.ip.length > 0 ? dev.ip : dev.mac)
+        if (rawName.length > 0) {
+          const label: string = rawName.length > 9 ? rawName.substring(0, 9) + '…' : rawName
+          let tx: number = px + ux * (rad + 9)
+          let ty: number = py + uy * (rad + 11)
+          if (ty < 9) {
+            ty = 9
+          }
+          if (ty > h - 9) {
+            ty = h - 9
+          }
+          ctx.font = '500 9px sans-serif'
+          ctx.textBaseline = 'middle'
+          if (ux > 0.3) {
+            ctx.textAlign = 'left'
+          } else if (ux < -0.3) {
+            ctx.textAlign = 'right'
+          } else {
+            ctx.textAlign = 'center'
+          }
+          // 贴边时换到另一侧，避免文字被裁掉
+          if (ctx.textAlign === 'left' && tx + 52 > w) {
+            ctx.textAlign = 'right'
+            tx = px - ux * (rad + 9)
+          } else if (ctx.textAlign === 'right' && tx - 52 < 0) {
+            ctx.textAlign = 'left'
+            tx = px - ux * (rad + 9)
+          }
+          ctx.fillStyle = this.theme.textSecondary
+          ctx.fillText(label, tx, ty)
+        }
+      }
+
+      // 中心核
+      const core: CanvasGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, base * 0.5)
+      core.addColorStop(0, this.tint(this.theme.primary, 0.2))
+      core.addColorStop(0.55, this.tint(this.theme.primary, 0.06))
+      core.addColorStop(1, this.tint(this.theme.primary, 0))
+      ctx.fillStyle = core
+      ctx.beginPath()
+      ctx.arc(cx, cy, base * 0.5, 0, Math.PI * 2)
+      ctx.fill()
+
+      // 没有在线设备时给个提示
+      if (count === 0) {
+        ctx.font = '500 10px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillStyle = this.theme.textTertiary
+        ctx.fillText('暂无在线设备', cx, cy + base * 0.9)
+      }
+    } catch (e) {
+      hilog.error(0x0001, 'Dashboard', `drawOrbit failed: ${e}`)
     }
   }
 
@@ -1433,8 +1694,7 @@ export struct DashboardTab {
           .borderRadius(99)
           .backgroundColor(this.tint(this.theme.primary, 0.12))
 
-        Blank()
-
+        // 链路状态紧跟在「实时速率」右侧
         Row() {
           Circle()
             .width(5)
@@ -1449,55 +1709,121 @@ export struct DashboardTab {
         .padding({ left: 10, right: 10, top: 4, bottom: 4 })
         .borderRadius(99)
         .backgroundColor(this.tint(this.isOnline ? this.theme.success : this.theme.textTertiary, 0.12))
-      }
-      .width('100%')
+        .margin({ left: 6 })
 
-      Row() {
-        Text(this.speedValue(this.wanStatus.rxRate))
-          .fontSize(44)
+        // 在线设备数
+        Text(`${this.onlineClientCount} 台设备`)
+          .fontSize(10.5)
           .fontWeight(FontWeight.Bold)
-          .fontColor(this.theme.textPrimary)
-          .letterSpacing(-2)
-          .fontFamily('monospace')
-        Text(this.speedUnit(this.wanStatus.rxRate))
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.theme.textTertiary)
-          .margin({ left: 6, bottom: 9 })
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Bottom)
-      .margin({ top: 4 })
+          .fontColor(this.theme.info)
+          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .borderRadius(99)
+          .backgroundColor(this.tint(this.theme.info, 0.12))
+          .margin({ left: 6 })
 
-      Text() {
-        Span('当前下行 · 上行 ')
-          .fontSize(11.5)
-          .fontColor(this.theme.textTertiary)
-        Span(FormatUtils.formatSpeed(this.wanStatus.txRate))
-          .fontSize(11.5)
+        Blank()
+
+        // ≒ 切换：折线图 ↔ 设备旋转视图
+        Text('≒')
+          .fontSize(17)
           .fontWeight(FontWeight.Bold)
-          .fontColor(this.theme.success)
+          .fontColor(this.orbitMode ? this.theme.primary : this.theme.textTertiary)
+          .width(30)
+          .height(24)
+          .textAlign(TextAlign.Center)
+          .borderRadius(12)
+          .backgroundColor(this.orbitMode ? this.tint(this.theme.primary, 0.12) : Color.Transparent)
+          .onClick(() => {
+            this.toggleOrbit()
+          })
       }
       .width('100%')
-      .margin({ top: 1 })
+      .alignItems(VerticalAlign.Center)
 
-      Canvas(this.netChartCtx)
+      if (this.orbitMode) {
+        // 设备旋转视图：核心刻度环 + 双椭圆轨道，速率读数居中
+        Stack({ alignContent: Alignment.Center }) {
+          Canvas(this.orbitCtx)
+            .width('100%')
+            .height(196)
+            .onReady(() => {
+              this.drawOrbit()
+            })
+          Column() {
+            Text(this.speedValue(this.wanStatus.rxRate))
+              .fontSize(34)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.theme.textPrimary)
+              .letterSpacing(-1.5)
+              .fontFamily('monospace')
+            Row() {
+              Text(this.speedUnit(this.wanStatus.rxRate))
+                .fontSize(11)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.theme.textTertiary)
+              Text(`↓ ${FormatUtils.formatSpeed(this.wanStatus.rxRate)} · ↑ ${FormatUtils.formatSpeed(this.wanStatus.txRate)}`)
+                .fontSize(10)
+                .fontColor(this.theme.success)
+                .margin({ left: 6 })
+                .maxLines(1)
+            }
+            .alignItems(VerticalAlign.Center)
+            .margin({ top: 2 })
+          }
+          .alignItems(HorizontalAlign.Center)
+        }
         .width('100%')
-        .height(44)
-        .margin({ top: 2 })
-        .onReady(() => {
-          this.drawNetChart()
-        })
+        .height(196)
+        .margin({ top: 4 })
+        .borderRadius(20)
+        .clip(true)
+      } else {
+        Row() {
+          Text(this.speedValue(this.wanStatus.rxRate))
+            .fontSize(44)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.theme.textPrimary)
+            .letterSpacing(-2)
+            .fontFamily('monospace')
+          Text(this.speedUnit(this.wanStatus.rxRate))
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.theme.textTertiary)
+            .margin({ left: 6, bottom: 9 })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Bottom)
+        .margin({ top: 4 })
 
-      Row() {
-        this.heroMetric(`${this.onlineClientCount}`, '在线设备')
-        this.heroMetric(`${Math.round(this.systemInfo.cpuUsage)}%`, 'CPU')
-        this.heroMetric(this.uptimeShort(), '运行时长')
+        Text() {
+          Span('当前下行 · 上行 ')
+            .fontSize(11.5)
+            .fontColor(this.theme.textTertiary)
+          Span(FormatUtils.formatSpeed(this.wanStatus.txRate))
+            .fontSize(11.5)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.theme.success)
+        }
+        .width('100%')
+        .margin({ top: 1 })
+
+        Canvas(this.netChartCtx)
+          .width('100%')
+          .height(44)
+          .margin({ top: 2 })
+          .onReady(() => {
+            this.drawNetChart()
+          })
       }
-      .width('100%')
-      .margin({ top: 6 })
-      .padding({ top: 10 })
-      .border({ width: { top: 0.3 }, color: this.theme.borderGlass })
+
+      // 运行时长（原分割线以下的指标已移除，改为小字展示实际时长）
+      Text(`运行时长：${this.uptimeText()}`)
+        .fontSize(10.5)
+        .fontColor(this.theme.textTertiary)
+        .width('100%')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .margin({ top: 5 })
     }
     .width('100%')
     .padding({ left: 17, right: 17, top: 15, bottom: 13 })
@@ -1508,23 +1834,6 @@ export struct DashboardTab {
     .shadow(this.cardShadow())
     .alignItems(HorizontalAlign.Start)
     .margin({ top: 10 })
-  }
-
-  @Builder
-  heroMetric(value: string, label: string) {
-    Column() {
-      Text(value)
-        .fontSize(15)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.theme.textPrimary)
-        .fontFamily('monospace')
-        .maxLines(1)
-      Text(label)
-        .fontSize(9.5)
-        .fontColor(this.theme.textTertiary)
-        .margin({ top: 2 })
-    }
-    .layoutWeight(1)
   }
 
   /** 快捷操作项（一行 5 个） */
