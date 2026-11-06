@@ -6,6 +6,7 @@ import { ApiService } from '../../api/ApiService'
 import { SystemInfo } from '../../models/Models'
 import { AppNav } from '../../common/utils/AppNav'
 import { AppIcon } from '../../common/components/AppIcon'
+import { curves } from '@kit.ArkUI'
 
 
 interface ToolEntry {
@@ -49,6 +50,17 @@ export struct AppsPage {
   @State versionText: string = getAppVersionText()
   @State savedCount: number = 0
   @State upText: string = '--'       // 运行时长（保持卡片样式不变，仅新增数据）
+  /** 左侧分类栏当前宽度（0 = 收起，RAIL_W = 完全展开）；拖动时逐帧更新，松手用弹簧补间 */
+  @State railW: number = 0
+  /** 分类栏是否处于展开态（仅供选中高亮 / 语义判断） */
+  @State railOpen: boolean = false
+  /** 当前高亮的分类下标（随滚动 / 点击更新） */
+  @State activeGroup: number = 0
+  private readonly RAIL_W: number = 92
+  private dragBase: number = 0        // 本次拖动开始时的 railW
+  private dragFromEdge: boolean = false
+  private scroller: Scroller = new Scroller()
+  private groupTops: number[] = []    // 各分组在滚动内容中的 y 偏移，用于分类跳转
   private api: ApiService = new ApiService()
   // 皮肤切换监听：应用中心是嵌在主页面里的常驻 Panel，不订阅的话换肤后背景/卡片会停留在旧配色
   private themeListener: (() => void) | null = null
@@ -186,6 +198,8 @@ export struct AppsPage {
   }
 
   aboutToAppear(): void {
+    this.railW = 0
+    this.railOpen = false
 this.theme = AppState.getInstance().getTheme()
     // 跟随皮肤切换实时刷新配色
     this.themeListener = () => {
@@ -252,6 +266,111 @@ this.theme = AppState.getInstance().getTheme()
     return rows
   }
 
+  // ================= 分类栏抽屉动画 =================
+
+  /** 0 ~ 1 的展开进度，所有位移 / 透明度都从它推导，避免多份状态不同步 */
+  private railProgress(): number {
+    return this.railW / this.RAIL_W
+  }
+
+  /** Area.position 的类型是 Length（number | string | Resource），统一转成 vp 数值 */
+  private toVp(v: Length | undefined): number {
+    if (v === undefined) {
+      return 0
+    }
+    if (typeof v === 'number') {
+      return v as number
+    }
+    if (typeof v === 'string') {
+      const n: number = parseFloat(v as string)
+      return isNaN(n) ? 0 : n
+    }
+    return 0
+  }
+
+  private clampRail(v: number): number {
+    if (v < 0) return 0
+    if (v > this.RAIL_W) return this.RAIL_W
+    return v
+  }
+
+  /** 第 idx 个分类项的渐显透明度：按序号错峰，拖到一半时呈现「依次浮现」 */
+  private railItemAlpha(idx: number): number {
+    const a: number = (this.railProgress() - idx * 0.028) * 2.6
+    if (a < 0) return 0
+    if (a > 1) return 1
+    return a
+  }
+
+  /** 松手后的吸附：弹簧曲线，越界回弹更自然 */
+  private snapRail(open: boolean): void {
+    if (this.railOpen === open && Math.abs(this.railW - (open ? this.RAIL_W : 0)) < 0.5) {
+      return
+    }
+    this.railOpen = open
+    this.getUIContext().animateTo({
+      duration: 360,
+      curve: curves.springMotion(0.34, 0.82)
+    }, () => {
+      this.railW = open ? this.RAIL_W : 0
+    })
+  }
+
+  /** 点击分类：滚动到对应分组并收起分类栏 */
+  private jumpToGroup(idx: number): void {
+    this.activeGroup = idx
+    const top: number = this.groupTops[idx] !== undefined ? this.groupTops[idx] : 0
+    try {
+      this.scroller.scrollTo({
+        xOffset: 0,
+        yOffset: top > 6 ? top - 6 : 0,
+        animation: { duration: 320, curve: Curve.EaseInOut }
+      })
+    } catch (e) {
+      hilog.error(0x0001, 'AppsPage', `scrollTo group failed: ${e}`)
+    }
+    this.snapRail(false)
+  }
+
+  /** 滚动时同步高亮分类 */
+  private syncActiveGroup(): void {
+    const off: number = this.scroller.currentOffset().yOffset
+    let idx: number = 0
+    for (let i = 0; i < this.groupTops.length; i++) {
+      const top: number = this.groupTops[i] !== undefined ? this.groupTops[i] : 0
+      if (off + 48 >= top) idx = i
+    }
+    if (idx !== this.activeGroup) this.activeGroup = idx
+  }
+
+  /** 左侧分类栏（固定宽度，外层容器按拖动宽度裁切，文字不会被挤压变形） */
+  @Builder
+  categoryRail() {
+    Column({ space: 2 }) {
+      ForEach(this.groups, (group: ToolGroup, idx: number) => {
+        Text(group.title)
+          .fontSize(13)
+          .fontWeight(idx === this.activeGroup ? FontWeight.Medium : FontWeight.Normal)
+          .fontColor(idx === this.activeGroup ? this.theme.textPrimary : this.theme.textSecondary)
+          .maxLines(1)
+          .padding({ left: 14, right: 14, top: 9, bottom: 9 })
+          .borderRadius(100)
+          .backgroundColor(idx === this.activeGroup ? this.theme.bgCard : Color.Transparent)
+          .border({
+            width: idx === this.activeGroup ? 0.5 : 0,
+            color: this.theme.borderGlass
+          })
+          .opacity(this.railItemAlpha(idx))
+          .translate({ x: (1 - this.railProgress()) * 16 })
+          .onClick(() => this.jumpToGroup(idx))
+      }, (group: ToolGroup): string => `rail_${group.title}`)
+    }
+    .width(this.RAIL_W)
+    .height('100%')
+    .padding({ top: 12, bottom: 24 })
+    .alignItems(HorizontalAlign.Start)
+  }
+
   /** 图标多彩底色（按序号循环，同一套形状规范，颜色丰富） */
   private iconPalette: string[][] = [
     ['#60A5FA', '#2563EB'],
@@ -310,7 +429,7 @@ this.theme = AppState.getInstance().getTheme()
         })
 
       Column() {
-        // 顶栏
+        // 顶栏（固定不动，只有下方内容区随分类栏让位）
         Row() {
           Row() {
             Text(' 应用中心').fontSize(16).fontColor(this.theme.textPrimary)
@@ -329,8 +448,18 @@ this.theme = AppState.getInstance().getTheme()
         .width('100%')
         .padding({ left: 16, right: 16, top: 48, bottom: 12 })
 
-        // 内容列表（仿鸿蒙应用商店「我的」排版）
-        Scroll() {
+        // ===== 抽屉区：左侧分类栏 + 可被挤压的内容区 =====
+        Row() {
+          // 分类栏外层宽度跟手变化并裁切，内部固定宽度，所以文字不会变形
+          Stack({ alignContent: Alignment.TopStart }) {
+            this.categoryRail()
+          }
+          .width(this.railW)
+          .height('100%')
+          .clip(true)
+
+          // 内容列表（仿鸿蒙应用商店「我的」排版）
+          Scroll(this.scroller) {
           Column() {
             // ===== 顶部个人信息卡片 =====
             Row() {
@@ -443,6 +572,9 @@ this.theme = AppState.getInstance().getTheme()
               }
               .width('100%')
               .padding({ left: 16, right: 16 })
+              .onAreaChange((oldArea: Area, newArea: Area) => {
+                this.groupTops[gIdx] = this.toVp(newArea.position.y)
+              })
             })
 
             // 底部版本信息
@@ -459,10 +591,55 @@ this.theme = AppState.getInstance().getTheme()
           }
           .width('100%')
         }
-        .width('100%').layoutWeight(1).scrollBar(BarState.Off)
+        .layoutWeight(1)
+        .height('100%')
+        .scrollBar(BarState.Off)
         .padding({ top: 4 })
+        .onScroll(() => this.syncActiveGroup())
+        }
+        .width('100%')
+        .layoutWeight(1)
       }
       .width('100%').height('100%')
+      // 水平拖动：右滑展开分类栏，左滑收起；与系统边缘返回手势区分（贴左边缘起手时不拦截）
+      .gesture(
+        PanGesture({ fingers: 1, direction: PanDirection.Horizontal, distance: 8 })
+          .onActionStart((event: GestureEvent) => {
+            this.dragBase = this.railW
+            // 展开前先把高亮同步到当前滚动位置，避免显示上一次的分类
+            this.syncActiveGroup()
+            let startX: number = 100
+            if (event.fingerList.length > 0) {
+              startX = event.fingerList[0].localX
+            }
+            // 收起状态下，从最左 24vp 起手交给系统返回手势
+            this.dragFromEdge = this.railW <= 1 && startX < 24
+          })
+          .onActionUpdate((event: GestureEvent) => {
+            if (this.dragFromEdge) return
+            this.railW = this.clampRail(this.dragBase + event.offsetX)
+          })
+          .onActionEnd((event: GestureEvent) => {
+            if (this.dragFromEdge) {
+              this.dragFromEdge = false
+              return
+            }
+            const v: number = event.velocityX
+            let open: boolean
+            if (v > 420) {
+              open = true
+            } else if (v < -420) {
+              open = false
+            } else {
+              open = this.railW > this.RAIL_W * 0.38
+            }
+            this.snapRail(open)
+          })
+          .onActionCancel(() => {
+            this.dragFromEdge = false
+            this.snapRail(this.railW > this.RAIL_W * 0.5)
+          })
+      )
     }
     .width('100%').height('100%')
   }

@@ -19,7 +19,7 @@ import { AppIcon } from '../../common/components/AppIcon'
 // ============================================================
 @Component
 export struct DashboardTab {
-  @Prop theme: ThemePalette
+  @Prop @Watch('onThemeChanged') theme: ThemePalette
   @State systemInfo: SystemInfo = this.emptySys()
   @State wanStatus: WanStatus = this.emptyWan()
   @State lanStatus: WanStatus = this.emptyWan()
@@ -67,6 +67,12 @@ export struct DashboardTab {
   @State cpuHistory: number[] = []
   // 处理器折线图画布
   private cpuChartCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
+  // 下行速率采样（首页玻璃卡折线，最多 24 点）
+  @State netHistory: number[] = []
+  private netChartCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
+  private netMiniCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
+  // CPU 半环仪表画布
+  private cpuArcCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
 
   aboutToAppear(): void {
     // 底部导航占位（适配手势条 + 悬浮导航，随机型变化实时更新）
@@ -212,6 +218,8 @@ export struct DashboardTab {
       this.syncWidgetData()
       // CPU 历史采样（处理器卡片折线图）
       this.recordCpuHistory()
+      // 下行速率采样（首页玻璃卡折线）
+      this.recordNetHistory()
       this.handleConnectMoments()
     } catch (refErr) {
       // 静默刷新失败不打断用户操作，但要留痕便于排查（弱网/权限问题）
@@ -561,6 +569,14 @@ export struct DashboardTab {
     return { radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetX: 0, offsetY: 4 }
   }
 
+  /** 皮肤切换后重绘全部 Canvas（画布内容不会随主题状态自动刷新） */
+  onThemeChanged(): void {
+    this.drawNetChart()
+    this.drawNetMini()
+    this.drawCpuChart()
+    this.drawCpuArc()
+  }
+
   /** 记录 CPU 采样（折线图数据，保留 30 点） */
   recordCpuHistory(): void {
     this.cpuHistory.push(this.systemInfo.cpuUsage)
@@ -568,27 +584,230 @@ export struct DashboardTab {
       this.cpuHistory.shift()
     }
     this.drawCpuChart()
+    this.drawCpuArc()
   }
 
-  /** 绘制 CPU 折线趋势图（无坐标轴极简曲线） */
+  /** 记录下行速率采样（首页折线，保留 24 点） */
+  recordNetHistory(): void {
+    this.netHistory.push(this.wanStatus.rxRate)
+    if (this.netHistory.length > 24) {
+      this.netHistory.shift()
+    }
+    this.drawNetChart()
+    this.drawNetMini()
+  }
+
+  /** 内存占用率（%） */
+  memPercent(): number {
+    if (this.systemInfo.memoryTotal <= 0) {
+      return 0
+    }
+    return Math.min(100, Math.round(this.systemInfo.memoryUsed * 100 / this.systemInfo.memoryTotal))
+  }
+
+  /** 运行时长文本 */
+  uptimeText(): string {
+    return this.systemInfo.uptime > 0 ? FormatUtils.formatUptime(this.systemInfo.uptime) : '--'
+  }
+
+  /** 版本文本：版本号（如有修订号则附带展示），缺省显示 -- */
+  boardVersionText(): string {
+    const version: string = this.systemInfo.releaseVersion
+    if (version.length === 0) {
+      return '--'
+    }
+    const revision: string = this.systemInfo.releaseRevision
+    return revision.length > 0 ? `${version} (${revision})` : version
+  }
+
+  /** 速率拆成「数值 / 单位」两段，供大字排版使用 */
+  private speedValue(bytesPerSec: number): string {
+    const parts: string[] = FormatUtils.formatBytes(bytesPerSec).split(' ')
+    return parts.length > 0 ? parts[0] : '0'
+  }
+
+  private speedUnit(bytesPerSec: number): string {
+    const parts: string[] = FormatUtils.formatBytes(bytesPerSec).split(' ')
+    return parts.length > 1 ? `${parts[1]}/s` : 'B/s'
+  }
+
+  /** 下行折线（渐变面积 + 渐变描边 + 末端圆点），首页主卡与网络小卡共用 */
+  private drawSpark(ctx: CanvasRenderingContext2D, withDot: boolean, lineStops: string[]): void {
+    const w: number = ctx.width
+    const h: number = ctx.height
+    if (w <= 0 || h <= 0) {
+      return
+    }
+    ctx.clearRect(0, 0, w, h)
+    let data: number[] = this.netHistory
+    if (data.length < 2) {
+      data = [0, 0]
+    }
+    let peak: number = 0
+    for (let i = 0; i < data.length; i++) {
+      if (data[i] > peak) {
+        peak = data[i]
+      }
+    }
+    // 量程随峰值走并留 60% 余量，曲线保持在卡片中部而不是贴顶
+    const max: number = Math.max(peak * 1.6, 2048)
+    const n: number = data.length
+    const step: number = w / (n - 1)
+    const top: number = 4
+    const span: number = h - top - 4
+
+    // 渐变面积
+    const area: CanvasGradient = ctx.createLinearGradient(0, 0, 0, h)
+    area.addColorStop(0, this.tint(this.theme.info, 0.3))
+    area.addColorStop(1, this.tint(this.theme.info, 0))
+    ctx.beginPath()
+    ctx.moveTo(0, h)
+    for (let i = 0; i < n; i++) {
+      ctx.lineTo(i * step, top + span - (data[i] / max) * span)
+    }
+    ctx.lineTo(w, h)
+    ctx.closePath()
+    ctx.fillStyle = area
+    ctx.fill()
+
+    // 渐变描边
+    const line: CanvasGradient = ctx.createLinearGradient(0, 0, w, 0)
+    for (let i = 0; i < lineStops.length; i++) {
+      line.addColorStop(lineStops.length > 1 ? i / (lineStops.length - 1) : 0, lineStops[i])
+    }
+    ctx.beginPath()
+    ctx.moveTo(0, top + span - (data[0] / max) * span)
+    for (let i = 1; i < n; i++) {
+      ctx.lineTo(i * step, top + span - (data[i] / max) * span)
+    }
+    ctx.strokeStyle = line
+    ctx.lineWidth = 2
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.stroke()
+
+    // 末端圆点
+    if (withDot) {
+      ctx.beginPath()
+      ctx.arc((n - 1) * step, top + span - (data[n - 1] / max) * span, 3.2, 0, Math.PI * 2)
+      ctx.fillStyle = this.theme.bgCardSolid
+      ctx.fill()
+      ctx.strokeStyle = this.theme.info
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
+  }
+
+  /** 首页主卡折线 */
+  private drawNetChart(): void {
+    try {
+      this.drawSpark(this.netChartCtx, true, [this.theme.primary, this.theme.info, this.theme.success])
+    } catch (e) {
+      hilog.error(0x0001, 'Dashboard', `drawNetChart failed: ${e}`)
+    }
+  }
+
+  /** 网络小卡折线（单色） */
+  private drawNetMini(): void {
+    try {
+      this.drawSpark(this.netMiniCtx, false, [this.tint(this.theme.info, 0.55), this.theme.info])
+    } catch (e) {
+      hilog.error(0x0001, 'Dashboard', `drawNetMini failed: ${e}`)
+    }
+  }
+
+  /** 处理器半环仪表（低负载也看得出刻度） */
+  private drawCpuArc(): void {
+    try {
+      const ctx: CanvasRenderingContext2D = this.cpuArcCtx
+      const w: number = ctx.width
+      const h: number = ctx.height
+      if (w <= 0 || h <= 0) {
+        return
+      }
+      ctx.clearRect(0, 0, w, h)
+      const cx: number = w / 2
+      const cy: number = h - 4
+      const r: number = Math.min(w / 2 - 7, h - 12)
+      // 刻度环
+      ctx.beginPath()
+      ctx.arc(cx, cy, r + 5, Math.PI, Math.PI * 2)
+      ctx.strokeStyle = this.theme.textTertiary
+      ctx.globalAlpha = 0.35
+      ctx.lineWidth = 1
+      ctx.setLineDash([1, 7])
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.globalAlpha = 1
+      // 轨道
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, Math.PI, Math.PI * 2)
+      ctx.strokeStyle = this.theme.progressTrack
+      ctx.lineWidth = 8
+      ctx.lineCap = 'round'
+      ctx.stroke()
+      // 进度
+      const p: number = Math.max(0, Math.min(100, this.systemInfo.cpuUsage)) / 100
+      if (p > 0.01) {
+        const g: CanvasGradient = ctx.createLinearGradient(cx - r, 0, cx + r, 0)
+        g.addColorStop(0, '#FFC49B')
+        g.addColorStop(1, this.theme.primary)
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, Math.PI, Math.PI + Math.PI * p)
+        ctx.strokeStyle = g
+        ctx.stroke()
+      }
+    } catch (e) {
+      hilog.error(0x0001, 'Dashboard', `drawCpuArc failed: ${e}`)
+    }
+  }
+
+  /** 绘制 CPU 折线趋势图（按峰值自适应量程，低负载也能看出走势） */
   private drawCpuChart(): void {
     try {
       const ctx: CanvasRenderingContext2D = this.cpuChartCtx
-      const w: number = 140
-      const h: number = 44
+      const w: number = ctx.width
+      const h: number = ctx.height
+      if (w <= 0 || h <= 0) {
+        return
+      }
       ctx.clearRect(0, 0, w, h)
       if (this.cpuHistory.length < 2) {
         // 数据就绪前的占位：画一条浅色横条
-        ctx.fillStyle = 'rgba(255,138,61,0.18)'
+        ctx.fillStyle = this.tint(this.theme.primary, 0.18)
         ctx.fillRect(0, h / 2 - 2, w, 4)
         return
       }
       const data: number[] = this.cpuHistory
-      ctx.beginPath()
+      let peak: number = 0
+      for (let i = 0; i < data.length; i++) {
+        if (data[i] > peak) {
+          peak = data[i]
+        }
+      }
+      // 量程：峰值上浮 50%，最低 20%，低负载时曲线也落在波形中部
+      const scale: number = Math.max(peak * 1.5, 20)
       const step: number = w / (data.length - 1)
+
+      // 面积
+      const area: CanvasGradient = ctx.createLinearGradient(0, 0, 0, h)
+      area.addColorStop(0, this.tint(this.theme.primary, 0.30))
+      area.addColorStop(1, this.tint(this.theme.primary, 0))
+      ctx.beginPath()
+      ctx.moveTo(0, h)
+      for (let i = 0; i < data.length; i++) {
+        ctx.lineTo(i * step, h - 2 - (data[i] / scale) * (h - 6))
+      }
+      ctx.lineTo(w, h)
+      ctx.closePath()
+      ctx.fillStyle = area
+      ctx.fill()
+
+      // 折线
+      ctx.beginPath()
       for (let i = 0; i < data.length; i++) {
         const x: number = i * step
-        const y: number = h - 3 - (Math.min(100, data[i]) / 100) * (h - 6)
+        const y: number = h - 2 - (data[i] / scale) * (h - 6)
         if (i === 0) {
           ctx.moveTo(x, y)
         } else {
@@ -596,11 +815,13 @@ export struct DashboardTab {
         }
       }
       ctx.strokeStyle = this.theme.chartColors[0]
-      ctx.lineWidth = 2
+      ctx.lineWidth = 1.8
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
       ctx.stroke()
-    } catch (e) {}
+    } catch (e) {
+      hilog.error(0x0001, 'Dashboard', `drawCpuChart failed: ${e}`)
+    }
   }
 
   /** 内存已用/总量文本（如 256MB / 1.9GB） */
@@ -1058,530 +1279,861 @@ export struct DashboardTab {
     .alignItems(HorizontalAlign.Start)
   }
 
-  build() {
-    Column() {
-      // ========== 顶部标题栏（仪表盘 + 副标题 + 铃铛角标） ==========
-      Row() {
-        // 左侧仪表盘图标（系统符号，统一线稿风格）
-        Row() {
-          AppIcon({ name: 'gauge_with_dots_needle_33percent', iconSize: 21, colors: [this.theme.primary] })
-        }
-        .width(40)
-        .height(40)
-        .borderRadius(12)
-        .backgroundColor(this.theme.accentSoft)
-        .justifyContent(FlexAlign.Center)
-        .onClick(() => {
-          if (Whimsy.tap('dash_logo', 5)) {
-            this.whimsyShake = true
-            setTimeout(() => { this.whimsyShake = false }, 900)
-            this.getUIContext().getPromptAction().showToast({ message: '小管在，别慌 🎩', duration: 1500 })
-          }
-        })
-        .rotate({ angle: this.whimsyShake ? -8 : 0 })
-        .animation({ duration: 60, iterations: 6, curve: Curve.EaseInOut })
+  // ============================================================
+  // 新版首页 UI（液态玻璃）：大数字主视觉 + 玻璃卡分层 + 告警前置
+  // ============================================================
 
-        Column() {
-          Text('仪表盘')
-            .fontSize(20)
-            .fontColor(this.theme.textPrimary)
-            .fontWeight(FontWeight.Bold)
-          Text(`${this.deviceLabel()}${this.isOnline ? ' · 已连接' : ' · 未连接'}${this.festivalTag.length > 0 ? ' · ' + this.festivalTag : ''}`)
-            .fontSize(11)
-            .fontColor(this.theme.textTertiary)
-            .margin({ top: 2 })
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .margin({ left: 10 })
+  /** 运行时长简写（10天14时 / 6时12分） */
+  private uptimeShort(): string {
+    const s: number = this.systemInfo.uptime
+    if (s <= 0) {
+      return '--'
+    }
+    const d: number = Math.floor(s / 86400)
+    const h: number = Math.floor((s % 86400) / 3600)
+    if (d > 0) {
+      return `${d}天${h}时`
+    }
+    const m: number = Math.floor((s % 3600) / 60)
+    return h > 0 ? `${h}时${m}分` : `${Math.floor(s / 60)}分`
+  }
+
+  /** CPU 采样峰值 */
+  private cpuPeak(): number {
+    let peak: number = 0
+    for (let i = 0; i < this.cpuHistory.length; i++) {
+      if (this.cpuHistory[i] > peak) {
+        peak = this.cpuHistory[i]
+      }
+    }
+    return Math.round(peak > 0 ? peak : this.systemInfo.cpuUsage)
+  }
+
+  /** 区块标题：中文 + 英文小注 + 右侧动作 */
+  @Builder
+  sectionHead(title: string, en: string, right: string) {
+    Row() {
+      Row() {
+        Text(title)
+          .fontSize(12.5)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.theme.textSecondary)
+          .letterSpacing(0.6)
+        Text(en)
+          .fontSize(9)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.theme.textTertiary)
+          .letterSpacing(1.4)
+          .opacity(0.75)
+          .margin({ left: 6 })
+      }
+      .alignItems(VerticalAlign.Bottom)
+
+      Blank()
+
+      if (right.length > 0) {
+        Text(right)
+          .fontSize(10.5)
+          .fontColor(this.theme.textTertiary)
+      }
+    }
+    .width('100%')
+    .padding({ left: 3, right: 3 })
+    .margin({ top: 18, bottom: 9 })
+  }
+
+  /** 顶栏图标按钮（无底板，只有图标） */
+  @Builder
+  glassBtn(icon: string, badge: boolean, route: string) {
+    Stack({ alignContent: Alignment.TopEnd }) {
+      Row() {
+        AppIcon({ name: icon, iconSize: 19 })
+      }
+      .width(38)
+      .height(38)
+      .borderRadius(13)
+      .justifyContent(FlexAlign.Center)
+
+      if (badge) {
+        Circle()
+          .width(6)
+          .height(6)
+          .fill(this.theme.danger)
+          .margin({ top: 7, right: 7 })
+      }
+    }
+    .width(38)
+    .height(38)
+    .onClick(() => {
+      AppNav.getInstance().open(route)
+    })
+  }
+
+  /** 登出按钮（无底板，只有图标） */
+  @Builder
+  logoutBtn() {
+    Row() {
+      AppIcon({ name: 'power', iconSize: 19 })
+    }
+    .width(38)
+    .height(38)
+    .borderRadius(13)
+    .justifyContent(FlexAlign.Center)
+    .onClick(() => {
+      this.logout()
+    })
+  }
+
+  /** 登出：断开当前设备并退回设备列表 */
+  private logout(): void {
+    try {
+      AppState.getInstance().requestSwitchDevice()
+      this.getUIContext().getRouter().replaceUrl({ url: 'pages/entry/LoginPage' })
+    } catch (e) {
+      hilog.error(0x0001, 'Dashboard', `logout nav err: ${String(e)}`)
+    }
+  }
+
+  /** 卡片标题行（小图标 + 名称 + 右侧胶囊） */
+  @Builder
+  cardHead(icon: string, title: string, tag: string, tagColor: string) {
+    Row() {
+      AppIcon({ name: icon, iconSize: 19 })
+      Text(title)
+        .fontSize(11)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.theme.textSecondary)
+        .margin({ left: 7 })
+      Blank()
+      if (tag.length > 0) {
+        Text(tag)
+          .fontSize(9)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(tagColor)
+          .padding({ left: 7, right: 7, top: 3, bottom: 3 })
+          .borderRadius(99)
+          .backgroundColor(this.tint(tagColor, 0.13))
+      }
+    }
+    .width('100%')
+    .margin({ bottom: 10 })
+  }
+
+  /** 主视觉玻璃卡：下行大字 + 折线 + 三项指标 */
+  @Builder
+  heroCard() {
+    Column() {
+      Row() {
+        Text('实时速率')
+          .fontSize(10.5)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.theme.primary)
+          .letterSpacing(0.4)
+          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .borderRadius(99)
+          .backgroundColor(this.tint(this.theme.primary, 0.12))
 
         Blank()
 
-        // 右侧：铃铛（无角标）
-        Stack() {
-          AppIcon({ name: 'bell', iconSize: 21, colors: [this.theme.primary] })
+        Row() {
+          Circle()
+            .width(5)
+            .height(5)
+            .fill(this.isOnline ? this.theme.success : this.theme.textTertiary)
+          Text(this.isOnline ? '链路正常' : '未连接')
+            .fontSize(10.5)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.isOnline ? this.theme.success : this.theme.textTertiary)
+            .margin({ left: 5 })
         }
-        .width(36)
-        .height(36)
-        .borderRadius(18)
-        .backgroundColor(this.theme.accentSoft)
-        .alignContent(Alignment.Center)
-        .onClick(() => {
-          AppNav.getInstance().open('pages/apps/NotifySettingsPage')
-        })
-
-        // 右侧：皮肤管理
-        Stack() {
-          AppIcon({ name: 'paintbrush', iconSize: 21, colors: [this.theme.primary] })
-        }
-        .width(36)
-        .height(36)
-        .borderRadius(18)
-        .backgroundColor(this.theme.accentSoft)
-        .alignContent(Alignment.Center)
-        .margin({ left: 8 })
-        .onClick(() => {
-          AppNav.getInstance().open('pages/apps/SkinManagePage')
-        })
+        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+        .borderRadius(99)
+        .backgroundColor(this.tint(this.isOnline ? this.theme.success : this.theme.textTertiary, 0.12))
       }
       .width('100%')
-      .padding({ left: 18, right: 18, top: 4, bottom: 10 })
 
-      if (this.isLoading) {
-        Column() {
-          LoadingWhimsy()
-        }
+      Row() {
+        Text(this.speedValue(this.wanStatus.rxRate))
+          .fontSize(44)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.theme.textPrimary)
+          .letterSpacing(-2)
+          .fontFamily('monospace')
+        Text(this.speedUnit(this.wanStatus.rxRate))
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme.textTertiary)
+          .margin({ left: 6, bottom: 9 })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Bottom)
+      .margin({ top: 4 })
+
+      Text() {
+        Span('当前下行 · 上行 ')
+          .fontSize(11.5)
+          .fontColor(this.theme.textTertiary)
+        Span(FormatUtils.formatSpeed(this.wanStatus.txRate))
+          .fontSize(11.5)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.theme.success)
+      }
+      .width('100%')
+      .margin({ top: 1 })
+
+      Canvas(this.netChartCtx)
         .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
+        .height(44)
+        .margin({ top: 2 })
+        .onReady(() => {
+          this.drawNetChart()
+        })
+
+      Row() {
+        this.heroMetric(`${this.onlineClientCount}`, '在线设备')
+        this.heroMetric(`${Math.round(this.systemInfo.cpuUsage)}%`, 'CPU')
+        this.heroMetric(this.uptimeShort(), '运行时长')
+      }
+      .width('100%')
+      .margin({ top: 6 })
+      .padding({ top: 10 })
+      .border({ width: { top: 0.3 }, color: this.theme.borderGlass })
+    }
+    .width('100%')
+    .padding({ left: 17, right: 17, top: 15, bottom: 13 })
+    .borderRadius(26)
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(28)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+    .shadow(this.cardShadow())
+    .alignItems(HorizontalAlign.Start)
+    .margin({ top: 10 })
+  }
+
+  @Builder
+  heroMetric(value: string, label: string) {
+    Column() {
+      Text(value)
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.theme.textPrimary)
+        .fontFamily('monospace')
+        .maxLines(1)
+      Text(label)
+        .fontSize(9.5)
+        .fontColor(this.theme.textTertiary)
+        .margin({ top: 2 })
+    }
+    .layoutWeight(1)
+  }
+
+  /** 快捷操作项（一行 5 个） */
+  @Builder
+  shortcutItem(name: string, route: string, icon: string) {
+    Column() {
+      AppIcon({ name: icon, iconSize: 42 })
+      Text(name)
+        .fontSize(10.5)
+        .fontColor(this.theme.textSecondary)
+        .maxLines(1)
+        .margin({ top: 6 })
+    }
+    .width('20%')
+    .padding({ top: 2, bottom: 2 })
+    .onClick(() => {
+      if (route === 'apps:') {
+        AppNav.getInstance().showApps()
       } else {
-        Scroll() {
+        AppNav.getInstance().open(route)
+      }
+    })
+  }
+
+  /** 处理器：半环仪表 + 参数 + 历史波形 */
+  @Builder
+  cpuCard() {
+    Column() {
+      this.cardHead('cpu', '处理器', this.systemInfo.cpuUsage < 30 ? '空闲' : '负载',
+        this.systemInfo.cpuUsage < 30 ? this.theme.success : this.theme.warning)
+
+      Row() {
+        Stack({ alignContent: Alignment.Bottom }) {
+          Canvas(this.cpuArcCtx)
+            .width(118)
+            .height(70)
+            .onReady(() => {
+              this.drawCpuArc()
+            })
           Column() {
-            if (this.errorText) {
-              Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Stretch }) {
-                Text('⚠')
-                  .fontSize(16)
-                  .margin({ right: 8 })
-                Text(this.whimsyFish ? '🐟 网络在养鱼（真的断网了），连上设备我就能干活啦' : this.errorText)
-                  .fontSize(12)
-                  .fontColor(this.theme.warning)
-              }
-              .width('100%')
-              .padding(14)
-              .borderRadius(14)
-              .margin({ top: 4, bottom: 4 })
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
-              .onClick(() => {
-                if (Whimsy.tap('fish', 5)) {
-                  this.whimsyFish = true
-                  setTimeout(() => { this.whimsyFish = false }, 3000)
-                }
-              })
+            Row() {
+              Text(`${Math.round(this.systemInfo.cpuUsage)}`)
+                .fontSize(25)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.theme.textPrimary)
+                .fontFamily('monospace')
+              Text('%')
+                .fontSize(12)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.theme.textSecondary)
+                .margin({ left: 1, bottom: 3 })
             }
+            .alignItems(VerticalAlign.Bottom)
+            Text('LOAD')
+              .fontSize(8.5)
+              .fontColor(this.theme.textTertiary)
+              .letterSpacing(1.4)
+              .margin({ top: 1 })
+          }
+          .alignItems(HorizontalAlign.Center)
+          .margin({ bottom: 4 })
+        }
+        .width(118)
+        .height(70)
 
-            // ===== 情感触点：时段问候 + 状态播报条 =====
-            if (this.isOnline && (this.greetText.length > 0 || this.summaryText.length > 0)) {
-              Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Center }) {
-                Text('💬')
-                  .fontSize(13)
-                  .margin({ right: 6 })
-                Column() {
-                  if (this.greetText.length > 0) {
-                    Text(this.greetText)
-                      .fontSize(12)
-                      .fontColor(this.theme.textPrimary)
-                      .fontWeight(FontWeight.Medium)
-                  }
-                  if (this.summaryText.length > 0) {
-                    Text(this.summaryText)
-                      .fontSize(10)
-                      .fontColor(this.theme.textTertiary)
-                      .margin({ top: 2 })
-                  }
-                }
-                .alignItems(HorizontalAlign.Start)
+        Column() {
+          this.cpuStat('温度', this.systemInfo.cpuTemp > 0 ? `${this.systemInfo.cpuTemp.toFixed(0)} °C` : '--')
+          this.cpuStat('频率', this.systemInfo.cpuFreq > 0 ? `${this.systemInfo.cpuFreq} MHz` : '--')
+          this.cpuStat('型号', this.systemInfo.cpuModel.length > 0 ? this.systemInfo.cpuModel : '--')
+        }
+        .layoutWeight(1)
+        .margin({ left: 10 })
+        .alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Canvas(this.cpuChartCtx)
+        .width('100%')
+        .height(34)
+        .margin({ top: 6 })
+        .onReady(() => {
+          this.drawCpuChart()
+        })
+
+      Row() {
+        Text('近 30 次采样')
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+        Blank()
+        Text(`峰值 ${this.cpuPeak()}%`)
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+      }
+      .width('100%')
+      .margin({ top: 2 })
+    }
+    .width('100%')
+    .padding(13)
+    .borderRadius(21)
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(22)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+    .shadow(this.cardShadow())
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  cpuStat(label: string, value: string) {
+    Row() {
+      Text(label)
+        .fontSize(10.5)
+        .fontColor(this.theme.textSecondary)
+      Blank()
+      Text(value)
+        .fontSize(11.5)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.theme.textPrimary)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width('100%')
+    .margin({ bottom: 8 })
+  }
+
+  /** 系统资源：内存 / 硬盘 / 日志 */
+  @Builder
+  resCard() {
+    Column() {
+      this.cardHead('square_stack_3d', '系统资源', '', '')
+      this.resBar('内存', this.memPercent(), this.theme.success)
+      this.resBar('硬盘', this.diskPercent(), this.theme.info)
+      this.resBar('日志', this.logPercent(), this.theme.primary)
+      Row() {
+        Text(`已用 ${this.memoryUsedText()}`)
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+        Blank()
+        Text(`共 ${FormatUtils.formatBytes(this.systemInfo.memoryTotal)}`)
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+      }
+      .width('100%')
+      .margin({ top: 9 })
+    }
+    .width('48%')
+    .padding(13)
+    .borderRadius(21)
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(22)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+    .shadow(this.cardShadow())
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  /** 网络：上下行速率 */
+  @Builder
+  netCard() {
+    Column() {
+      this.cardHead('wifi', '网络', this.isOnline ? '已连接' : '离线',
+        this.isOnline ? this.theme.success : this.theme.textTertiary)
+
+      Row() {
+        Circle()
+          .width(4.5)
+          .height(4.5)
+          .fill(this.theme.success)
+        Text(this.lanStatus.interface.length > 0 ? this.lanStatus.interface : 'br-lan')
+          .fontSize(9)
+          .fontColor(this.theme.textTertiary)
+          .margin({ left: 4 })
+        Blank()
+        Text('实时')
+          .fontSize(9)
+          .fontColor(this.theme.success)
+          .fontWeight(FontWeight.Bold)
+      }
+      .width('100%')
+
+      // 实时下行折线（与预览图一致的迷你波形）
+      Canvas(this.netMiniCtx)
+        .width('100%')
+        .height(30)
+        .margin({ top: 2 })
+        .onReady(() => {
+          this.drawNetMini()
+        })
+
+      Row() {
+        Column() {
+          Row() {
+            Text(this.speedValue(this.wanStatus.txRate))
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.theme.success)
+              .fontFamily('monospace')
+            Text(this.speedUnit(this.wanStatus.txRate))
+              .fontSize(9)
+              .fontColor(this.theme.textTertiary)
+              .margin({ left: 2, bottom: 2 })
+          }
+          .alignItems(VerticalAlign.Bottom)
+          Text('↑ 上行')
+            .fontSize(8.5)
+            .fontColor(this.theme.textTertiary)
+            .margin({ top: 1 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        Blank()
+        Column() {
+          Row() {
+            Text(this.speedValue(this.wanStatus.rxRate))
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.theme.info)
+              .fontFamily('monospace')
+            Text(this.speedUnit(this.wanStatus.rxRate))
+              .fontSize(9)
+              .fontColor(this.theme.textTertiary)
+              .margin({ left: 2, bottom: 2 })
+          }
+          .alignItems(VerticalAlign.Bottom)
+          Text('↓ 下行')
+            .fontSize(8.5)
+            .fontColor(this.theme.textTertiary)
+            .margin({ top: 1 })
+        }
+        .alignItems(HorizontalAlign.End)
+      }
+      .width('100%')
+      .margin({ top: 4 })
+    }
+    .width('48%')
+    .padding(13)
+    .borderRadius(21)
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(22)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+    .shadow(this.cardShadow())
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  /** 主板信息 */
+  @Builder
+  boardCard() {
+    Column() {
+      this.cardHead('cpu', '主板', '', '')
+      Text(this.systemInfo.boardName.length > 0 ? this.systemInfo.boardName : '--')
+        .fontSize(17)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.theme.textPrimary)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .margin({ bottom: 4 })
+      this.boardKv('发行版', this.systemInfo.distribution.length > 0 ? this.systemInfo.distribution : '--')
+      this.boardKv('版本', this.boardVersionText())
+      this.boardKv('内核', this.systemInfo.kernel.length > 0 ? this.systemInfo.kernel : '--')
+    }
+    .width('48%')
+    .padding(13)
+    .borderRadius(21)
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(22)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+    .shadow(this.cardShadow())
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  boardKv(label: string, value: string) {
+    Row() {
+      Text(label)
+        .fontSize(9.5)
+        .fontColor(this.theme.textTertiary)
+      Blank()
+      Text(value)
+        .fontSize(9.5)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.theme.textSecondary)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .margin({ left: 8 })
+    }
+    .width('100%')
+    .padding({ top: 3.5, bottom: 3.5 })
+    .border({ width: { top: 0.3 }, color: this.theme.borderGlass })
+  }
+
+  /** 连接数 */
+  @Builder
+  connCard() {
+    Column() {
+      this.cardHead('link', '连接数', '', '')
+      Row() {
+        Text(`${this.conntrack.current}`)
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.theme.textPrimary)
+          .fontFamily('monospace')
+        Text('条')
+          .fontSize(10)
+          .fontColor(this.theme.textTertiary)
+          .margin({ left: 4, bottom: 3 })
+      }
+      .alignItems(VerticalAlign.Bottom)
+
+      Stack() {
+        Row()
+          .width('100%')
+          .height(4)
+          .borderRadius(2)
+          .backgroundColor(this.theme.progressTrack)
+        Row()
+          .width(`${Math.max(2, Math.min(100, this.conntrack.percent))}%`)
+          .height(4)
+          .borderRadius(2)
+          .linearGradient({ angle: 90, colors: [[this.theme.info, 0.0], [this.theme.primary, 1.0]] })
+      }
+      .width('100%')
+      .alignContent(Alignment.Start)
+      .margin({ top: 8 })
+
+      Row() {
+        Text(`上限 ${this.conntrack.max > 0 ? this.conntrack.max.toLocaleString() : '--'}`)
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+        Blank()
+        Text(`占用 ${this.conntrack.percent.toFixed(1)}%`)
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+      }
+      .width('100%')
+      .margin({ top: 5 })
+
+      Row() {
+        Text(`在线 ${this.onlineClientCount} 台`)
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+        Blank()
+        Text(`运行 ${this.uptimeShort()}`)
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+      }
+      .width('100%')
+      .margin({ top: 4 })
+    }
+    .width('48%')
+    .padding(13)
+    .borderRadius(21)
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(22)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+    .shadow(this.cardShadow())
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  /** 磁盘使用（危险分区整行高亮） */
+  @Builder
+  diskCard() {
+    Column() {
+      if (this.mountPoints.length === 0) {
+        Text('暂无挂载点数据')
+          .fontSize(11)
+          .fontColor(this.theme.textTertiary)
+          .width('100%')
+          .padding({ top: 6, bottom: 6 })
+      } else {
+        ForEach(this.mountPoints, (mp: MountPoint, idx: number) => {
+          Column() {
+            Row() {
+              Text(mp.mountPoint)
+                .fontSize(10.5)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(mp.usedPercent >= 95 ? this.theme.textPrimary : this.theme.textSecondary)
+                .fontFamily('monospace')
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
                 .layoutWeight(1)
-              }
-              .width('100%')
-              .padding(12)
-              .borderRadius(14)
-              .margin({ top: 4, bottom: 4 })
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
-            }
-
-            // ============ ① 设备总览大卡片 ============
-            Row() {
-              Column() {
-                Text('ⓘ 系统信息')
-                  .fontSize(10)
-                  .fontColor(this.theme.textTertiary)
-                Text(this.deviceLabel())
-                  .fontSize(18)
-                  .fontColor(this.theme.textPrimary)
-                  .fontWeight(FontWeight.Bold)
-                  .margin({ top: 6 })
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                Row() {
-                  Circle()
-                    .width(6)
-                    .height(6)
-                    .foregroundColor(this.isOnline ? this.theme.success : this.theme.danger)
-                  Text(this.isOnline ? '已连接' : '未连接')
-                    .fontSize(12)
-                    .fontColor(this.isOnline ? this.theme.success : this.theme.danger)
-                    .fontWeight(FontWeight.Medium)
-                    .margin({ left: 5 })
-                }
-                .margin({ top: 5 })
-                // 情感触点：设备拟人状态
-                if (this.moodText.length > 0) {
-                  Text(this.moodText)
-                    .fontSize(10)
-                    .fontColor(this.theme.textSecondary)
-                    .margin({ top: 3 })
-                }
-                Text(`版本 ${this.systemInfo.releaseVersion || this.systemInfo.firmwareVersion || '--'}`)
-                  .fontSize(10)
-                  .fontColor(this.theme.textTertiary)
-                  .margin({ top: 5 })
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                Text(`运行 ${this.systemInfo.uptime > 0 ? FormatUtils.formatUptime(this.systemInfo.uptime) : '--'}`)
-                  .fontSize(10)
-                  .fontColor(this.theme.textTertiary)
-                  .margin({ top: 3 })
-              }
-              .alignItems(HorizontalAlign.Start)
-              .layoutWeight(1)
-
-              // 右侧 NAS 机箱插图
-              Image($r('app.media.nas'))
-                .width(92)
-                .height(92)
-                .objectFit(ImageFit.Contain)
-                .opacity(0.9)
+              Text(`${mp.usedPercent.toFixed(1)}%`)
+                .fontSize(11)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(mp.usedPercent >= 95 ? this.theme.danger : this.theme.textSecondary)
+                .fontFamily('monospace')
+                .margin({ left: 8 })
             }
             .width('100%')
-            .padding(18)
-            .borderRadius(24)
-            .backgroundColor(this.cardBg())
-            .shadow(this.cardShadow())
-            .margin({ top: 4 })
 
-            // ============ 2 快捷功能区（2 行 5 列，直接浮在主背景上，无卡片框） ============
-            Column() {
-              Row() {
-                this.quickItem('文件', 'pages/apps/FileManagerPage', '#34D399', 'folder')
-                this.quickItem('网络助手', 'pages/apps/NetworkHelperPage', '#A78BFA', 'AI_help_write')
-                this.quickItem('Docker', 'pages/apps/DockerPage', '#60A5FA', 'square_stack_3d')
-                this.quickItem('SSH', 'pages/apps/SshTerminalPage', '#38BDF8', 'code_square')
-                this.quickItem('应用中心', 'apps:', '#FB923C', 'square_grid_2x2')
-              }
-              .width('100%')
-              Row() {
-                this.quickItem('排行', 'pages/apps/TrafficRankPage', '#FBBF24', 'arrow_up_right')
-                this.quickItem('WiFi', 'pages/apps/WifiPage', '#3B82F6', 'wifi')
-                this.quickItem('相册', 'pages/apps/AlbumPage', '#F472B6', 'ohos_photo')
-                this.quickItem('体检', 'pages/apps/NetworkCheckPage', '#10B981', 'staroflife')
-                this.quickItem('商店', 'pages/apps/StorePage', '#EC4899', 'bag')
-              }
-              .width('100%')
-              .margin({ top: 2 })
+            Stack() {
+              Row()
+                .width('100%')
+                .height(5)
+                .borderRadius(2.5)
+                .backgroundColor(mp.usedPercent >= 95 ? this.tint(this.theme.danger, 0.2) : this.theme.progressTrack)
+              Row()
+                .width(`${Math.max(1.2, Math.min(100, mp.usedPercent))}%`)
+                .height(5)
+                .borderRadius(2.5)
+                .backgroundColor(this.diskColor(mp.usedPercent))
             }
             .width('100%')
-            .margin({ top: 14 })
-
-            // ============ 3 核心数据卡片区（2×2 四宫格） ============
-            Row() {
-              // 卡片1：处理器（大字 CPU% + 折线趋势 + 型号）
-              Column() {
-                Row() {
-                  AppIcon({ name: 'gearshape', iconSize: 15, colors: ['#3B82F6'] })
-                  Text('处理器').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
-                  Blank()
-                }
-                .width('100%')
-                Row() {
-                  Text(`${this.systemInfo.cpuUsage.toFixed(0)}%`)
-                    .fontSize(26)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(this.theme.primary)
-                    .fontFamily('monospace')
-                  Column() {
-                    Text(this.systemInfo.cpuTemp > 0 ? `温度 ${this.systemInfo.cpuTemp.toFixed(0)}°C` : '温度 --')
-                      .fontSize(10).fontColor(this.theme.textTertiary)
-                    Text(`频率 ${this.systemInfo.cpuFreq} MHz`)
-                      .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 2 })
-                  }
-                  .alignItems(HorizontalAlign.Start)
-                  .margin({ left: 10 })
-                }
-                .width('100%')
-                .margin({ top: 8 })
-                Canvas(this.cpuChartCtx)
-                  .width(140)
-                  .height(38)
-                  .margin({ top: 4 })
-                  .onReady(() => {
-                    this.drawCpuChart()
-                  })
-                Text(this.systemInfo.cpuModel ? `${this.systemInfo.cpuModel}` : '--')
-                  .fontSize(9)
-                  .fontColor(this.theme.textTertiary)
-                  .width('100%')
-                  .margin({ top: 4 })
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-              }
-              .width('48%')
-              .height(158)
-              .padding(16)
-              .borderRadius(20)
-              .backgroundColor(this.cardBg())
-              .shadow(this.cardShadow())
-              .alignItems(HorizontalAlign.Start)
-
-              // 卡片2：系统资源（进度条列表：内存/硬盘/存储/日志）
-              Column() {
-                Row() {
-                  AppIcon({ name: 'circle_grid_2x2', iconSize: 15, colors: ['#8B5CF6'] })
-                  Text('系统资源').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
-                  Blank()
-                }
-                .width('100%')
-                this.resBar('内存', this.memoryPercent(), this.theme.success)
-                this.resBar('硬盘', this.diskPercent(), this.theme.primary)
-                this.resBar('日志', this.logPercent(), '#B8A6E8')
-              }
-              .width('48%')
-              .height(158)
-              .padding(16)
-              .borderRadius(20)
-              .backgroundColor(this.cardBg())
-              .shadow(this.cardShadow())
-              .alignItems(HorizontalAlign.Start)
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.SpaceBetween)
-            .margin({ top: 12 })
+            .alignContent(Alignment.Start)
+            .margin({ top: 6 })
 
             Row() {
-              // 卡片3：主板（型号大字 + 制造商/版本键值）
-              Column() {
-                Row() {
-                  AppIcon({ name: 'rectangle_on_rectangle', iconSize: 15, colors: ['#F59E0B'] })
-                  Text('主板').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
-                  Blank()
-                }
-                .width('100%')
-                Text(this.systemInfo.boardName || this.systemInfo.model || '--')
-                  .fontSize(16)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(this.theme.textPrimary)
-                  .width('100%')
-                  .margin({ top: 14 })
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                this.kvRow('制造商', this.systemInfo.model || '--')
-                this.kvRow('版本', this.systemInfo.releaseVersion || this.systemInfo.firmwareVersion || '--')
-                this.kvRow('内核', this.systemInfo.kernel || '--')
-              }
-              .width('48%')
-              .height(158)
-              .padding(16)
-              .borderRadius(20)
-              .backgroundColor(this.cardBg())
-              .shadow(this.cardShadow())
-              .alignItems(HorizontalAlign.Start)
-
-              // 卡片4：网络（状态 + 实时速率）
-              Column() {
-                Row() {
-                  AppIcon({ name: 'dot_radiowaves_left_and_right', iconSize: 15, colors: ['#10B981'] })
-                  Text('网络').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
-                  Blank()
-                }
-                .width('100%')
-                Row() {
-                  Circle()
-                    .width(6)
-                    .height(6)
-                    .foregroundColor(this.isOnline ? this.theme.success : this.theme.danger)
-                  Text(this.wanStatus.interface || 'WAN')
-                    .fontSize(12)
-                    .fontColor(this.theme.textPrimary)
-                    .fontWeight(FontWeight.Medium)
-                    .margin({ left: 5 })
-                  Blank()
-                  Text(this.isOnline ? '已连接' : '未连接')
-                    .fontSize(10)
-                    .fontColor(this.isOnline ? this.theme.success : this.theme.danger)
-                }
-                .width('100%')
-                .margin({ top: 8 })
-                Row() {
-                  Text('↑ 上行').fontSize(10).fontColor(this.theme.textTertiary)
-                  Blank()
-                  Text(FormatUtils.formatSpeed(this.wanStatus.rxRate))
-                    .fontSize(16).fontWeight(FontWeight.Bold).fontColor(this.theme.primary).fontFamily('monospace')
-                }
-                .width('100%')
-                .margin({ top: 8 })
-                Row() {
-                  Text('↓ 下行').fontSize(10).fontColor(this.theme.textTertiary)
-                  Blank()
-                  Text(FormatUtils.formatSpeed(this.wanStatus.txRate))
-                    .fontSize(16).fontWeight(FontWeight.Bold).fontColor(this.theme.success).fontFamily('monospace')
-                }
-                .width('100%')
-                .margin({ top: 6 })
-              }
-              .width('48%')
-              .height(158)
-              .padding(16)
-              .borderRadius(20)
-              .backgroundColor(this.cardBg())
-              .shadow(this.cardShadow())
-              .alignItems(HorizontalAlign.Start)
+              Text(`${FormatUtils.formatBytes(mp.used)} / ${FormatUtils.formatBytes(mp.size)}`)
+                .fontSize(9)
+                .fontColor(this.theme.textTertiary)
+              Blank()
+              Text(`可用 ${FormatUtils.formatBytes(mp.available)}`)
+                .fontSize(9)
+                .fontWeight(mp.available <= 0 ? FontWeight.Bold : FontWeight.Normal)
+                .fontColor(mp.available <= 0 ? this.theme.danger : this.theme.textTertiary)
             }
             .width('100%')
-            .justifyContent(FlexAlign.SpaceBetween)
-            .margin({ top: 12 })
-            Row() {
-              Column() {
-                Row() {
-                  AppIcon({ name: 'person_2', iconSize: 15, colors: ['#06B6D4'] })
-                  Text('在线设备').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
-                  Blank()
-                }
-                .width('100%')
-                Text(`${this.onlineClientCount}`)
-                  .fontSize(20)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(this.theme.primary)
-                  .fontFamily('monospace')
-                  .width('100%')
-                  .margin({ top: 6 })
-                Text('台设备当前在线')
-                  .fontSize(10)
-                  .fontColor(this.theme.textTertiary)
-                  .width('100%')
-                  .margin({ top: 2 })
-              }
-              .width('48%')
-              .padding(16)
-              .borderRadius(20)
-              .backgroundColor(this.cardBg())
-              .shadow(this.cardShadow())
-              .alignItems(HorizontalAlign.Start)
-
-              Column() {
-                Row() {
-                  AppIcon({ name: 'link', iconSize: 15, colors: ['#EC4899'] })
-                  Text('连接数').fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 5 })
-                  Blank()
-                }
-                .width('100%')
-                Text(`${this.conntrack.current}`)
-                  .fontSize(20)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(this.conntrack.percent > 80 ? this.theme.warning : this.theme.success)
-                  .fontFamily('monospace')
-                  .width('100%')
-                  .margin({ top: 6 })
-                Text(`上限 ${this.conntrack.max}`)
-                  .fontSize(10)
-                  .fontColor(this.theme.textTertiary)
-                  .width('100%')
-                  .margin({ top: 2 })
-              }
-              .width('48%')
-              .padding(16)
-              .borderRadius(20)
-              .backgroundColor(this.cardBg())
-              .shadow(this.cardShadow())
-              .alignItems(HorizontalAlign.Start)
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.SpaceBetween)
-            .margin({ top: 12 })
-
-            // ============ 磁盘详情 ============
-            Column() {
-              Row() {
-                AppIcon({ name: 'externaldrive', iconSize: 15, colors: ['#F97316'] })
-                Text('磁盘使用')
-                  .fontSize(13)
-                  .fontColor(this.theme.textPrimary)
-                  .fontWeight(FontWeight.Medium)
-                  .margin({ left: 5 })
-              }
-                .width('100%')
-                .margin({ bottom: 10 })
-              if (this.mountPoints.length === 0) {
-                Text('暂无挂载点数据')
-                  .fontSize(11)
-                  .fontColor(this.theme.textTertiary)
-                  .width('100%')
-              } else {
-                ForEach(this.mountPoints, (mp: MountPoint, idx: number) => {
-                  Column() {
-                    Row() {
-                      Text(mp.mountPoint)
-                        .fontSize(13)
-                        .fontColor(this.theme.textPrimary)
-                        .fontWeight(FontWeight.Medium)
-                        .maxLines(1)
-                        .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .layoutWeight(1)
-                      Text(`${mp.usedPercent.toFixed(1)}%`)
-                        .fontSize(13)
-                        .fontColor(this.diskColor(mp.usedPercent))
-                        .fontWeight(FontWeight.Bold)
-                    }
-                    .width('100%')
-                    Row() {
-                      Text(`${FormatUtils.formatBytes(mp.used)} / ${FormatUtils.formatBytes(mp.size)}`)
-                        .fontSize(11)
-                        .fontColor(this.theme.textTertiary)
-                      Blank()
-                      Text(`可用 ${FormatUtils.formatBytes(mp.available)}`)
-                        .fontSize(11)
-                        .fontColor(this.theme.textSecondary)
-                    }
-                    .width('100%')
-                    .margin({ top: 2 })
-                    Stack() {
-                      Row()
-                        .width('100%')
-                        .height(4)
-                        .borderRadius(2)
-                        .backgroundColor(this.theme.progressTrack)
-                      Row()
-                        .width(`${Math.max(0, Math.min(100, mp.usedPercent))}%`)
-                        .height(4)
-                        .borderRadius(2)
-                        .backgroundColor(this.diskColor(mp.usedPercent))
-                    }
-                    .width('100%')
-                    .alignContent(Alignment.Start)
-                    .margin({ top: 8 })
-                  }
-                  .width('100%')
-                  .padding({ top: idx > 0 ? 10 : 0, bottom: idx < this.mountPoints.length - 1 ? 10 : 0 })
-                  .border(idx < this.mountPoints.length - 1 ? { width: { bottom: 0.3 }, color: this.theme.borderGlass } : {})
-                }, (item: MountPoint): string => item.mountPoint)
-              }
-            }
-            .width('100%')
-            .padding(16)
-            .borderRadius(22)
-            .backgroundColor(this.cardBg())
-            .shadow(this.cardShadow())
-            .margin({ top: 12 })
+            .margin({ top: 5 })
           }
           .width('100%')
-          .padding({ left: 12, right: 12, bottom: this.bottomInset })
+          .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+          .borderRadius(mp.usedPercent >= 95 ? 14 : 0)
+          .backgroundColor(mp.usedPercent >= 95 ? this.tint(this.theme.danger, 0.08) : Color.Transparent)
+          .margin({ top: idx > 0 ? 2 : 0 })
+        }, (item: MountPoint): string => `disk_${item.mountPoint}`)
+      }
+    }
+    .width('100%')
+    .padding(10)
+    .borderRadius(21)
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(22)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+    .shadow(this.cardShadow())
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  build() {
+    Stack() {
+      Column() {
+        // ========== 顶栏：标题 + 图标按钮 ==========
+        Row() {
+          Column() {
+            Text('仪表盘')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.theme.textPrimary)
+            Row() {
+              Circle()
+                .width(5.5)
+                .height(5.5)
+                .fill(this.isOnline ? this.theme.success : this.theme.textTertiary)
+              Text(`${this.deviceLabel()} · ${this.isOnline ? '已连接' : '未连接'}`)
+                .fontSize(11.5)
+                .fontColor(this.theme.textSecondary)
+                .margin({ left: 6 })
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+            }
+            .margin({ top: 3 })
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+
+          this.glassBtn('bell', !this.isOnline, 'pages/apps/NotifySettingsPage')
+          Row().width(8)
+          this.glassBtn('paintbrush', false, 'pages/apps/SkinManagePage')
+          Row().width(8)
+          this.logoutBtn()
         }
         .width('100%')
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
-        .onDidScroll((y: number, _state: ScrollState) => {
-          const diff = y - this.lastScrollY
-          this.lastScrollY = y
-          if (diff > 10 && y > 120) {
-            AppState.getInstance().hideNav()
-          } else if (diff < -10 && y < 80) {
-            AppState.getInstance().showNav()
+        .padding({ left: 16, right: 16, top: 4, bottom: 10 })
+
+        if (this.isLoading) {
+          Column() {
+            LoadingWhimsy()
           }
-        })
+          .width('100%')
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
+        } else {
+          Scroll() {
+            Column() {
+              // ========== 告警 / 错误（首屏第一条） ==========
+              if (this.errorText.length > 0) {
+                Row() {
+                  Row() {
+                    Text('!')
+                      .fontSize(17)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor(Color.White)
+                  }
+                  .width(30)
+                  .height(30)
+                  .borderRadius(10)
+                  .linearGradient({ angle: 145, colors: [['#FF7A5C', 0.0], ['#E8341F', 1.0]] })
+                  .justifyContent(FlexAlign.Center)
+                  .margin({ right: 10 })
+
+                  Column() {
+                    Text(this.whimsyFish ? '🐟 网络在养鱼（真的断网了）' : '设备连接异常')
+                      .fontSize(12.5)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor(this.theme.textPrimary)
+                    Text(this.errorText)
+                      .fontSize(11)
+                      .fontColor(this.theme.textSecondary)
+                      .maxLines(1)
+                      .textOverflow({ overflow: TextOverflow.Ellipsis })
+                      .margin({ top: 2 })
+                  }
+                  .alignItems(HorizontalAlign.Start)
+                  .layoutWeight(1)
+
+                  Text('重试')
+                    .fontSize(11)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(Color.White)
+                    .padding({ left: 11, right: 11, top: 7, bottom: 7 })
+                    .borderRadius(99)
+                    .backgroundColor(this.theme.primary)
+                    .onClick(() => {
+                      this.loadData()
+                    })
+                }
+                .width('100%')
+                .padding({ left: 12, right: 12, top: 11, bottom: 11 })
+                .borderRadius(19)
+                .margin({ top: 10 })
+                .linearGradient({
+                  angle: 112,
+                  colors: [[this.tint(this.theme.warning, 0.18), 0.0], [this.tint(this.theme.warning, 0.05), 0.6],
+                    [this.theme.bgCard, 1.0]]
+                })
+                .border({ width: 0.5, color: this.tint(this.theme.warning, 0.35) })
+                .onClick(() => {
+                  if (Whimsy.tap('fish', 5)) {
+                    this.whimsyFish = true
+                    setTimeout(() => {
+                      this.whimsyFish = false
+                    }, 3000)
+                  }
+                })
+              }
+
+              // ========== 主视觉：下行速率 ==========
+              this.heroCard()
+
+              // ========== 快捷操作 ==========
+              this.sectionHead('快捷操作', 'Actions', '全部')
+              Row() {
+                this.shortcutItem('文件', 'pages/apps/FileManagerPage', 'folder')
+                this.shortcutItem('网络助手', 'pages/apps/NetworkHelperPage', 'AI_help_write')
+                this.shortcutItem('Docker', 'pages/apps/DockerPage', 'square_stack_3d')
+                this.shortcutItem('SSH', 'pages/apps/SshTerminalPage', 'code_square')
+                this.shortcutItem('应用中心', 'apps:', 'square_grid_2x2')
+              }
+              .width('100%')
+
+              Row() {
+                this.shortcutItem('排行', 'pages/apps/TrafficRankPage', 'arrow_up_right')
+                this.shortcutItem('小管家', 'pages/pet/PetPage', 'heart')
+                this.shortcutItem('相册', 'pages/apps/AlbumPage', 'ohos_photo')
+                this.shortcutItem('OpenWRT', 'pages/apps/WebViewPage', 'wifi_router')
+                this.shortcutItem('商店', 'pages/apps/StorePage', 'bag')
+              }
+              .width('100%')
+              .margin({ top: 4 })
+
+              // ========== 运行状态 ==========
+              this.sectionHead('运行状态', 'Status', '')
+              this.cpuCard()
+
+              Flex({ direction: FlexDirection.Row, justifyContent: FlexAlign.SpaceBetween,
+                alignItems: ItemAlign.Stretch }) {
+                this.resCard()
+                this.netCard()
+              }
+              .width('100%')
+              .margin({ top: 10 })
+
+              Flex({ direction: FlexDirection.Row, justifyContent: FlexAlign.SpaceBetween,
+                alignItems: ItemAlign.Stretch }) {
+                this.boardCard()
+                this.connCard()
+              }
+              .width('100%')
+              .margin({ top: 10 })
+
+              // ========== 磁盘使用 ==========
+              this.sectionHead('磁盘使用', 'Storage', `${this.mountPoints.length} 个挂载点`)
+              this.diskCard()
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14, bottom: this.bottomInset })
+          }
+          .width('100%')
+          .layoutWeight(1)
+          .scrollBar(BarState.Off)
+          .onDidScroll((y: number, _state: ScrollState) => {
+            const diff = y - this.lastScrollY
+            this.lastScrollY = y
+            if (diff > 10 && y > 120) {
+              AppState.getInstance().hideNav()
+            } else if (diff < -10 && y < 80) {
+              AppState.getInstance().showNav()
+            }
+          })
+        }
       }
+      .width('100%')
+      .height('100%')
 
       // 满速彩蛋层（全屏覆盖，不拦截触摸）
       this.boomLayer()

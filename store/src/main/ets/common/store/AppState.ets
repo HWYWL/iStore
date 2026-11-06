@@ -13,6 +13,7 @@
  */
 import { preferences } from '@kit.ArkData'
 import { ApiClient } from '../../api/ApiClient'
+import { ApiService } from '../../api/ApiService'
 import { ConnectionConfig } from '../../models/Models'
 import { DeviceStore, SavedDevice } from './DeviceStore'
 import { SshService } from '../ssh/SshService'
@@ -443,6 +444,8 @@ export class AppState {
     const config: ConnectionConfig = this.deviceStore.deviceToConfig(device)
     const client: ApiClient = ApiClient.getInstance()
 
+    // 换设备/账号前清空共享缓存（速率、接口、网桥转发表等），避免串台
+    ApiService.resetCache()
     // 配置并连接
     client.configure(config)
     const connected: boolean = await client.connect()

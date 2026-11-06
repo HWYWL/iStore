@@ -3,7 +3,7 @@
  * 封装对 ApiClient 的调用，负责数据解析和类型转换
  * 通过 ObjectHelper 安全读取 JSON 字段，失败时返回空数据兜底
  */
-import { ApiClient } from './ApiClient'
+import { ApiClient, DeviceTreeInfo } from './ApiClient'
 import {
   SystemInfo,
   NetworkInterface,
@@ -261,18 +261,31 @@ export class ApiService {
 
       // 2. 从主板信息（board）中提取基础硬件信息
       const hostname = ObjectHelper.getString(board, 'hostname', 'OpenWrt')
+      // device-tree 真实型号：部分固件把 board.model / board_name 写死成通用名（如 Clx S20M），
+      // 这里优先用 /proc/device-tree 的 model / compatible 作为真实型号
+      const dt: DeviceTreeInfo = await this.client.getDeviceTreeInfo()
+      const rawModel = ObjectHelper.getString(board, 'model', '') || ObjectHelper.getString(board, 'system', '')
       // model 字段优先，fallback 到 'system' 字段，最后兜底为 'OpenWrt'
-      const model = ObjectHelper.getString(board, 'model', '') || ObjectHelper.getString(board, 'system', '') || 'OpenWrt'
+      const model = dt.model.length > 0 ? dt.model : (rawModel.length > 0 ? rawModel : 'OpenWrt')
       const kernel = ObjectHelper.getString(board, 'kernel', '')
       // cpu_model 字段优先，fallback 到 'model' 字段
-      const cpuModel = ObjectHelper.getString(board, 'system', '') || ObjectHelper.getString(board, 'model', '')
-      const boardName = ObjectHelper.getString(board, 'board_name', '')
+      // API 常只返回「ARMv8 Processor rev 1」这类泛化名，用 device-tree 芯片型号补全
+      const rawCpuModel = ObjectHelper.getString(board, 'system', '') || ObjectHelper.getString(board, 'model', '')
+      const cpuModel = await this.client.resolveCpuModel(rawCpuModel)
+      const rawBoardName = ObjectHelper.getString(board, 'board_name', '')
+      const boardName = dt.model.length > 0 ? dt.model : rawBoardName
 
       // distribution 在 board.release.distribution 中，需先提取 release 对象
       const release = ObjectHelper.getObject(board, 'release')
       const distribution = release ? ObjectHelper.getString(release, 'distribution', '') : ''
       // firmware_version 字段优先，fallback 到 'version' 字段
-      const firmwareVersion = release ? ObjectHelper.getString(release, 'description', '') : '' || ObjectHelper.getString(board, 'firmware_version', '') || ObjectHelper.getString(board, 'version', '')
+      const firmwareVersion = (release ? ObjectHelper.getString(release, 'description', '') : '') ||
+        ObjectHelper.getString(board, 'firmware_version', '') || ObjectHelper.getString(board, 'version', '')
+      // 版本号 / 修订号 / 目标平台：优先取 release 对象里的独立字段
+      const releaseVersion = (release ? ObjectHelper.getString(release, 'version', '') : '') ||
+        ObjectHelper.getString(board, 'version', '') || firmwareVersion
+      const releaseRevision = release ? ObjectHelper.getString(release, 'revision', '') : ''
+      const releaseTarget = release ? ObjectHelper.getString(release, 'target', '') : ''
 
       // 3. 从系统运行信息（info）中提取运行时数据
       const uptime = ObjectHelper.getNumber(info, 'uptime', 0)
@@ -314,9 +327,9 @@ export class ApiService {
         boardName: boardName,
         cpuModel: cpuModel,
         distribution: distribution,
-        releaseVersion: '',
-        releaseRevision: '',
-        releaseTarget: ''
+        releaseVersion: releaseVersion,
+        releaseRevision: releaseRevision,
+        releaseTarget: releaseTarget
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, `fetchSystemInfo err: ${String(e)}`)

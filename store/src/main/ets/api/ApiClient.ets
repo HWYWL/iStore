@@ -56,6 +56,15 @@ class RouterApiResponse {
 class EmptyRecord {
 }
 
+/**
+ * device-tree 解析结果：板卡/整机名（model）+ 芯片型号（compatible）
+ * 部分固件把 board.model 写死为通用名，这两个字段才是设备真实型号
+ */
+export class DeviceTreeInfo {
+  model: string = ''
+  chip: string = ''
+}
+
 // ========== ubus JSON-RPC 请求参数类型（ArkTS 要求显式声明） ==========
 
 class RpcRequest {
@@ -364,6 +373,7 @@ export class ApiClient {
     this.lastError = ''
     this.sessionId = ''
     this.sessionExpireAt = 0
+    this.loginInFlight = null
     this.ubusMissing = false
     this.prevDevStats.clear()
     this.prevStatsTime = 0
@@ -373,6 +383,29 @@ export class ApiClient {
     this.dockerApiBase = ''
     this.iStoreStatusCache = null
     this.iStoreStatusTime = 0
+    // LuCI 会话（换账号/设备必须清，否则会用上一个账号的会话读数据）
+    this.luciSessionId = ''
+    this.luciStok = ''
+    this.luciLoginInFlight = null
+    // device-tree / CPU 型号 / 频率 / 网桥探测缓存（都属于上一台设备）
+    this.dtInfo = null
+    this.dtLoading = null
+    this.dtSshFails = 0
+    this.cachedCpuFreq = 0
+    this.sshFreqFails = 0
+    this.sshBridgeTried = false
+    this.sshPortCache = ''
+    this.aclUpgradeTried = false
+    this.ratesInFlight = null
+    this.lastBridgeDebug = ''
+    // 断开上一条 SSH 会话（账号/端口随设备变化，复用会串设备）
+    try {
+      const ssh: SshService = SshService.getInstance()
+      ssh.disconnect()
+      ssh.preferredPort = ''
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `configure ssh reset err: ${String(e)}`)
+    }
   }
 
   /**
@@ -1825,52 +1858,312 @@ export class ApiClient {
     return 0
   }
 
-  /** CPU 当前频率（MHz）：cat scaling_cur_freq（kHz → MHz） */
+  /** CPU 当前频率（MHz）：优先读 sysfs，SSH 兜底 */
   private cachedCpuFreq: number = 0
-  private sshFreqTried: boolean = false
   private sshFreqFails: number = 0
 
-  /** CPU 频率（MHz）：后台异步获取并缓存，首次调用立即返回 0（不阻塞首页加载） */
   private async getCpuFreqMhz(): Promise<number> {
-    if (this.cachedCpuFreq > 0) {
-      return this.cachedCpuFreq
+    // 1) sysfs：ubus 文件接口一次读取即可拿到实时频率，不依赖 SSH
+    const paths: string[] = [
+      '/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq',
+      '/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq'
+    ]
+    for (let i = 0; i < paths.length; i++) {
+      const raw: string = await this.ubusReadFile(paths[i])
+      const khz: number = parseInt(raw.trim()) || 0
+      if (khz > 0) {
+        this.cachedCpuFreq = Math.round(khz / 1000)
+        return this.cachedCpuFreq
+      }
     }
-    if (!this.sshFreqTried && this.sshFreqFails < 3) {
-      this.sshFreqTried = true
-      this.fetchCpuFreqBackground()
+    // 2) SSH 兜底：只用已建立的连接，不主动建连（避免拖慢每轮轮询）
+    if (this.sshFreqFails < 3) {
+      try {
+        const ssh: SshService = SshService.getInstance()
+        if (ssh.isConnected()) {
+          const out: string = await ssh.exec('cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq')
+          const khz: number = parseInt(SshService.cleanShellOut(out)) || 0
+          if (khz > 0) {
+            this.cachedCpuFreq = Math.round(khz / 1000)
+            this.sshFreqFails = 0
+            return this.cachedCpuFreq
+          }
+        }
+      } catch (e) {
+        hilog.error(DOMAIN, TAG, `cpu_freq ssh err: ${String(e)}`)
+      }
+      this.sshFreqFails++
     }
-    return 0
+    return this.cachedCpuFreq
   }
 
-  private async fetchCpuFreqBackground(): Promise<void> {
+  // ========== 设备真实型号 / CPU 芯片型号（device-tree） ==========
+
+  private dtInfo: DeviceTreeInfo | null = null
+  private dtLoading: Promise<DeviceTreeInfo> | null = null
+  private dtSshFails: number = 0
+
+  /** 读取 device-tree：compatible（芯片）在前，model（板卡名）在后 */
+  private static readonly DT_CMD: string =
+    `cat /proc/device-tree/compatible 2>/dev/null | tr '\\0' '\\n'; echo; ` +
+      `cat /proc/device-tree/model 2>/dev/null; echo; ` +
+      `awk -F: '/^(Hardware|model name|Processor)/{gsub(/^ +/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null`
+
+  /**
+   * device-tree 型号信息（缓存）：ubus 读文件优先（无需 SSH，首次即可拿到），
+   * 失败再用 SSH 兜底。
+   */
+  async getDeviceTreeInfo(): Promise<DeviceTreeInfo> {
+    if (this.dtInfo !== null) {
+      return this.dtInfo
+    }
+    if (this.dtLoading !== null) {
+      return await this.dtLoading
+    }
+    this.dtLoading = this.loadDeviceTreeInfo()
+    const info: DeviceTreeInfo = await this.dtLoading
+    this.dtLoading = null
+    // 只有拿到芯片型号才缓存：仅板卡名不足以判定处理器，下一轮继续尝试
+    if (info.chip.length > 0) {
+      this.dtInfo = info
+    }
+    return info
+  }
+
+  private async loadDeviceTreeInfo(): Promise<DeviceTreeInfo> {
+    const info: DeviceTreeInfo = new DeviceTreeInfo()
+    // 1) ubus 文件接口（快，且不依赖 SSH 是否已连接）
+    try {
+      const modelRaw: string = await this.ubusReadFile('/proc/device-tree/model')
+      info.model = modelRaw.replace(/\u0000/g, '').trim()
+      const compatRaw: string = await this.ubusReadFile('/proc/device-tree/compatible')
+      info.chip = ApiClient.parseCpuChipModel(compatRaw)
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `device_tree ubus err: ${String(e)}`)
+    }
+    // 2) SSH 兜底（3 秒超时，避免端口探测把首屏拖住），失败最多重试 3 次
+    // 只要还没拿到「芯片型号」就试（ubus 读 compatible 可能被 NUL 截断成板卡名）
+    if (info.chip.length === 0 && this.dtSshFails < 3) {
+      const parsed: DeviceTreeInfo = await this.loadDeviceTreeViaSsh(3000)
+      if (info.model.length === 0) {
+        info.model = parsed.model
+      }
+      if (info.chip.length === 0) {
+        info.chip = parsed.chip
+      }
+      if (info.chip.length === 0) {
+        this.dtSshFails++
+      }
+    }
+    hilog.error(DOMAIN, TAG, `device_tree model=[${info.model}] chip=[${info.chip}]`)
+    return info
+  }
+
+  /** 带超时的 SSH 读取：超时先返回空结果，SSH 任务在后台继续完成 */
+  private async loadDeviceTreeViaSsh(timeoutMs: number): Promise<DeviceTreeInfo> {
+    const task: Promise<DeviceTreeInfo> = this.execDeviceTreeSsh()
+    const timeout: Promise<DeviceTreeInfo> = new Promise<DeviceTreeInfo>(
+      (resolve: (v: DeviceTreeInfo) => void) => {
+        setTimeout(() => {
+          resolve(new DeviceTreeInfo())
+        }, timeoutMs)
+      })
+    return await Promise.race<DeviceTreeInfo>([task, timeout])
+  }
+
+  private async execDeviceTreeSsh(): Promise<DeviceTreeInfo> {
     try {
       const ssh: SshService = SshService.getInstance()
       let out: string = ''
       if (ssh.isConnected()) {
-        out = await ssh.exec('cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq')
+        out = await ssh.exec(ApiClient.DT_CMD)
       } else {
         const device: SavedDevice | undefined = AppState.getInstance().getActiveDevice()
         if (device && device.username && device.password) {
           const ok: boolean = await ssh.connect(device)
           if (ok) {
-            out = await ssh.exec('cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq')
+            out = await ssh.exec(ApiClient.DT_CMD)
           }
         }
       }
-      const khz: number = parseInt(SshService.cleanShellOut(out)) || 0
-      if (khz > 0) {
-        this.cachedCpuFreq = Math.round(khz / 1000)
-        this.sshFreqFails = 0
-        hilog.error(DOMAIN, TAG, `cpu_freq bg ok=${this.cachedCpuFreq} MHz`)
-        return
-      }
-      hilog.error(DOMAIN, TAG, `cpu_freq bg out=[${out}]`)
+      return ApiClient.parseDeviceTreeOut(out)
     } catch (e) {
-      hilog.error(DOMAIN, TAG, `cpu_freq bg err: ${String(e)}`)
+      hilog.error(DOMAIN, TAG, `device_tree ssh err: ${String(e)}`)
+      return new DeviceTreeInfo()
     }
-    // 失败：下次轮询重试（最多 3 次）
-    this.sshFreqTried = false
-    this.sshFreqFails++
+  }
+
+  /**
+   * CPU 型号：API 只返回「ARMv8 Processor rev 1」这类泛化名称时，
+   * 用 device-tree 芯片型号替换；仍拿不到则保留原值作为保底。
+   */
+  async resolveCpuModel(raw: string): Promise<string> {
+    if (!ApiClient.isGenericCpuName(raw)) {
+      return raw
+    }
+    const info: DeviceTreeInfo = await this.getDeviceTreeInfo()
+    if (info.chip.length > 0) {
+      return info.chip
+    }
+    // 不退回板卡名（如 Clx S20M），宁可用 ARM 泛化名保底，避免显示错误型号
+    return raw
+  }
+
+  /** 解析 device-tree 输出：命中的 vendor,chip 归为芯片型号，其余可读名归为板卡型号 */
+  private static parseDeviceTreeOut(out: string): DeviceTreeInfo {
+    const info: DeviceTreeInfo = new DeviceTreeInfo()
+    const text: string = SshService.cleanShellOut(out.replace(/\u0000/g, '\n'))
+    if (text.length === 0) {
+      return info
+    }
+    const lines: string[] = text.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const line: string = lines[i].trim()
+      if (line.length === 0) {
+        continue
+      }
+      // 1) compatible：只取已知 SoC 厂商段（clx,s20m 这类板卡段忽略）
+      const chipInLine: string = ApiClient.parseCpuChipModel(line)
+      if (chipInLine.length > 0) {
+        if (info.chip.length === 0) {
+          info.chip = chipInLine
+        }
+        continue
+      }
+      // 2) model / cpuinfo Hardware："MediaTek MT7986A"
+      if (info.model.length === 0 && line.length >= 3 && !ApiClient.isGenericCpuName(line)) {
+        info.model = line
+      }
+    }
+    return info
+  }
+
+  /** 是否为 ARM 泛化名称（如 ARMv8 Processor rev 1 / aarch64 / 空） */
+  private static isGenericCpuName(raw: string): boolean {
+    const s: string = raw.trim()
+    if (s.length === 0) {
+      return true
+    }
+    const low: string = s.toLowerCase()
+    return low.indexOf('arm') >= 0 || low === 'aarch64' || low === 'unknown'
+  }
+
+  /** 已知 SoC 芯片厂商：compatible 里只有这些段才代表处理器型号 */
+  private static readonly CHIP_VENDORS: string[] = [
+    'mediatek', 'rockchip', 'qcom', 'qualcomm', 'broadcom', 'marvell', 'allwinner', 'amlogic',
+    'hisilicon', 'realtek', 'nvidia', 'intel', 'loongson', 'spreadtrum', 'unisoc', 'samsung',
+    'nxp', 'freescale', 'microchip', 'sophgo', 'starfive', 'espressif', 'cavium', 'annapurna'
+  ]
+
+  private static isChipVendor(vendor: string): boolean {
+    return ApiClient.CHIP_VENDORS.indexOf(vendor) >= 0
+  }
+
+  /**
+   * 从 compatible 原文解析芯片型号。
+   * compatible 第一段常是板卡厂商（如 clx,s20m），真正的 SoC 在后面（mediatek,mt7986a）；
+   * 且经 ubus 读取时 NUL 可能丢失导致多段粘连成一行，这里按已知厂商名定位。
+   */
+  private static parseCpuChipModel(out: string): string {
+    const text: string = SshService.cleanShellOut(out.replace(/\u0000/g, '\n'))
+    if (text.length === 0) {
+      return ''
+    }
+    const lines: string[] = text.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const line: string = lines[i].replace(/\u0000/g, '').trim()
+      if (line.length === 0) {
+        continue
+      }
+      // 正常分段：mediatek,mt7986a
+      const segs: string[] = line.split(/\s+/)
+      for (let j = 0; j < segs.length; j++) {
+        const chip: string = ApiClient.formatChipModel(segs[j])
+        if (chip.length > 0) {
+          return chip
+        }
+      }
+      // NUL 丢失被挤成一行：clx,s20mmediatek,mt7986a
+      const squeezed: string = ApiClient.findKnownChipInLine(line)
+      if (squeezed.length > 0) {
+        return squeezed
+      }
+    }
+    return ''
+  }
+
+  /** 在一行里定位已知厂商的段（处理 NUL 丢失造成的粘连） */
+  private static findKnownChipInLine(line: string): string {
+    const low: string = line.toLowerCase()
+    for (let i = 0; i < ApiClient.CHIP_VENDORS.length; i++) {
+      const vendor: string = ApiClient.CHIP_VENDORS[i]
+      const idx: number = low.indexOf(vendor + ',')
+      if (idx < 0) {
+        continue
+      }
+      const rest: string = low.substring(idx + vendor.length + 1)
+      const m: RegExpMatchArray | null = rest.match(/^[a-z0-9][a-z0-9_.+-]*/)
+      if (m === null || m.length === 0) {
+        continue
+      }
+      const chip: string = m[0]
+      if (!/[0-9]/.test(chip)) {
+        continue
+      }
+      return `${ApiClient.vendorName(vendor)} ${chip.toUpperCase()}`
+    }
+    return ''
+  }
+
+  /** compatible 段转可读型号：mediatek,mt7986a → MediaTek MT7986A；板卡厂商（clx,s20m）返回空 */
+  private static formatChipModel(pair: string): string {
+    const comma: number = pair.indexOf(',')
+    if (comma <= 0) {
+      return ''
+    }
+    const vendor: string = pair.substring(0, comma).trim().toLowerCase()
+    const chip: string = pair.substring(comma + 1).trim()
+    // 板卡厂商（clx,s20m 之类）不是处理器型号
+    if (chip.length === 0 || !ApiClient.isChipVendor(vendor)) {
+      return ''
+    }
+    if (!/[0-9]/.test(chip)) {
+      return ''
+    }
+    return `${ApiClient.vendorName(vendor)} ${chip.toUpperCase()}`
+  }
+
+  /** 芯片厂商名规范化 */
+  private static vendorName(v: string): string {
+    switch (v) {
+      case 'mediatek':
+        return 'MediaTek'
+      case 'rockchip':
+        return 'Rockchip'
+      case 'qcom':
+      case 'qualcomm':
+        return 'Qualcomm'
+      case 'broadcom':
+        return 'Broadcom'
+      case 'marvell':
+        return 'Marvell'
+      case 'allwinner':
+        return 'Allwinner'
+      case 'amlogic':
+        return 'Amlogic'
+      case 'hisilicon':
+        return 'HiSilicon'
+      case 'nvidia':
+        return 'NVIDIA'
+      case 'realtek':
+        return 'Realtek'
+      case 'intel':
+        return 'Intel'
+      case 'loongson':
+        return 'Loongson'
+      default:
+        return v.length > 0 ? v.charAt(0).toUpperCase() + v.substring(1) : ''
+    }
   }
 
   /**
@@ -3316,18 +3609,25 @@ export class ApiClient {
     const result = await this.request('cpu_info')
     if (result && result.data) {
       const data = result.data as Record<string, Object>
-      return Number(data['cpu_temp'] || data['temp'] || data['temperature'] || 0)
+      const temp: number = Number(data['cpu_temp'] || data['temp'] || data['temperature'] || 0)
+      if (temp > 0) {
+        return temp
+      }
     }
-    return 0
+    // 后端未提供时读 /sys/class/thermal 兜底
+    return await this.getThermalTemp()
   }
 
-  /** CPU 当前频率（MHz） */
+  /** CPU 当前频率（MHz）：后端未提供时读 sysfs（cpufreq）兜底 */
   async getCPUFreq(): Promise<number> {
     const result = await this.request('cpu_info')
     if (result && result.data) {
-      return Number((result.data as Record<string, Object>)['cpu_freq'] || 0)
+      const mhz: number = Number((result.data as Record<string, Object>)['cpu_freq'] || 0)
+      if (mhz > 0) {
+        return mhz
+      }
     }
-    return 0
+    return await this.getCpuFreqMhz()
   }
 
   /** 获取存储挂载点信息 */
