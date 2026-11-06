@@ -3,7 +3,7 @@ import {ThemePalette} from '../../common/theme/ThemeColors'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
-import { TrafficStatStore } from '../../common/store/TrafficStatStore'
+import { TrafficStatStore, DayTraffic } from '../../common/store/TrafficStatStore'
 import { WidgetDataStore } from '../../common/store/WidgetDataStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { promptAction } from '@kit.ArkUI'
@@ -36,6 +36,9 @@ export struct DashboardTab {
   @State festivalTag: string = ''
   @State mountPoints: MountPoint[] = []
   @State conntrack: ConntrackInfo = { current: 0, max: 0, percent: 0 }
+  // 今日累计流量（网络卡片展示）
+  @State todayRx: number = 0
+  @State todayTx: number = 0
   @State networkInterfaces: NetworkInterface[] = []
   @State boomShow: boolean = false     // 满速彩蛋显示
   @State boomTick: number = 0          // 彩蛋动画节拍
@@ -98,7 +101,11 @@ export struct DashboardTab {
     // 流量统计存储初始化
     const hostCtx = this.getUIContext().getHostContext()
     if (hostCtx) {
-      TrafficStatStore.getInstance().init(hostCtx as Context)
+      TrafficStatStore.getInstance().init(hostCtx as Context).then(() => {
+        const t: DayTraffic = TrafficStatStore.getInstance().getDays(1)[0]
+        this.todayRx = t.rx
+        this.todayTx = t.tx
+      }).catch(() => {})
       WidgetDataStore.init(hostCtx as Context)
     }
     // 前台感知：仅当本 Tab（首页 index 0）可见时轮询
@@ -374,6 +381,10 @@ export struct DashboardTab {
         }
       }
       this.lastWanBytes = bytes
+      // 同步今日累计流量到网络卡片
+      const today: DayTraffic = TrafficStatStore.getInstance().getDays(1)[0]
+      this.todayRx = today.rx
+      this.todayTx = today.tx
     } catch (e) {
       // 统计失败不影响主流程
     }
@@ -627,6 +638,45 @@ export struct DashboardTab {
   /** 运行时长文本 */
   uptimeText(): string {
     return this.systemInfo.uptime > 0 ? FormatUtils.formatUptime(this.systemInfo.uptime) : '--'
+  }
+
+  /** 页面渐变：薄玻璃模式交给 MainPage（带柔光斑），自身透明以透出背景 */
+  private pageBgColors(): Array<[ResourceColor, number]> {
+    if (AppState.getInstance().isGlass()) {
+      return [[Color.Transparent, 0], [Color.Transparent, 1]]
+    }
+    return this.theme.pageGradient
+  }
+
+  /** 卡片填充：经典=皮肤实色卡；薄玻璃=顶部更亮、底部更透的白色玻璃渐变 */
+  private cardFill(): Array<[ResourceColor, number]> {
+    if (!AppState.getInstance().isGlass()) {
+      return [[this.theme.bgCard, 0], [this.theme.bgCard, 1]]
+    }
+    // 玻璃：上半部偏亮、下半部略透，和背景形成明确层次
+    return [['rgba(255, 255, 255, 0.52)', 0], ['rgba(255, 255, 255, 0.38)', 0.5],
+      ['rgba(255, 255, 255, 0.28)', 1]]
+  }
+
+  /** 卡片模糊：玻璃模式加强，背景色块才会融合成材质 */
+  private cardBlur(base: number): number {
+    return AppState.getInstance().isGlass() ? base + 26 : base
+  }
+
+  /** 卡片描边：薄玻璃时顶部高光、底部渐隐，营造玻璃厚度感 */
+  private cardBorder(): BorderOptions {
+    if (!AppState.getInstance().isGlass()) {
+      return { width: 0.5, color: this.theme.borderGlass }
+    }
+    return {
+      width: { top: 1, right: 0.7, bottom: 0.7, left: 0.7 },
+      color: {
+        top: 'rgba(255, 255, 255, 1)',
+        right: 'rgba(255, 255, 255, 0.66)',
+        bottom: 'rgba(255, 255, 255, 0.44)',
+        left: 'rgba(255, 255, 255, 0.66)'
+      }
+    }
   }
 
   /** 版本文本：版本号（如有修订号则附带展示），缺省显示 -- */
@@ -1219,9 +1269,9 @@ export struct DashboardTab {
     .layoutWeight(1)
     .padding({ top: 14, bottom: 14 })
     .borderRadius(16)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .linearGradient({ angle: 160, colors: this.cardFill() })
+    .backdropBlur(this.cardBlur(20))
+    .border(this.cardBorder())
     .alignItems(HorizontalAlign.Center)
     .margin({ left: 3, right: 3 })
   }
@@ -1828,9 +1878,9 @@ export struct DashboardTab {
     .width('100%')
     .padding({ left: 17, right: 17, top: 15, bottom: 13 })
     .borderRadius(26)
-    .backgroundColor(this.theme.bgCard)
+    .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(28)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .border(this.cardBorder())
     .shadow(this.cardShadow())
     .alignItems(HorizontalAlign.Start)
     .margin({ top: 10 })
@@ -1934,9 +1984,9 @@ export struct DashboardTab {
     .width('100%')
     .padding(13)
     .borderRadius(21)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(22)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .linearGradient({ angle: 160, colors: this.cardFill() })
+    .backdropBlur(this.cardBlur(22))
+    .border(this.cardBorder())
     .shadow(this.cardShadow())
     .alignItems(HorizontalAlign.Start)
   }
@@ -1982,9 +2032,9 @@ export struct DashboardTab {
     .width('48%')
     .padding(13)
     .borderRadius(21)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(22)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .linearGradient({ angle: 160, colors: this.cardFill() })
+    .backdropBlur(this.cardBlur(22))
+    .border(this.cardBorder())
     .shadow(this.cardShadow())
     .alignItems(HorizontalAlign.Start)
   }
@@ -2065,13 +2115,47 @@ export struct DashboardTab {
       }
       .width('100%')
       .margin({ top: 4 })
+
+      // 今日累计流量
+      Row() {
+        Text('今日')
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+        Text(` ↓ ${FormatUtils.formatBytes(this.todayRx)}`)
+          .fontSize(8.5)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme.info)
+        Text(` ↑ ${FormatUtils.formatBytes(this.todayTx)}`)
+          .fontSize(8.5)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme.success)
+          .margin({ left: 6 })
+      }
+      .width('100%')
+      .margin({ top: 10 })
+
+      // WAN 地址
+      Row() {
+        Text('IP')
+          .fontSize(8.5)
+          .fontColor(this.theme.textTertiary)
+        Text(` ${this.wanStatus.ipAddress.length > 0 ? this.wanStatus.ipAddress : '--'}`)
+          .fontSize(8.5)
+          .fontColor(this.theme.textSecondary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .margin({ left: 2 })
+        Blank()
+      }
+      .width('100%')
+      .margin({ top: 3 })
     }
     .width('48%')
     .padding(13)
     .borderRadius(21)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(22)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .linearGradient({ angle: 160, colors: this.cardFill() })
+    .backdropBlur(this.cardBlur(22))
+    .border(this.cardBorder())
     .shadow(this.cardShadow())
     .alignItems(HorizontalAlign.Start)
   }
@@ -2092,13 +2176,14 @@ export struct DashboardTab {
       this.boardKv('版本', this.boardVersionText())
       this.boardKv('内核', this.systemInfo.kernel.length > 0 ? this.systemInfo.kernel : '--')
     }
-    .width('48%')
+    .width('100%')
     .padding(13)
     .borderRadius(21)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(22)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .linearGradient({ angle: 160, colors: this.cardFill() })
+    .backdropBlur(this.cardBlur(22))
+    .border(this.cardBorder())
     .shadow(this.cardShadow())
+    .margin({ top: 10 })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -2120,74 +2205,6 @@ export struct DashboardTab {
     .width('100%')
     .padding({ top: 3.5, bottom: 3.5 })
     .border({ width: { top: 0.3 }, color: this.theme.borderGlass })
-  }
-
-  /** 连接数 */
-  @Builder
-  connCard() {
-    Column() {
-      this.cardHead('link', '连接数', '', '')
-      Row() {
-        Text(`${this.conntrack.current}`)
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.theme.textPrimary)
-          .fontFamily('monospace')
-        Text('条')
-          .fontSize(10)
-          .fontColor(this.theme.textTertiary)
-          .margin({ left: 4, bottom: 3 })
-      }
-      .alignItems(VerticalAlign.Bottom)
-
-      Stack() {
-        Row()
-          .width('100%')
-          .height(4)
-          .borderRadius(2)
-          .backgroundColor(this.theme.progressTrack)
-        Row()
-          .width(`${Math.max(2, Math.min(100, this.conntrack.percent))}%`)
-          .height(4)
-          .borderRadius(2)
-          .linearGradient({ angle: 90, colors: [[this.theme.info, 0.0], [this.theme.primary, 1.0]] })
-      }
-      .width('100%')
-      .alignContent(Alignment.Start)
-      .margin({ top: 8 })
-
-      Row() {
-        Text(`上限 ${this.conntrack.max > 0 ? this.conntrack.max.toLocaleString() : '--'}`)
-          .fontSize(8.5)
-          .fontColor(this.theme.textTertiary)
-        Blank()
-        Text(`占用 ${this.conntrack.percent.toFixed(1)}%`)
-          .fontSize(8.5)
-          .fontColor(this.theme.textTertiary)
-      }
-      .width('100%')
-      .margin({ top: 5 })
-
-      Row() {
-        Text(`在线 ${this.onlineClientCount} 台`)
-          .fontSize(8.5)
-          .fontColor(this.theme.textTertiary)
-        Blank()
-        Text(`运行 ${this.uptimeShort()}`)
-          .fontSize(8.5)
-          .fontColor(this.theme.textTertiary)
-      }
-      .width('100%')
-      .margin({ top: 4 })
-    }
-    .width('48%')
-    .padding(13)
-    .borderRadius(21)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(22)
-    .border({ width: 0.5, color: this.theme.borderGlass })
-    .shadow(this.cardShadow())
-    .alignItems(HorizontalAlign.Start)
   }
 
   /** 磁盘使用（危险分区整行高亮） */
@@ -2261,9 +2278,9 @@ export struct DashboardTab {
     .width('100%')
     .padding(10)
     .borderRadius(21)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(22)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .linearGradient({ angle: 160, colors: this.cardFill() })
+    .backdropBlur(this.cardBlur(22))
+    .border(this.cardBorder())
     .shadow(this.cardShadow())
     .alignItems(HorizontalAlign.Start)
   }
@@ -2412,13 +2429,7 @@ export struct DashboardTab {
               .width('100%')
               .margin({ top: 10 })
 
-              Flex({ direction: FlexDirection.Row, justifyContent: FlexAlign.SpaceBetween,
-                alignItems: ItemAlign.Stretch }) {
-                this.boardCard()
-                this.connCard()
-              }
-              .width('100%')
-              .margin({ top: 10 })
+              this.boardCard()
 
               // ========== 磁盘使用 ==========
               this.sectionHead('磁盘使用', 'Storage', `${this.mountPoints.length} 个挂载点`)
@@ -2451,7 +2462,7 @@ export struct DashboardTab {
     .height('100%')
     .linearGradient({
       angle: 135,
-      colors: this.theme.pageGradient
+      colors: this.pageBgColors()
     })
   }
 

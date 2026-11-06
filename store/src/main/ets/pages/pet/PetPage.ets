@@ -586,6 +586,8 @@ export struct PetView {
 /** 独立路由页（应用中心进入，也可作为组件挂到宽屏应用面板） */
 @Component
 export struct PetPage {
+  /** 嵌入分栏时透明背景，与其它栏共用同一块底 */
+  @Prop embedded: boolean = false
   @State theme: ThemePalette = AppState.getInstance().getTheme()
   @State topSafeArea: number = 44
 
@@ -617,6 +619,11 @@ export struct PetPage {
         .layoutWeight(1)
     }
     .width('100%').height('100%')
-    .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+    .linearGradient({
+      angle: 135,
+      colors: this.embedded && AppState.getInstance().isGlass()
+        ? [[Color.Transparent, 0], [Color.Transparent, 1]]
+        : this.theme.pageGradient
+    })
   }
 }

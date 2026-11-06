@@ -42,6 +42,8 @@ struct AppsPageRoute {
 
 @Component
 export struct AppsPage {
+  /** 嵌入分栏时透明背景，与其它栏共用同一块底 */
+  @Prop embedded: boolean = false
   @State theme: ThemePalette = LIGHT_THEME
   @State itemSlides: number[] = []
   @State deviceName: string = '未连接设备'
@@ -419,13 +421,21 @@ this.theme = AppState.getInstance().getTheme()
     .onClick(() => this.handleClick(tool))
   }
 
+  /** 嵌入分栏 + 薄玻璃时透明，让 MainPage 的统一背景透出 */
+  private pageGradientColors(): Array<[ResourceColor, number]> {
+    if (this.embedded && AppState.getInstance().isGlass()) {
+      return [[Color.Transparent, 0], [Color.Transparent, 1]]
+    }
+    return this.theme.pageGradient
+  }
+
   build() {
     Stack() {
       Column()
         .width('100%').height('100%')
         .linearGradient({
           angle: 135,
-          colors: this.theme.pageGradient
+          colors: this.pageGradientColors()
         })
 
       Column() {

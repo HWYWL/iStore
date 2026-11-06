@@ -93,6 +93,88 @@ export const LIGHT_THEME: ThemePalette = {
 }
 
 /**
+ * UI 风格定义：与皮肤正交，只改变材质语言（实色 / 薄玻璃）
+ */
+export interface UiStyleDef {
+  id: string
+  name: string
+  desc: string
+}
+
+export const UI_STYLES: UiStyleDef[] = [
+  { id: 'classic', name: '经典', desc: '实色卡片 · 柔和投影' },
+  { id: 'glass', name: '薄玻璃', desc: '系统薄材质 · 通透轻盈' }
+]
+
+/**
+ * 十六进制颜色按比例混合（t 为 hexB 的占比），返回 rgba 字符串。
+ * alpha < 1 时渐变可透出下层统一的柔光背景，让多栏共享同一块底。
+ */
+function mixColor(hexA: string, hexB: string, t: number, alpha: number = 1): string {
+  const a: string = hexA.replace('#', '')
+  const b: string = hexB.replace('#', '')
+  if (a.length !== 6 || b.length !== 6) {
+    return hexA
+  }
+  const ar: number = parseInt(a.substring(0, 2), 16)
+  const ag: number = parseInt(a.substring(2, 4), 16)
+  const ab: number = parseInt(a.substring(4, 6), 16)
+  const br: number = parseInt(b.substring(0, 2), 16)
+  const bg: number = parseInt(b.substring(2, 4), 16)
+  const bb: number = parseInt(b.substring(4, 6), 16)
+  const r: number = Math.round(ar + (br - ar) * t)
+  const g: number = Math.round(ag + (bg - ag) * t)
+  const bl: number = Math.round(ab + (bb - ab) * t)
+  return `rgba(${r}, ${g}, ${bl}, ${alpha})`
+}
+
+/**
+ * 把当前皮肤调色板转换为「原生薄玻璃」版本：
+ * 卡片改为半透明白、描边提亮、投影收敛，配合 backdropBlur 呈现薄玻璃质感。
+ */
+export function toGlassTheme(base: ThemePalette): ThemePalette {
+  return {
+    primary: base.primary,
+    primaryDark: base.primaryDark,
+    secondary: base.secondary,
+    accent: base.accent,
+    success: base.success,
+    warning: base.warning,
+    danger: base.danger,
+    info: base.info,
+
+    bgDark: 'rgba(255, 255, 255, 0.30)',
+    bgCard: 'rgba(255, 255, 255, 0.42)',
+    bgCardHover: 'rgba(255, 255, 255, 0.56)',
+    bgGlass: 'rgba(255, 255, 255, 0.34)',
+    bgGlassLight: 'rgba(255, 255, 255, 0.26)',
+    bgCardSolid: 'rgba(255, 255, 255, 0.88)',
+
+    textPrimary: base.textPrimary,
+    textSecondary: base.textSecondary,
+    textTertiary: base.textTertiary,
+    textAccent: base.textAccent,
+
+    borderGlass: 'rgba(255, 255, 255, 0.70)',
+    borderGlassFocus: 'rgba(255, 255, 255, 0.90)',
+
+    cardShadow: 'rgba(40, 50, 70, 0.12)',
+    cardShadowRadius: 10,
+
+    progressTrack: 'rgba(255, 255, 255, 0.38)',
+    chartColors: base.chartColors,
+    accentSoft: base.accentSoft,
+    // 全应用通用背景：低对比 + 半透明，多栏/多页面叠在同一层柔光上，颜色不会割裂
+    pageGradient: [
+      [mixColor(base.bgDark, base.primary, 0.07, 0.60), 0],
+      [mixColor(base.bgDark, '#FFFFFF', 0.55, 0.60), 0.38],
+      [mixColor(base.bgDark, base.info, 0.06, 0.60), 0.68],
+      [mixColor(base.bgDark, base.secondary, 0.07, 0.60), 1]
+    ]
+  }
+}
+
+/**
  * 皮肤注册表：每套皮肤的元数据 + 调色板
  * id 用于持久化，后续新增皮肤只需在此追加一个条目。
  */

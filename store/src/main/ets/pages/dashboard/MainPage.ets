@@ -161,6 +161,35 @@ struct MainPage {
     hilog.info(0x0001, 'MainPage', `navBar=${safe}vp, bottomInset=${safe + 16}`)
   }
 
+  /** 十六进制颜色 + 透明度 → rgba 字符串（背景柔光用） */
+  private tint(hex: string, alpha: number): string {
+    const h: string = hex.replace('#', '')
+    if (h.length !== 6) {
+      return hex
+    }
+    const r: number = parseInt(h.substring(0, 2), 16)
+    const g: number = parseInt(h.substring(2, 4), 16)
+    const b: number = parseInt(h.substring(4, 6), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+
+  /** 根背景：薄玻璃用皮肤原始不透明底色承载柔光，避免叠在窗口白底上发灰 */
+  private rootBgColors(): Array<[ResourceColor, number]> {
+    if (AppState.getInstance().isGlass()) {
+      const base: string = AppState.getInstance().getSkin().theme.bgDark
+      return [[base, 0], [base, 1]]
+    }
+    return this.theme.pageGradient
+  }
+
+  /** 分栏容器背景：薄玻璃时透明，透出 MainPage 的统一底色，三栏不再割裂 */
+  private paneBgColors(): Array<[ResourceColor, number]> {
+    if (AppState.getInstance().isGlass()) {
+      return [[Color.Transparent, 0], [Color.Transparent, 1]]
+    }
+    return this.theme.pageGradient
+  }
+
   /** 同步右栏状态（空栈 / 最近访问列表） */
   private syncPanelState(): void {
     this.panelEmpty = AppNav.getInstance().isPanelEmpty()
@@ -214,8 +243,57 @@ struct MainPage {
         .height('100%')
         .linearGradient({
           angle: 135,
-          colors: this.theme.pageGradient
+          colors: this.rootBgColors()
         })
+
+      // 薄玻璃风格：径向渐变柔光（边缘自然过渡到透明，没有硬边）
+      if (AppState.getInstance().isGlass()) {
+        Stack() {
+          Column()
+            .width(620)
+            .height(620)
+            .radialGradient({
+              center: ['50%', '50%'],
+              radius: 310,
+              colors: [[this.tint(this.theme.primary, 0.46), 0], [this.tint(this.theme.primary, 0.22), 0.42],
+                [this.tint(this.theme.primary, 0), 1]]
+            })
+            .position({ x: -150, y: -140 })
+          Column()
+            .width(580)
+            .height(580)
+            .radialGradient({
+              center: ['50%', '50%'],
+              radius: 290,
+              colors: [[this.tint(this.theme.info, 0.40), 0], [this.tint(this.theme.info, 0.18), 0.45],
+                [this.tint(this.theme.info, 0), 1]]
+            })
+            .position({ x: 160, y: 120 })
+          Column()
+            .width(660)
+            .height(660)
+            .radialGradient({
+              center: ['50%', '50%'],
+              radius: 330,
+              colors: [[this.tint(this.theme.secondary, 0.34), 0], [this.tint(this.theme.secondary, 0.15), 0.45],
+                [this.tint(this.theme.secondary, 0), 1]]
+            })
+            .position({ x: -120, y: 520 })
+          Column()
+            .width(460)
+            .height(460)
+            .radialGradient({
+              center: ['50%', '50%'],
+              radius: 230,
+              colors: [[this.tint(this.theme.success, 0.28), 0], [this.tint(this.theme.success, 0.12), 0.45],
+                [this.tint(this.theme.success, 0), 1]]
+            })
+            .position({ x: 190, y: 800 })
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.Transparent)
+      }
 
       Row() {
         // ===== 左栏：首页 =====
@@ -238,7 +316,7 @@ struct MainPage {
         if (this.isThreeColumn) {
           // ===== 中栏：应用中心 =====
           Column() {
-            AppsPage()
+            AppsPage({ embedded: true })
               .width('100%')
               .height('100%')
           }
@@ -283,7 +361,7 @@ struct MainPage {
         Column()
           .width('100%')
           .height('100%')
-          .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+          .linearGradient({ angle: 135, colors: this.paneBgColors() })
       }
       .hideTitleBar(true)
       .mode(NavigationMode.Stack)
@@ -298,7 +376,7 @@ struct MainPage {
   @Builder
   MainPane() {
     Navigation(this.panelStack) {
-      AppsPage()
+      AppsPage({ embedded: true })
     }
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
@@ -344,7 +422,7 @@ struct MainPage {
     .padding({ left: 24, right: 24, top: 48 })
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
-    .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+    .linearGradient({ angle: 135, colors: this.paneBgColors() })
   }
 
   /** 应用面板内的 NavDestination 分发：按路径渲染对应功能页组件 */

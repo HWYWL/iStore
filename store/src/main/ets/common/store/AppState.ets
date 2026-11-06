@@ -17,7 +17,7 @@ import { ApiService } from '../../api/ApiService'
 import { ConnectionConfig } from '../../models/Models'
 import { DeviceStore, SavedDevice } from './DeviceStore'
 import { SshService } from '../ssh/SshService'
-import { LIGHT_THEME, ThemePalette, SKINS, SkinDef, getSkinById } from '../theme/ThemeColors'
+import { LIGHT_THEME, ThemePalette, SKINS, SkinDef, getSkinById, toGlassTheme } from '../theme/ThemeColors'
 import { DEFAULT_ICON_PACK, getIconPackById, IconPackDef } from '../theme/IconPack'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
@@ -41,6 +41,8 @@ export class AppState {
   // ========== 内部状态 ==========
   private connected: boolean = false   // 当前是否已连接
   private lastError: string = ''       // 最后一次错误信息
+  // UI 风格：classic（经典实色）/ glass（原生薄玻璃），默认薄玻璃
+  private currentUiStyle: string = 'glass'
 
   // ========== 持久化依赖 ==========
   private settingsPrefs: preferences.Preferences | null = null  // 应用设置存储
@@ -86,6 +88,11 @@ export class AppState {
       if (validPack) {
         this.currentIconPackId = savedIconPack
       }
+      // 恢复上次 UI 风格（首次安装默认薄玻璃）
+      const savedUiStyle: string = this.settingsPrefs.getSync('uiStyle', 'glass') as string
+      if (savedUiStyle === 'classic' || savedUiStyle === 'glass') {
+        this.currentUiStyle = savedUiStyle
+      }
     } catch (e) {
       hilog.error(DOMAIN, TAG, `Settings pref init failed: ${JSON.stringify(e)}`)
     }
@@ -94,6 +101,8 @@ export class AppState {
     AppStorage.setOrCreate('iconPackId', this.currentIconPackId)
     // 皮肤 id 同步到 AppStorage，AppIcon 据此判断是否使用暗色图标素材
     AppStorage.setOrCreate('skinId', this.currentSkinId)
+    // UI 风格同步到 AppStorage，供组件按需加强模糊
+    AppStorage.setOrCreate('uiStyle', this.currentUiStyle)
 
     // 从持久化存储加载设备列表
     await this.loadDevices()
@@ -288,7 +297,39 @@ export class AppState {
    * 获取当前主题调色板（跟随当前皮肤）
    */
   getTheme(): ThemePalette {
-    return this.getSkin().theme
+    const base: ThemePalette = this.getSkin().theme
+    return this.currentUiStyle === 'glass' ? toGlassTheme(base) : base
+  }
+
+  /** 当前 UI 风格 id：classic / glass */
+  getUiStyle(): string {
+    return this.currentUiStyle
+  }
+
+  /** 是否为薄玻璃风格 */
+  isGlass(): boolean {
+    return this.currentUiStyle === 'glass'
+  }
+
+  /** 切换 UI 风格（与皮肤独立），持久化并通知全应用刷新 */
+  setUiStyle(id: string): void {
+    const next: string = id === 'glass' ? 'glass' : 'classic'
+    if (next === this.currentUiStyle) {
+      return
+    }
+    this.currentUiStyle = next
+    AppStorage.setOrCreate('uiStyle', next)
+    try {
+      if (this.settingsPrefs) {
+        this.settingsPrefs.putSync('uiStyle', next)
+        this.settingsPrefs.flush()
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `save uiStyle err: ${JSON.stringify(e)}`)
+    }
+    for (const l of this.themeListeners) {
+      try { l() } catch (_e) {}
+    }
   }
 
   /**

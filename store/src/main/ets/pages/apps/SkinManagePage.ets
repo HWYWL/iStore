@@ -3,7 +3,7 @@
  * 展示所有可用皮肤（SKINS 注册表），点击切换，全应用即时生效并持久化
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette, SKINS, SkinDef } from '../../common/theme/ThemeColors'
+import { LIGHT_THEME, ThemePalette, SKINS, SkinDef, UI_STYLES, UiStyleDef } from '../../common/theme/ThemeColors'
 import { ICON_PACKS, IconPackDef } from '../../common/theme/IconPack'
 import { promptAction, window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
@@ -28,19 +28,23 @@ export struct SkinManagePage {
   @State topSafeArea: number = 44
   @State currentSkinId: string = 'white'
   @State currentIconPackId: string = 'color'
+  @State currentUiStyle: string = 'classic'
+
+  private themeListener: () => void = () => {
+    this.theme = AppState.getInstance().getTheme()
+  }
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
     this.currentSkinId = AppState.getInstance().getSkin().id
     this.currentIconPackId = AppState.getInstance().getIconPack().id
+    this.currentUiStyle = AppState.getInstance().getUiStyle()
     this.loadTopSafeArea()
-    AppState.getInstance().onThemeChange(() => {
-      this.theme = AppState.getInstance().getTheme()
-    })
+    AppState.getInstance().onThemeChange(this.themeListener)
   }
 
   aboutToDisappear(): void {
-    AppState.getInstance().offThemeChange(() => {})
+    AppState.getInstance().offThemeChange(this.themeListener)
   }
 
   loadTopSafeArea(): void {
@@ -84,6 +88,87 @@ export struct SkinManagePage {
     try {
       this.getUIContext().getPromptAction().showToast({ message: `图标已切换为「${pack.name}」`, duration: 1200 })
     } catch (e) {}
+  }
+
+  /** 切换 UI 风格（经典 / 薄玻璃） */
+  applyUiStyle(style: UiStyleDef): void {
+    if (style.id === this.currentUiStyle) return
+    this.currentUiStyle = style.id
+    AppState.getInstance().setUiStyle(style.id)
+    this.theme = AppState.getInstance().getTheme()
+    try {
+      vibrator.startVibration({ type: 'time', duration: 25 }, { id: 0, usage: 'alarm' }).catch(() => {})
+    } catch (e) {}
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: `已切换为「${style.name}」UI 风格`, duration: 1200 })
+    } catch (e) {}
+  }
+
+  /** UI 风格卡片（材质预览 + 名称） */
+  @Builder
+  uiStyleCard(style: UiStyleDef, idx: number) {
+    Column() {
+      // 材质预览
+      Row({ space: 6 }) {
+        Column()
+          .width(34)
+          .height(30)
+          .borderRadius(8)
+          .backgroundColor(this.theme.primary)
+        Column()
+          .layoutWeight(1)
+          .height(30)
+          .borderRadius(8)
+          .backgroundColor(style.id === 'glass' ? 'rgba(255, 255, 255, 0.55)' : this.theme.bgCardSolid)
+          .border({
+            width: style.id === 'glass' ? 0.8 : 0.5,
+            color: style.id === 'glass' ? 'rgba(255, 255, 255, 0.9)' : this.theme.borderGlass
+          })
+          .backgroundBlurStyle(style.id === 'glass' ? BlurStyle.COMPONENT_THIN : BlurStyle.NONE)
+      }
+      .width('100%')
+      .padding(10)
+      .borderRadius(12)
+      .backgroundColor(style.id === 'glass' ? 'rgba(255, 255, 255, 0.26)' : this.theme.bgGlassLight)
+
+      Row() {
+        Column() {
+          Text(style.name)
+            .fontSize(14)
+            .fontColor(this.theme.textPrimary)
+            .fontWeight(FontWeight.Medium)
+          Text(style.desc)
+            .fontSize(10)
+            .fontColor(this.theme.textTertiary)
+            .margin({ top: 2 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        if (style.id === this.currentUiStyle) {
+          Row() {
+            AppIcon({ name: 'checkmark_circle', iconSize: 12, colors: [Color.White] })
+            Text(' 使用中').fontSize(11).fontColor(Color.White)
+          }
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          .borderRadius(12)
+          .backgroundColor(this.theme.primary)
+        }
+      }
+      .width('100%')
+      .padding({ top: 10 })
+    }
+    .layoutWeight(1)
+    .padding(12)
+    .borderRadius(20)
+    .backgroundColor(this.theme.bgCard)
+    .backdropBlur(this.currentUiStyle === 'glass' ? 24 : 0)
+    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+    .border({
+      width: style.id === this.currentUiStyle ? 1.5 : 0.5,
+      color: style.id === this.currentUiStyle ? this.theme.primary : this.theme.borderGlass
+    })
+    .onClick(() => { this.applyUiStyle(style) })
   }
 
   /** 图标包预览卡片（与皮肤卡片同版式） */
@@ -276,6 +361,24 @@ export struct SkinManagePage {
       // 皮肤网格
       Scroll() {
         Column() {
+          // UI 风格（与皮肤正交）
+          Row() {
+            Text('UI 风格')
+              .fontSize(13)
+              .fontColor(this.theme.textSecondary)
+              .fontWeight(FontWeight.Medium)
+            Blank()
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16, top: 8, bottom: 6 })
+
+          Row({ space: 12 }) {
+            this.uiStyleCard(UI_STYLES[0], 0)
+            this.uiStyleCard(UI_STYLES[1], 1)
+          }
+          .width('100%')
+          .padding({ left: 14, right: 14, bottom: 6 })
+
           Row() {
             Text('选择皮肤')
               .fontSize(13)

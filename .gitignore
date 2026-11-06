@@ -13,6 +13,7 @@
 /.codegenie
 /build_debug.log
 /.workbuddy
+/.codebuddy
 /.hvigor_bak
 /.hvigor_cli
 /.hvigor_old

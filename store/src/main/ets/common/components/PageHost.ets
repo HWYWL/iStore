@@ -156,7 +156,7 @@ export struct PageHost {
       } else if (this.url === 'pages/apps/WolPage') {
         WolPage()
       } else if (this.url === 'pages/pet/PetPage') {
-        PetPage()
+        PetPage({ embedded: true })
       } else if (this.url === 'pages/process/ProcessListPage') {
         ProcessListPage()
       } else if (this.url === 'pages/process/StartupPage') {
