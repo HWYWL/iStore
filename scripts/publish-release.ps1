@@ -75,15 +75,13 @@ foreach ($a in @($release.assets)) {
   }
 }
 
-# GitHub blocks the .app extension, so pack the bundle into a zip first.
+# GitHub rejects the .app extension, so keep the raw bundle and drop the suffix.
 $uploadPath = (Resolve-Path $AssetPath).Path
 if ([System.IO.Path]::GetExtension($uploadPath).ToLowerInvariant() -eq '.app') {
-  if (-not $AssetName.ToLowerInvariant().EndsWith('.zip')) { $AssetName = $AssetName + '.zip' }
-  $zipPath = Join-Path (Split-Path $uploadPath) $AssetName
-  if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-  Compress-Archive -Path $uploadPath -DestinationPath $zipPath -CompressionLevel Optimal
-  $uploadPath = $zipPath
-  Write-Host "Packed bundle into $AssetName (.app assets are rejected by GitHub)"
+  if ($AssetName.ToLowerInvariant().EndsWith('.app')) {
+    $AssetName = $AssetName.Substring(0, $AssetName.Length - 4)
+  }
+  Write-Host "GitHub rejects the .app extension; uploading as $AssetName (rename after download)"
 }
 
 $bytes = [System.IO.File]::ReadAllBytes($uploadPath)
