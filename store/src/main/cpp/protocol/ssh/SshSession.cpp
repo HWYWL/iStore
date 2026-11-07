@@ -758,6 +758,11 @@ bool SshSession::disconnect() {
 }
 
 std::string SshSession::execCommand(const std::string& command, int timeoutMs) {
+    // libssh2 不是线程安全的：execCommand 在 NAPI 异步线程池里跑，同时 receiveData 线程
+    // 也在读同一个 session。并发会让 transport 内部缓冲状态错乱，触发
+    // "Assertion failed: remainbuf >= 0 (transport.c)" 或 channel_free 时 _libssh2_list_remove 野指针。
+    // 因此这里与 receiveData/disconnect/SFTP 一样，全程持有 libssh2Mutex 串行化。
+    std::lock_guard<std::recursive_mutex> libssh2Guard(libssh2Mutex);
     // Xshell 同款：纯阻塞同步模式（session 默认阻塞，channel_open/exec/read 都阻塞等待结果）
     OH_LOG_INFO(LOG_APP, "execCommand: entering, cmd len=%zu", command.length());
     if (!session) {

@@ -36,6 +36,9 @@ const READ_TIMEOUT_LONG_MS = 15000
 /** 只读请求传输失败后的重试退避 */
 const RETRY_BACKOFF_MS = 250
 
+/** iStore 官方应用目录接口（与 iStore 前端 store/list 同源，返回各应用最新版本） */
+const ISTORE_CATALOG_URL = 'https://istore.istoreos.com/api/store/list'
+
 /** ubus 未登录时使用的空会话 ID */
 const NULL_SESSION = '00000000000000000000000000000000'
 
@@ -804,6 +807,20 @@ export class ApiClient {
       req.destroy()
       hilog.error(DOMAIN, TAG, `luciFormLogin error: ${e}`)
       return false
+    }
+  }
+
+  /**
+   * 供 WebView 复用：执行（或复用）LuCI 表单登录，返回 sysauth Cookie 片段
+   * 失败返回空串，调用方自行兜底
+   */
+  async luciLoginCookie(): Promise<string> {
+    try {
+      const ok: boolean = await this.ensureLuciCookie(false)
+      return ok ? this.luciCookie : ''
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `luciLoginCookie err: ${e}`)
+      return ''
     }
   }
 
@@ -2952,6 +2969,7 @@ export class ApiClient {
             item['name'] = name
             item['title'] = ApiUtils.strOf(a, 'title') || ApiUtils.strOf(a, 'title_en')
             item['version'] = ApiUtils.strOf(a, 'version')
+            item['release'] = ApiUtils.numOf(a, 'release', 0)
             item['icon'] = `/luci-static/resources/app-icons/${name}.png`
             item['link'] = ApiUtils.strOf(a, 'entry')
             // 分类：兼容多种字段名（iStoreOS 不同版本返回不同）
@@ -2966,6 +2984,40 @@ export class ApiClient {
       }
     }
     return list as Object
+  }
+
+  /**
+   * iStore 官方应用目录（远程接口，返回每个应用的最新 version/release）
+   * 与 iStore 前端 store/list 同一个接口，失败返回空数组
+   */
+  async getIStoreCatalog(): Promise<Object[]> {
+    const req: http.HttpRequest = http.createHttp()
+    try {
+      const r: http.HttpResponse = await req.request(ISTORE_CATALOG_URL, {
+        method: http.RequestMethod.POST,
+        header: { 'Content-Type': 'application/json' },
+        extraData: '{"deviceId":"","arch":"","ver":"","feature":""}',
+        connectTimeout: CONNECT_TIMEOUT_MS,
+        readTimeout: READ_TIMEOUT_LONG_MS
+      })
+      const code: number = r.responseCode
+      const text: string = String(r.result)
+      req.destroy()
+      if (code !== 200) {
+        return []
+      }
+      const parsed = JSON.parse(text) as Record<string, Object>
+      const result = parsed['result'] as Record<string, Object>
+      if (!result) {
+        return []
+      }
+      const apps = result['apps']
+      return Array.isArray(apps) ? apps as Object[] : []
+    } catch (e) {
+      req.destroy()
+      hilog.warn(DOMAIN, TAG, `getIStoreCatalog err: ${e}`)
+    }
+    return []
   }
 
   /** dockerman 容器行数据 */

@@ -356,6 +356,7 @@ export interface IStoreApp {
   link: string
   iconBase64: string
   category: string   // 应用分类（无分类时为空）
+  hasUpdate: boolean // 软件源里有更新版本
 }
 
 export interface DockerOverview {

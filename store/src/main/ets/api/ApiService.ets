@@ -49,6 +49,13 @@ type AppFilterMode = 'auto' | 'manual'
 class EmptyRecord {
 }
 
+/** iStore 应用仓库元数据（最新版本） */
+class StoreAppMeta {
+  version: string = ''
+  release: number = 0
+  stamp: number = 0
+}
+
 /** 安全读取工具 — 委托给 @pura/harmony-utils 的 ObjectUtil */
 class ObjectHelper {
   static getString(obj: Object, key: string, def: string): string {
@@ -139,6 +146,9 @@ export class ApiService {
   private static bridgePortCache: Map<string, string> = new Map()
   private static bridgePortStamp: number = 0
   private static readonly BRIDGE_TTL_MS: number = 30000
+  // iStore 官方目录缓存（应用名 → 最新版本），避免每次刷新都拉一遍目录
+  private static catalogCache: Map<string, StoreAppMeta> = new Map()
+  private static catalogTime: number = 0
 
   constructor() {
     this.client = ApiClient.getInstance()
@@ -152,6 +162,8 @@ export class ApiService {
     ApiService.cacheStamp = 0
     ApiService.bridgePortCache = new Map()
     ApiService.bridgePortStamp = 0
+    ApiService.catalogCache = new Map()
+    ApiService.catalogTime = 0
   }
 
   /** 清掉网桥转发表缓存，下次读取重新执行命令（用户点刷新时调用） */
@@ -1681,17 +1693,26 @@ export class ApiService {
     try {
       const result = await this.client.getIStoreApps()
       const apps = result.length > 0 ? result[0] as Object[] : []
+      const catalog: Map<string, StoreAppMeta> = await this.fetchCatalog()
       const list: IStoreApp[] = []
       for (let i = 0; i < apps.length; i++) {
         const a = apps[i]
+        const nm: string = ObjectHelper.getString(a, 'name', '')
+        const ver: string = ObjectHelper.getString(a, 'version', '')
+        const rel: number = ObjectHelper.getNumber(a, 'release', 0)
+        // 与 iStore 前端完全一致：最新版本号/发布号与本地任一不相等，就认为有更新
+        const latest: StoreAppMeta | undefined = catalog.get(nm)
+        const up: boolean = latest !== undefined &&
+          (latest.version !== ver || String(latest.release) !== String(rel))
         list.push({
-          name: ObjectHelper.getString(a, 'name', ''),
+          name: nm,
           title: ObjectHelper.getString(a, 'title', ''),
-          version: ObjectHelper.getString(a, 'version', ''),
+          version: ver,
           icon: ObjectHelper.getString(a, 'icon', ''),
           link: ObjectHelper.getString(a, 'link', ''),
           iconBase64: '',
-          category: ObjectHelper.getString(a, 'category', '')
+          category: ObjectHelper.getString(a, 'category', ''),
+          hasUpdate: up
         })
       }
       return list
@@ -1701,9 +1722,45 @@ export class ApiService {
     return []
   }
 
+  /** iStore 官方目录（应用名 → 最新版本），10 分钟缓存；拉取失败返回空表 */
+  private async fetchCatalog(): Promise<Map<string, StoreAppMeta>> {
+    const now: number = Date.now()
+    if (ApiService.catalogTime > 0 && now - ApiService.catalogTime < 600000) {
+      return ApiService.catalogCache
+    }
+    const map: Map<string, StoreAppMeta> = new Map()
+    try {
+      const apps: Object[] = await this.client.getIStoreCatalog()
+      for (let i = 0; i < apps.length; i++) {
+        const a = apps[i]
+        const nm: string = ObjectHelper.getString(a, 'name', '')
+        if (nm.length === 0) {
+          continue
+        }
+        const m: StoreAppMeta = new StoreAppMeta()
+        m.version = ObjectHelper.getString(a, 'version', '')
+        m.release = ObjectHelper.getNumber(a, 'release', 0)
+        m.stamp = now
+        map.set(nm, m)
+      }
+      if (map.size > 0) {
+        ApiService.catalogCache = map
+        ApiService.catalogTime = now
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, `fetchCatalog err: ${String(e)}`)
+    }
+    return map
+  }
+
   /** 当前设备 API 基础 URL（协议://主机:端口），用于拼 LuCI 静态资源地址 */
   getBaseUrl(): string {
     return this.client.baseUrl
+  }
+
+  /** 供 WebView 复用：LuCI 登录 Cookie（失败返回空串） */
+  async luciLoginCookie(): Promise<string> {
+    return this.client.luciLoginCookie()
   }
 
   async fetchDockerOverview(): Promise<DockerOverview> {

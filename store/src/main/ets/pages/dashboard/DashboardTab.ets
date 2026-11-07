@@ -76,8 +76,8 @@ export struct DashboardTab {
   @State netHistory: number[] = []
   private netChartCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private netMiniCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
-  // 实时速率卡片：「设备旋转」视图（≒ 切换）
-  @State orbitMode: boolean = false
+  // 实时速率卡片：「设备旋转」视图（≒ 切换），默认开启
+  @State orbitMode: boolean = true
   private orbitCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private orbitTimer: number = -1
   private orbitTick: number = 0
@@ -86,8 +86,9 @@ export struct DashboardTab {
 
   aboutToAppear(): void {
     // 恢复「设备旋转」视图开关：持久化到本地，退出重进 / 重启应用后保持上次选择
-    PersistentStorage.persistProp('dashboardOrbitMode', false)
-    const savedOrbit: boolean = AppStorage.get<boolean>('dashboardOrbitMode') ?? false
+    // 默认使用设备旋转视图（首次安装即为此视图，用户手动切到折线后仍会被记住）
+    PersistentStorage.persistProp('dashboardOrbitModeV2', true)
+    const savedOrbit: boolean = AppStorage.get<boolean>('dashboardOrbitModeV2') ?? true
     this.orbitMode = savedOrbit
     if (savedOrbit) {
       this.startOrbit()
@@ -791,7 +792,7 @@ export struct DashboardTab {
   private toggleOrbit(): void {
     this.orbitMode = !this.orbitMode
     // 记忆选择，下次进入直接是上次的视图
-    AppStorage.setOrCreate('dashboardOrbitMode', this.orbitMode)
+    AppStorage.setOrCreate('dashboardOrbitModeV2', this.orbitMode)
     if (this.orbitMode) {
       this.orbitTick = 0
       this.startOrbit()
@@ -1886,11 +1887,18 @@ export struct DashboardTab {
     .margin({ top: 10 })
   }
 
-  /** 快捷操作项（一行 5 个） */
+  /** 快捷操作项（一行 5 个）：去掉彩色底板，改为细边框 + 线条图标 */
   @Builder
   shortcutItem(name: string, route: string, icon: string) {
     Column() {
-      AppIcon({ name: icon, iconSize: 42 })
+      Row() {
+        AppIcon({ name: icon, iconSize: 22, forcePack: 'line', colors: [this.theme.textSecondary] })
+      }
+      .width(46)
+      .height(46)
+      .borderRadius(15)
+      .justifyContent(FlexAlign.Center)
+      .border({ width: 0.5, color: this.theme.borderGlass })
       Text(name)
         .fontSize(10.5)
         .fontColor(this.theme.textSecondary)
@@ -2401,7 +2409,7 @@ export struct DashboardTab {
               Row() {
                 this.shortcutItem('文件', 'pages/apps/FileManagerPage', 'folder')
                 this.shortcutItem('网络助手', 'pages/apps/NetworkHelperPage', 'AI_help_write')
-                this.shortcutItem('Docker', 'pages/apps/DockerPage', 'square_stack_3d')
+                this.shortcutItem('Docker', 'pages/apps/DockerPage', 'docker')
                 this.shortcutItem('SSH', 'pages/apps/SshTerminalPage', 'code_square')
                 this.shortcutItem('应用中心', 'apps:', 'square_grid_2x2')
               }

@@ -90,12 +90,27 @@ export struct IStoreTabView {
     if (!app.link) return
     const device = AppState.getInstance().getActiveDevice()
     if (!device) return
-    const base = `http://${device.host}:${device.port}`
+    // 用 ApiService 的 baseUrl，端口为空时不会拼出 http://host: 这种畸形地址，也跟随 https 配置
+    const base: string = this.api.getBaseUrl()
     const url = app.link.startsWith('http') ? app.link : `${base}${app.link}`
     try {
       this.getUIContext().getRouter().pushUrl({
         url: 'pages/apps/WebViewPage',
         params: { url: url }
+      })
+    } catch (e) {
+      hilog.error(0x0001, 'IStoreTab', `pushUrl failed: ${e}`)
+    }
+  }
+
+  /** 打开 iStore 管理页（SPA 默认就停在「已安装」页签） */
+  openStoreInstalled(): void {
+    const base: string = this.api.getBaseUrl()
+    if (!base) return
+    try {
+      this.getUIContext().getRouter().pushUrl({
+        url: 'pages/apps/WebViewPage',
+        params: { url: `${base}/cgi-bin/luci/admin/store/` }
       })
     } catch (e) {
       hilog.error(0x0001, 'IStoreTab', `pushUrl failed: ${e}`)
@@ -124,9 +139,23 @@ export struct IStoreTabView {
         Text(app.title || app.name)
           .fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(app.version ? `v${app.version}` : '')
-          .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 2 })
-          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+        Row() {
+          Text(app.version ? `v${app.version}` : '')
+            .fontSize(10).fontColor(this.theme.textTertiary)
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          // 源里有更新版本：给个显眼提示，进商店即可升级
+          if (app.hasUpdate) {
+            Text('有新版')
+              .fontSize(8)
+              .fontColor('#FF8A3D')
+              .padding({ left: 5, right: 5, top: 1, bottom: 1 })
+              .borderRadius(4)
+              .backgroundColor('rgba(255,138,61,0.14)')
+              .margin({ left: 5 })
+          }
+        }
+        .margin({ top: 2 })
+        .alignItems(VerticalAlign.Center)
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
@@ -194,10 +223,27 @@ export struct IStoreTabView {
           }
           .width('100%').margin({ top: 12 })
         }
+
+        // 跳到 iStore 自己的「已安装」页面（升级/卸载都在那里）
+        Row() {
+          Text('🛍️').fontSize(13)
+          Text('打开 iStore 管理已装应用')
+            .fontSize(13).fontColor(this.theme.primary).fontWeight(FontWeight.Medium)
+            .margin({ left: 6 })
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+        .padding({ top: 12, bottom: 12 })
+        .borderRadius(14)
+        .backgroundColor(this.theme.bgGlassLight)
+        .border({ width: 0.5, color: this.theme.borderGlass })
+        .margin({ top: 18 })
+        .onClick(() => this.openStoreInstalled())
       }
       .width('100%').padding({ left: 16, right: 16, bottom: 130 })
     }
     .width('100%').height('100%').scrollBar(BarState.Off)
+      .align(Alignment.Top)
       .onDidScroll((y: number, _state: ScrollState) => {
         const diff = y - this.lastScrollY
         this.lastScrollY = y

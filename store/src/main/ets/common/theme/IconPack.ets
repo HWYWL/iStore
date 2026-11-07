@@ -207,6 +207,7 @@ const LINE_MEDIA: Record<string, Resource> = {
   'doc_plaintext': $r('app.media.ic_line_doc_plaintext'),
   'doc_text': $r('app.media.ic_line_doc_text'),
   'doc_zipper': $r('app.media.ic_line_doc_zipper'),
+  'docker': $r('app.media.ic_line_docker'),
   'dot_radiowaves_left_and_right': $r('app.media.ic_line_dot_radiowaves_left_and_right'),
   'download': $r('app.media.ic_line_download'),
   'externaldrive': $r('app.media.ic_line_externaldrive'),

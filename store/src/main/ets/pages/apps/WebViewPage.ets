@@ -9,6 +9,8 @@ import { AppState } from '../../common/store/AppState'
 import { SavedDevice } from '../../common/store/DeviceStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
+import { ApiService } from '../../api/ApiService'
+import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 
 const TAG = 'WebViewPage'
 const DOMAIN = 0x0001
@@ -28,42 +30,83 @@ struct WebViewPage {
   private autoLoginDone: boolean = false
 
   aboutToAppear(): void {
-this.theme = AppState.getInstance().getTheme()
+    this.theme = AppState.getInstance().getTheme()
 
-    
     const activeDevice: SavedDevice | undefined = AppState.getInstance().getActiveDevice()
     if (activeDevice) {
       this.username = activeDevice.username || 'root'
       this.password = activeDevice.password || activeDevice.token
     }
 
-    this.buildWebUrl()
+    // 先复用 App 已有的 LuCI 登录态注入 Cookie，再加载页面，避免二次登录
+    this.prepareWebSession()
   }
 
-  buildWebUrl(): void {
+  /** 注入登录 Cookie 后再赋值 URL 触发 Web 加载（顺序不能反，否则会先弹登录页） */
+  private async prepareWebSession(): Promise<void> {
+    this.isLoading = true
+    this.errorOccurred = false
+    this.autoLoginDone = false
+    const url: string = this.buildWebUrl()
+    if (url.length === 0) {
+      this.isLoading = false
+      return
+    }
+    await this.injectLuciCookie(url)
+    this.webUrl = url
+  }
+
+  /** 把 App 已登录的 LuCI 会话写入 WebView Cookie */
+  private async injectLuciCookie(url: string): Promise<void> {
+    if (!this.username || !this.password) {
+      hilog.warn(DOMAIN, TAG, 'No credentials, skip cookie injection')
+      return
+    }
+    try {
+      const cookie: string = await ApiService.getInstance().luciLoginCookie()
+      if (cookie.length === 0) {
+        hilog.warn(DOMAIN, TAG, 'LuCI cookie empty, fallback to JS auto login')
+        return
+      }
+      const origin: string = this.originOf(url)
+      if (origin.length === 0) return
+      webview.WebCookieManager.configCookieSync(origin, cookie)
+      hilog.info(DOMAIN, TAG, `injected LuCI cookie -> ${origin}`)
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, `inject cookie failed: ${e}`)
+    }
+  }
+
+  /** 取 URL 的协议 + 主机 + 端口部分 */
+  private originOf(url: string): string {
+    const m: RegExpMatchArray | null = url.match(/^(https?:\/\/[^\/]+)/i)
+    return m && m[1] ? m[1] : url
+  }
+
+  /** 计算要打开的地址并设置标题（不直接改 webUrl） */
+  buildWebUrl(): string {
     // 优先使用路由参数传入的 URL
     try {
       const params = this.getUIContext().getRouter().getParams() as Record<string, Object>
       if (params && params['url']) {
-        this.webUrl = params['url'] as string
         this.pageTitle = 'iStore 应用'
-        return
+        return params['url'] as string
       }
     } catch (_e) {}
 
     const activeDevice: SavedDevice | undefined = AppState.getInstance().getActiveDevice()
     if (!activeDevice) {
-      this.webUrl = ''
       this.errorOccurred = true
-      return
+      return ''
     }
     const protocol: string = activeDevice.useHttps ? 'https://' : 'http://'
     // 端口必须带上，否则非 80/443 的域名/映射端口打不开后台
     const port: string = activeDevice.port ? activeDevice.port : ''
-    this.webUrl = port.length > 0
+    const url: string = port.length > 0
       ? `${protocol}${activeDevice.host}:${port}`
       : `${protocol}${activeDevice.host}`
-    hilog.info(DOMAIN, TAG, `OpenWRT Web URL: ${this.webUrl}`)
+    hilog.info(DOMAIN, TAG, `OpenWRT Web URL: ${url}`)
+    return url
   }
 
   /**
@@ -294,12 +337,17 @@ this.theme = AppState.getInstance().getTheme()
                 .backgroundColor(this.theme.primary)
                 .borderRadius(8)
                 .onClick(() => {
-                  this.errorOccurred = false
-                  this.isLoading = true
                   this.loadingProgress = 0
-                  this.autoLoginDone = false
-                  this.buildWebUrl()
+                  this.webUrl = ''
+                  this.prepareWebSession()
                 })
+            }
+            .width('100%')
+            .height('100%')
+            .justifyContent(FlexAlign.Center)
+          } else if (this.webUrl.length === 0) {
+            Column() {
+              LoadingWhimsy()
             }
             .width('100%')
             .height('100%')

@@ -47,7 +47,15 @@ this.theme = AppState.getInstance().getTheme()
       const data: Object = await api.fetchEthPortStatuses()
       if (data && typeof data === 'object') {
         const rec: Record<string, Object> = data as Record<string, Object>
-        const keys: string[] = Object.keys(rec).sort()
+        const keys: string[] = Object.keys(rec)
+        // DSA 固件里 eth0 只是 CPU 侧的 conduit，真正的面板口是 lan1..N / wan
+        let hasDsa: boolean = false
+        for (let i: number = 0; i < keys.length; i++) {
+          const d: Object = rec[keys[i]]
+          if (!d || typeof d !== 'object') continue
+          if (((d as Record<string, Object>)['devtype'] as string) === 'dsa') hasDsa = true
+        }
+
         const list: EthPort[] = []
         for (let i: number = 0; i < keys.length; i++) {
           const dev: Object = rec[keys[i]]
@@ -55,23 +63,35 @@ this.theme = AppState.getInstance().getTheme()
           const devRec: Record<string, Object> = dev as Record<string, Object>
           const name: string = (devRec['name'] as string) || keys[i]
           const lower: string = name.toLowerCase()
-          if (!lower.startsWith('eth') && !lower.startsWith('en')) continue
+          const devtype: string = (devRec['devtype'] as string) || ''
+          if (this.isVirtualPort(lower, devtype)) continue
 
-          const up: boolean = (devRec['up'] as boolean) === true
+          // 物理口判定：DSA 端口 > lan/wan 命名 > 非 DSA 架构下的 eth*/en*
+          let physical: boolean = devtype === 'dsa' || this.isLanWanName(lower)
+          if (!physical && !hasDsa) physical = lower.startsWith('eth') || lower.startsWith('en')
+          if (!physical) continue
+
           const mac: string = (devRec['mac'] as string) || ''
+          let up: boolean = (devRec['up'] as boolean) === true
 
           let speedLabel: string = ''
           let duplex: string = ''
           const link: Object = devRec['link'] as Object
           if (link && typeof link === 'object') {
             const linkRec: Record<string, Object> = link as Record<string, Object>
-            const sp: number = (linkRec['speed'] as number) || 0
-            if (sp >= 10000) speedLabel = (sp / 1000).toFixed(0) + ' Gbps'
-            else if (sp >= 1000) {
-              const g: number = sp / 1000
-              speedLabel = (g === Math.floor(g) ? g.toFixed(0) : g.toFixed(1)) + ' Gbps'
-            } else if (sp >= 100) speedLabel = sp + ' Mbps'
-            duplex = (linkRec['duplex'] as string) || ''
+            // 插线状态以 carrier 为准：lan4 这类空口 flags.up 仍为 true，但 carrier=false
+            const carrier: Object = linkRec['carrier']
+            if (typeof carrier === 'boolean') up = up && (carrier as boolean)
+            if (up) {
+              const sp: number = (linkRec['speed'] as number) || 0
+              if (sp >= 10000) speedLabel = (sp / 1000).toFixed(0) + ' Gbps'
+              else if (sp >= 1000) {
+                const g: number = sp / 1000
+                speedLabel = (g === Math.floor(g) ? g.toFixed(0) : g.toFixed(1)) + ' Gbps'
+              } else if (sp >= 100) speedLabel = sp + ' Mbps'
+              const dp: string = (linkRec['duplex'] as string) || ''
+              duplex = dp === 'unknown' ? '' : dp
+            }
           }
 
           const p: EthPort = new EthPort()
@@ -82,12 +102,56 @@ this.theme = AppState.getInstance().getTheme()
           p.duplex = duplex
           list.push(p)
         }
+        list.sort((a: EthPort, b: EthPort): number => {
+          const ka: string = this.portSortKey(a.name)
+          const kb: string = this.portSortKey(b.name)
+          if (ka === kb) return 0
+          return ka < kb ? -1 : 1
+        })
         this.ports = list
       }
     } catch (e) {
       this.errorText = '加载失败'
     }
     this.isLoading = false
+  }
+
+  /** 桥接 / 容器 / 隧道 / 无线等非面板接口 */
+  private isVirtualPort(lower: string, devtype: string): boolean {
+    if (lower === 'lo') return true
+    if (lower.startsWith('br-') || lower.startsWith('bond')) return true
+    if (lower.startsWith('veth') || lower.startsWith('docker') || lower.startsWith('virbr')) return true
+    if (lower.startsWith('wlan') || lower.startsWith('phy') || lower.startsWith('ra')) return true
+    if (lower.startsWith('ppp') || lower.startsWith('tun') || lower.startsWith('tap')) return true
+    if (lower.startsWith('wg') || lower.startsWith('sit') || lower.startsWith('gre')) return true
+    if (lower.startsWith('vxlan') || lower.startsWith('dummy') || lower.startsWith('ifb')) return true
+    return devtype === 'bridge' || devtype === 'vlan' || devtype === 'macvlan' || devtype === 'virt'
+  }
+
+  /** lan / wan 及其编号变体（lan1、wan2…），老式 swconfig 固件的面板口命名 */
+  private isLanWanName(lower: string): boolean {
+    let rest: string = ''
+    if (lower === 'lan' || lower === 'wan') return true
+    if (lower.startsWith('lan')) rest = lower.substring(3)
+    else if (lower.startsWith('wan')) rest = lower.substring(3)
+    else return false
+    if (rest.length === 0) return true
+    for (let i: number = 0; i < rest.length; i++) {
+      const c: number = rest.charCodeAt(i)
+      if (c < 48 || c > 57) return false
+    }
+    return true
+  }
+
+  /** 自然排序键：保证 lan2 排在 lan10 之前 */
+  private portSortKey(name: string): string {
+    const n: string = name.toLowerCase()
+    let i: number = 0
+    while (i < n.length && (n.charCodeAt(i) < 48 || n.charCodeAt(i) > 57)) i++
+    const prefix: string = n.substring(0, i)
+    const numStr: string = n.substring(i)
+    const num: number = numStr.length > 0 ? parseInt(numStr) : 0
+    return prefix + ('000000' + (isNaN(num) ? 0 : num)).slice(-6)
   }
 
   build() {
@@ -137,7 +201,7 @@ this.theme = AppState.getInstance().getTheme()
               // 说明
               Row() {
                 AppIcon({ name: 'link', iconSize: 12, colors: [this.theme.textTertiary] })
-                Text(' 以 eth0 → eth1 → ... 顺序展示物理网口状态')
+                Text(' 按 lan / wan / eth 自然顺序展示物理网口，已过滤桥接与虚拟接口')
                   .fontSize(11).fontColor(this.theme.textTertiary).layoutWeight(1)
               }
               .width('100%').padding({ left: 16, right: 16, top: 4, bottom: 8 })
@@ -146,9 +210,17 @@ this.theme = AppState.getInstance().getTheme()
                 Column() {
                   // 端口图标 + 名称 + 状态
                   Row() {
-                    Image(port.up ? $r('app.media.green_network_port') : $r('app.media.grey_network_port'))
-                      .width(28).height(28)
-                      .objectFit(ImageFit.Contain)
+                    Row() {
+                      AppIcon({
+                        name: 'link',
+                        iconSize: 16,
+                        colors: [port.up ? '#22C55E' : this.theme.textTertiary]
+                      })
+                    }
+                    .width(34).height(34)
+                    .borderRadius(11)
+                    .justifyContent(FlexAlign.Center)
+                    .backgroundColor(port.up ? 'rgba(34,197,94,0.10)' : 'rgba(117,117,117,0.08)')
                     Column() {
                       Text(port.name).fontSize(16).fontColor(this.theme.textPrimary)
                         .fontWeight(FontWeight.Bold)

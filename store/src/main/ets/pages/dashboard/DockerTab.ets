@@ -736,6 +736,7 @@ export struct DockerTab {
       .width('100%').padding({ left: 16, right: 16, bottom: AppState.getInstance().getBottomNavInset() })
       }
       .width('100%').height('100%').scrollBar(BarState.Off)
+      .align(Alignment.Top)
       .onDidScroll((y: number, _state: ScrollState) => {
         const diff = y - this.lastScrollY
         this.lastScrollY = y
