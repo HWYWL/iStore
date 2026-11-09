@@ -365,6 +365,35 @@ export class ApiService {
     return false
   }
 
+  /** 按逻辑接口名（lan / wan）或 type 查找接口对象 */
+  private findInterface(list: Object[], name: string): Object | null {
+    for (let i = 0; i < list.length; i++) {
+      if (ObjectHelper.getString(list[i], 'interface', '') === name) {
+        return list[i]
+      }
+    }
+    for (let i = 0; i < list.length; i++) {
+      if (ObjectHelper.getString(list[i], 'type', '') === name) {
+        return list[i]
+      }
+    }
+    return null
+  }
+
+  /** 取某逻辑接口的实时速率（B/s），按 interface / device 两次命中别名表 */
+  private rateOf(rateMap: Record<string, Object>, iface: Object | null): number[] {
+    if (!iface) {
+      return [0, 0]
+    }
+    const dev = ObjectHelper.getString(iface, 'device', '')
+    const logical = ObjectHelper.getString(iface, 'interface', '') || dev
+    const hit = rateMap[logical] || rateMap[dev]
+    return [
+      ObjectHelper.getNumber(hit, 'rx_rate', 0),
+      ObjectHelper.getNumber(hit, 'tx_rate', 0)
+    ]
+  }
+
   async fetchLanStatus(): Promise<WanStatus> {
     try {
       await this.getNetworkData()
@@ -440,12 +469,21 @@ export class ApiService {
       const proto = ObjectHelper.getString(lanIf, 'proto', '')
       const macAddr = ObjectHelper.getString(lanIf, 'mac_address', '')
       const uptime = ObjectHelper.getNumber(lanIf, 'uptime', 0)
-      // rx_rate/tx_rate 优先从 rateMap 查找（真实计算值）
-      const lanName = ObjectHelper.getString(lanIf, 'interface', '') ||
-        ObjectHelper.getString(lanIf, 'device', '')
-      const lanRate = rateMap[lanName] || rateMap[ifname]
-      let rxRate = ObjectHelper.getNumber(lanRate, 'rx_rate', 0)
-      let txRate = ObjectHelper.getNumber(lanRate, 'tx_rate', 0)
+      // 实时速率：只取 br-lan 会漏掉经 WAN / VPN 隧道进出的流量
+      // （远程组网打开路由器后台传文件时，数据走隧道而不是 LAN，表现为「网页几十兆、App 只有几 KB」）
+      // 这里同时取 lan 与 wan 两路；同一份转发流量会在两侧各记一次，所以取较大者而不是相加
+      let rxRate = 0
+      let txRate = 0
+      const lanPair: number[] = this.rateOf(rateMap, lanIf)
+      rxRate = lanPair[0]
+      txRate = lanPair[1]
+      const wanPair: number[] = this.rateOf(rateMap, this.findInterface(interfacesList, 'wan'))
+      if (wanPair[0] > rxRate) {
+        rxRate = wanPair[0]
+      }
+      if (wanPair[1] > txRate) {
+        txRate = wanPair[1]
+      }
       if (rxRate === 0 && txRate === 0) {
         rxRate = ObjectHelper.getNumber(lanIf, 'rx_rate', 0)
         txRate = ObjectHelper.getNumber(lanIf, 'tx_rate', 0)
