@@ -12,6 +12,8 @@ import { Whimsy } from '../../common/utils/WhimsyUtil'
 import { FunStore } from '../../common/store/FunStore'
 import { AppNav } from '../../common/utils/AppNav'
 import { Poller } from '../../common/utils/Poller'
+import { LIVE_REFRESH_MS } from '../../common/utils/RefreshRate'
+import { LiveRateStore } from '../../common/store/LiveRateStore'
 import { AppIcon } from '../../common/components/AppIcon'
 
 // ============================================================
@@ -112,7 +114,7 @@ export struct DashboardTab {
     // 前台感知：仅当本 Tab（首页 index 0）可见时轮询
     this.isVisible = AppState.getInstance().getCurrentTab() === 0
     // 统一轮询器：自带「上轮未回来则跳过」保护，避免弱网下请求叠加
-    this.poller = new Poller((): Promise<void> => this.refreshData(), 5000)
+    this.poller = new Poller((): Promise<void> => this.refreshData(), LIVE_REFRESH_MS)
     this.tabChangeListener = (tab: number) => {
       const visible: boolean = tab === 0
       if (visible && !this.isVisible) {
@@ -181,6 +183,8 @@ export struct DashboardTab {
       this.systemInfo = results[0]
       this.lanStatus = results[1]
       this.wanStatus = results[1]
+      // 广播实时速率：应用中心 / 小管家订阅同一份数据，数字与首页保持一致
+      LiveRateStore.getInstance().push(results[1].rxRate, results[1].txRate)
       this.mountPoints = results[2]
       this.conntrack = results[3]
       this.networkInterfaces = results[4]
@@ -231,6 +235,7 @@ export struct DashboardTab {
       this.systemInfo = results[0]
       this.lanStatus = results[1]
       this.wanStatus = results[1]
+      LiveRateStore.getInstance().push(results[1].rxRate, results[1].txRate)
       this.mountPoints = results[2]
       this.conntrack = results[3]
       const devs2: ConnectedDevice[] = results[4] as ConnectedDevice[]

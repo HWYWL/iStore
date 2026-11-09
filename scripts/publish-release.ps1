@@ -9,15 +9,15 @@
 
 .EXAMPLE
   $env:GITHUB_TOKEN = 'ghp_xxx'
-  ./scripts/publish-release.ps1 -Tag v3.7.0 -Title 'iStore v3.7.0'
+  ./scripts/publish-release.ps1 -Tag v3.8.0 -Title 'iStore v3.8.0'
 #>
 param(
   [string]$Repo = 'HWYWL/iStore',
-  [string]$Tag = 'v3.7.0',
-  [string]$Title = 'iStore v3.7.0',
+  [string]$Tag = 'v3.8.0',
+  [string]$Title = 'iStore v3.8.0',
   [string]$NotesPath,
   [string]$AssetPath = 'build/outputs/default/iStore-default-unsigned.app',
-  [string]$AssetName = 'iStore-default-unsigned-v3.7.0.app'
+  [string]$AssetName = 'iStore-default-unsigned-v3.8.0.app'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,7 +33,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 if (-not $NotesPath) {
-  $md = Get-ChildItem -Filter '*v3.7.0.md' -File | Select-Object -First 1
+  $md = Get-ChildItem -Filter '*v3.8.0.md' -File | Select-Object -First 1
   if ($md) { $NotesPath = $md.FullName }
 }
 if (-not $NotesPath -or -not (Test-Path $NotesPath)) { Write-Error 'Release notes markdown not found.'; exit 1 }

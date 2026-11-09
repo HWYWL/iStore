@@ -27,7 +27,8 @@ struct WebViewPage {
   controller: webview.WebviewController = new webview.WebviewController()
   private username: string = ''
   private password: string = ''
-  private autoLoginDone: boolean = false
+  /** 上一次已注入自动登录脚本的地址（同一地址不重复注入，跳转后重置） */
+  private lastLoginUrl: string = ''
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
@@ -46,7 +47,7 @@ struct WebViewPage {
   private async prepareWebSession(): Promise<void> {
     this.isLoading = true
     this.errorOccurred = false
-    this.autoLoginDone = false
+    this.lastLoginUrl = ''
     const url: string = this.buildWebUrl()
     if (url.length === 0) {
       this.isLoading = false
@@ -111,18 +112,24 @@ struct WebViewPage {
 
   /**
    * 通过 JS 注入自动登录 OpenWRT LuCI Web 管理界面
-   * 轮询等待登录表单渲染完成后填入账号密码并提交
+   * 轮询等待登录表单渲染完成后填入账号密码并提交，提交后再校验是否仍在登录页
    * 兼容不同发行版的表单结构和字段命名
    */
   private tryAutoLogin(): void {
-    if (this.autoLoginDone) {
-      return
-    }
     if (!this.username || !this.password) {
       hilog.warn(DOMAIN, TAG, 'No credentials available, skip auto login')
       return
     }
-    this.autoLoginDone = true
+    let currentUrl: string = ''
+    try {
+      currentUrl = this.controller.getUrl()
+    } catch (e) {
+    }
+    // 同一地址只注入一次，避免 onPageEnd 多次回调重复提交
+    if (currentUrl.length > 0 && currentUrl === this.lastLoginUrl) {
+      return
+    }
+    this.lastLoginUrl = currentUrl
 
     const escapedUser: string = this.username.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
     const escapedPass: string = this.password.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
@@ -132,6 +139,9 @@ struct WebViewPage {
   var INTERVAL = 500;
   var ROOT = document;
   var count = 0;
+  var submitted = 0;
+
+  function log(m) { try { console.log('[iStore] ' + m); } catch (e) {} }
 
   // 已登录的标识：页面中存在登出链接、管理菜单等功能元素
   function isAlreadyLoggedIn(doc) {
@@ -190,9 +200,10 @@ struct WebViewPage {
   }
 
   function trySubmit(pwEl) {
-    // 方式1: 查找包含密码框的 <form> 并 submit
+    // 方式1: 查找包含密码框的 <form> 并 submit（优先 requestSubmit，保留页面 onsubmit 逻辑）
     var form = pwEl.closest('form');
     if (form) {
+      try { if (form.requestSubmit) { form.requestSubmit(); return true; } } catch (e) {}
       form.submit();
       return true;
     }
@@ -237,11 +248,9 @@ struct WebViewPage {
 
   function doLogin() {
     count++;
-    if (count > MAX_RETRY) return;
+    if (count > MAX_RETRY) { log('give up: no login form'); return; }
 
-    // 如果已登录，无需操作
-    if (isAlreadyLoggedIn(ROOT)) { return; }
-
+    // 以「是否存在密码框」判断登录页：登录页本身也可能带 #maincontent，不能据此认为已登录
     var pw = findPasswordInput(ROOT);
     if (!pw) {
       // 尝试在 iframe 中查找
@@ -249,15 +258,21 @@ struct WebViewPage {
       for (var i = 0; i < iframes.length; i++) {
         try {
           var iframeDoc = iframes[i].contentDocument || iframes[i].contentWindow.document;
-          if (isAlreadyLoggedIn(iframeDoc)) { return; }
           pw = findPasswordInput(iframeDoc);
           if (pw) { ROOT = iframeDoc; break; }
         } catch (e) {}
       }
       if (!pw) {
+        if (count > 4) { log('no password field, assume logged in'); return; }
         setTimeout(doLogin, INTERVAL);
         return;
       }
+    }
+
+    if (submitted > 0) {
+      // 已提交过，等页面跳转后再判断是否还需要重试
+      setTimeout(doLogin, 800);
+      return;
     }
 
     var un = findUserInput(ROOT);
@@ -265,9 +280,11 @@ struct WebViewPage {
       fillField(un, '${escapedUser}');
     }
     fillField(pw, '${escapedPass}');
+    log('filled, submitting ' + location.href);
 
     setTimeout(function() {
       trySubmit(pw);
+      submitted++;
     }, 300);
   }
 
@@ -374,7 +391,8 @@ struct WebViewPage {
               })
               .onPageEnd(() => {
                 this.isLoading = false
-                this.tryAutoLogin()
+                // 等页面脚本稳定后再注入，避免导航未完成时脚本被丢弃
+                setTimeout(() => { this.tryAutoLogin() }, 400)
               })
               .onTitleReceive((event) => {
                 if (event && event.title) {

@@ -10,6 +10,21 @@ const DOMAIN = 0x0001
 const TAG = 'PetStore'
 const STORE_NAME = 'pet_store'
 
+/** 任务对应的页面路线（顺序与 PetPage QUESTS 一致）：实际打开即视为完成 */
+const TASK_ROUTES: string[] = [
+  'pages/apps/NetworkCheckPage',
+  'pages/apps/NetworkHelperPage',
+  'pages/apps/TrafficReportPage',
+  'pages/apps/DeviceActivityPage',
+  'pages/security/SecurityHubPage'
+]
+
+/** 任务奖励能量（顺序与 TASK_ROUTES 一致） */
+const TASK_ENERGY: number[] = [20, 15, 10, 10, 15]
+
+/** 任务数据结构版本：升级时清掉旧版写死/测试污染的勾选 */
+const TASK_SCHEMA = '3'
+
 export interface PetState {
   level: number        // 等级（1-99）
   xp: number           // 当前等级经验（0-100）
@@ -17,6 +32,7 @@ export interface PetState {
   energy: number       // 能量 0-100
   mood: number         // 心情 0-100
   skinId: string       // 当前装扮（对应 ThemeColors SKINS id）
+  dress: boolean       // 深海蓝装扮开关（持久化）
   lastDay: string      // 上次更新日期（每日递减用）
 }
 
@@ -35,17 +51,35 @@ export class PetStore {
     if (this.prefs) return
     try {
       this.prefs = await preferences.getPreferences(ctx, STORE_NAME)
+      this.resetTaskSchemaIfNeeded()
       this.applyDailyDecay()
+      this.persistVisits()
     } catch (e) {
       hilog.error(DOMAIN, TAG, `init err: ${String(e)}`)
     }
+  }
+
+  /** 任务数据升级：旧版勾选是写死/测试污染的，一次性清空 */
+  private resetTaskSchemaIfNeeded(): void {
+    if (!this.prefs) return
+    try {
+      const v: string = (this.prefs.getSync('task_schema', '') as string) || ''
+      if (v !== TASK_SCHEMA) {
+        this.prefs.putSync('task_flags', '[]')
+        this.prefs.putSync('task_day', '')
+        this.prefs.putSync('task_rewarded', '[]')
+        this.prefs.putSync('task_rewarded_day', '')
+        this.prefs.putSync('task_schema', TASK_SCHEMA)
+        this.prefs.flush()
+      }
+    } catch (e) {}
   }
 
   /** 默认状态 */
   private defaultState(): PetState {
     return {
       level: 1, xp: 0, full: 80, energy: 50, mood: 85,
-      skinId: 'beige', lastDay: this.today()
+      skinId: 'beige', dress: false, lastDay: this.today()
     }
   }
 
@@ -59,6 +93,9 @@ export class PetStore {
         return s
       }
       const obj: PetState = JSON.parse(raw) as PetState
+      if (obj.dress === undefined) {
+        obj.dress = false
+      }
       return obj
     } catch (e) {
       return this.defaultState()
@@ -100,10 +137,11 @@ export class PetStore {
     return s
   }
 
-  /** 摸摸头：心情 +10 */
+  /** 摸摸头：心情 +10、XP +3 */
   pat(): PetState {
     const s: PetState = this.getState()
     s.mood = Math.min(100, s.mood + 10)
+    this.addXp(s, 3)
     this.saveState(s)
     return s
   }
@@ -112,6 +150,15 @@ export class PetStore {
   setSkin(skinId: string): PetState {
     const s: PetState = this.getState()
     s.skinId = skinId
+    this.saveState(s)
+    return s
+  }
+
+  /** 深海蓝装扮开关（持久化，重启后保留；换装扮也给成长 XP） */
+  setDress(on: boolean): PetState {
+    const s: PetState = this.getState()
+    s.dress = on
+    this.addXp(s, 3)
     this.saveState(s)
     return s
   }
@@ -155,6 +202,70 @@ export class PetStore {
       this.prefs.putSync('task_flags', JSON.stringify(done))
       this.prefs.flush()
     } catch (e) {}
+  }
+
+  // ========== 真实完成埋点：页面被实际打开才算完成 ==========
+  /** 内存暂存访问记录（prefs 尚未就绪时也不会丢） */
+  private routeVisits: string[] = []
+
+  /** 页面访问埋点（由 AppNav 在真正跳转时调用） */
+  markTaskByRoute(route: string): void {
+    if (this.routeVisits.indexOf(route) < 0) {
+      this.routeVisits.push(route)
+    }
+    this.persistVisits()
+  }
+
+  /**
+   * 结算新完成任务的奖励（幂等）：同一任务只发一次能量与 XP，
+   * 多个页面实例重复调用也不会重复加。
+   * @returns 本次实际发放的能量值（0 表示无新奖励）
+   */
+  settleTasks(): number {
+    if (!this.prefs) return 0
+    try {
+      if (((this.prefs.getSync('task_rewarded_day', '') as string) || '') !== this.today()) {
+        this.prefs.putSync('task_rewarded_day', this.today())
+        this.prefs.putSync('task_rewarded', '[]')
+      }
+      const done: boolean[] = this.getDoneTasks()
+      const raw: string = (this.prefs.getSync('task_rewarded', '') as string) || ''
+      const rewarded: boolean[] = [false, false, false, false, false]
+      if (raw) {
+        const arr: boolean[] = JSON.parse(raw) as boolean[]
+        for (let i = 0; i < 5 && i < arr.length; i++) {
+          rewarded[i] = arr[i] === true
+        }
+      }
+      let gained: number = 0
+      for (let i = 0; i < 5; i++) {
+        if (done[i] && rewarded[i] !== true) {
+          gained += TASK_ENERGY[i]
+          rewarded[i] = true
+        }
+      }
+      if (gained > 0) {
+        const s: PetState = this.getState()
+        s.energy = Math.min(100, s.energy + gained)
+        this.addXp(s, 3)
+        this.saveState(s)
+        this.prefs.putSync('task_rewarded', JSON.stringify(rewarded))
+        this.prefs.flush()
+      }
+      return gained
+    } catch (e) {
+      return 0
+    }
+  }
+
+  /** 把暂存访问写入持久化任务状态 */
+  persistVisits(): void {
+    if (!this.prefs || this.routeVisits.length === 0) return
+    for (let i = 0; i < TASK_ROUTES.length; i++) {
+      if (this.routeVisits.indexOf(TASK_ROUTES[i]) >= 0) {
+        this.markTaskDone(i)
+      }
+    }
   }
 
   /** 加经验（升级逻辑） */

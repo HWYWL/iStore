@@ -8,6 +8,8 @@ import {
   NetworkInterface, OafStatus, ProcessInfo, StartupItem, SystemInfo, WanStatus, WifiApInfo
 } from '../../models/Models'
 import { AppNav } from '../../common/utils/AppNav'
+import { LIVE_REFRESH_MS } from '../../common/utils/RefreshRate'
+import { LiveRateStore, RateListener } from '../../common/store/LiveRateStore'
 import { AppIcon } from '../../common/components/AppIcon'
 import { curves } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
@@ -143,6 +145,7 @@ export struct AppsPage {
   @State jellyfinConfigured: boolean = false
   @State widgetMetric: string = ''
   private overviewTimer: number = -1
+  private rateListener: RateListener | null = null
   private sparkCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   /** 左侧分类栏当前宽度（0 = 收起，RAIL_W = 完全展开）；拖动时逐帧更新，松手用弹簧补间 */
   @State railW: number = 0
@@ -274,20 +277,24 @@ export struct AppsPage {
     } catch (e) {}
   }
 
-  /** Bento 主卡：速率 + 处理器 / 内存 / 连接（失败静默，不打断页面） */
+  /** 全局速率回调：主卡读数 + 迷你折线与首页 / 小管家同源同频 */
+  private onLiveRate(rx: number, tx: number): void {
+    this.rateDown = rx
+    this.rateUp = tx
+    const arr: number[] = this.rateSamples.slice()
+    arr.push(rx)
+    if (arr.length > 24) arr.shift()
+    this.rateSamples = arr
+    this.drawSpark()
+  }
+
+  /** Bento 主卡：IP + 处理器 / 内存 / 连接（速率由全局心跳统一推送） */
   async loadOverview(): Promise<void> {
     hilog.info(0x0001, 'AppsPage', `overview start conn=${this.deviceConnected}`)
     if (!this.deviceConnected) return
     try {
       const lan: WanStatus = await this.api.fetchLanStatus()
-      this.rateDown = lan.rxRate
-      this.rateUp = lan.txRate
       this.wanIp = lan.ipAddress && lan.ipAddress !== '0.0.0.0' ? lan.ipAddress : ''
-      const arr: number[] = this.rateSamples.slice()
-      arr.push(lan.rxRate)
-      if (arr.length > 24) arr.shift()
-      this.rateSamples = arr
-      this.drawSpark()
     } catch (e) {
       hilog.warn(0x0001, 'AppsPage', `overview rate failed: ${e}`)
     }
@@ -998,7 +1005,10 @@ this.theme = AppState.getInstance().getTheme()
     }
     this.savedCount = AppState.getInstance().devices.length
     this.loadUptime()
-    // Bento 主卡：进入即取一次实时数据，之后每 12 秒刷新（全部走 SSH，频率不宜过高）
+    // 实时速率：订阅全局心跳（与首页 / 小管家同一份数据、同一节奏）
+    this.rateListener = (rx: number, tx: number) => { this.onLiveRate(rx, tx) }
+    LiveRateStore.getInstance().subscribe(this.rateListener)
+    // Bento 主卡其余指标（IP / CPU / 内存 / 连接）走较慢的节奏即可
     this.loadOverview()
     if (this.overviewTimer >= 0) {
       clearInterval(this.overviewTimer)
@@ -1006,7 +1016,7 @@ this.theme = AppState.getInstance().getTheme()
     this.overviewTimer = setInterval(() => {
       this.loadOverview()
       this.syncPet()
-    }, 12000)
+    }, LIVE_REFRESH_MS * 2)
 
     // 磁贴指标：宠物状态本地同步读取；iStore 插件数走 HTTP，60 秒一次足够
     this.initPet()
@@ -1041,6 +1051,10 @@ this.theme = AppState.getInstance().getTheme()
   }
 
   aboutToDisappear(): void {
+    if (this.rateListener) {
+      LiveRateStore.getInstance().unsubscribe(this.rateListener)
+      this.rateListener = null
+    }
     if (this.overviewTimer >= 0) {
       clearInterval(this.overviewTimer)
       this.overviewTimer = -1

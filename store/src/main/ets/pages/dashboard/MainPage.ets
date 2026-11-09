@@ -432,6 +432,8 @@ struct MainPage {
       PageHost({ url: name })
     }
     .hideTitleBar(true)
+    // 透明背景：让页面自身背景 / MainPage 统一底色透出，右栏不再是一块死白
+    .backgroundColor(Color.Transparent)
     .onBackPressed(() => {
       AppNav.getInstance().back()
       return true

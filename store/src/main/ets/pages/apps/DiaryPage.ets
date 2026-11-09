@@ -341,6 +341,7 @@ export struct DiaryPage {
       }
       .layoutWeight(1)
       .scrollBar(BarState.Off)
+      .align(Alignment.Top)
     }
     .width('100%').height('100%')
     .linearGradient({ angle: 135, colors: this.theme.pageGradient })

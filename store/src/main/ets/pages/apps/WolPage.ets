@@ -312,6 +312,7 @@ export struct WolPage {
         .width('100%').padding({ left: 16, right: 16, bottom: 30 })
       }
       .layoutWeight(1).scrollBar(BarState.Off)
+      .align(Alignment.Top)
     }
     .width('100%').height('100%')
     .linearGradient({

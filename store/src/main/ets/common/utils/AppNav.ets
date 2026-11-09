@@ -11,6 +11,7 @@
 import { UIContext } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../store/AppState'
+import { PetStore } from '../store/PetStore'
 
 /** 页面标题（右侧面板头部展示） */
 const PAGE_TITLES: Record<string, string> = {
@@ -242,6 +243,10 @@ export class AppNav {
    * @param params 路由参数
    */
   open(url: string, params?: object): void {
+    // 陪伴任务埋点：真正打开页面才算完成
+    try {
+      PetStore.getInstance().markTaskByRoute(url)
+    } catch (e) {}
     const stack: NavPathStack | null = this.stack
     // 大屏 + 面板栈可用 + 该页支持内嵌：直接推入右侧面板
     if (this.isWide() && stack !== null && this.canEmbed(url)) {
@@ -264,6 +269,9 @@ export class AppNav {
 
   /** 强制全屏打开（兜底卡上的"全屏打开"按钮，或重交互页） */
   openFullscreen(url: string, params?: object): void {
+    try {
+      PetStore.getInstance().markTaskByRoute(url)
+    } catch (e) {}
     try {
       if (params) {
         this.uiCtx?.getRouter().pushUrl({ url: url, params: params })

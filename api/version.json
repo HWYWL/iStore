@@ -1,8 +1,8 @@
 {
 
-  "version": "3.5.0",
-  "versionCode": 5,
-  "description": "支持域名登录、地址格式智能提示、SSH 端口自动探测，修复网络拓扑端口识别",
-  "releaseDate": "2026-10-29",
+  "version": "3.8.0",
+  "versionCode": 8,
+  "description": "小管家新增网络流量双通道曲线，全站实时速率统一 5 秒刷新，分栏背景统一，修复 OpenWRT 自动登录与部分页面内容居中",
+  "releaseDate": "2026-11-09",
   "downloadUrl": "https://github.com/HWYWL/iStore/releases"
 }
