@@ -469,24 +469,19 @@ export class ApiService {
       const proto = ObjectHelper.getString(lanIf, 'proto', '')
       const macAddr = ObjectHelper.getString(lanIf, 'mac_address', '')
       const uptime = ObjectHelper.getNumber(lanIf, 'uptime', 0)
-      // 实时速率：只取 br-lan 会漏掉经 WAN / VPN 隧道进出的流量
-      // （远程组网打开路由器后台传文件时，数据走隧道而不是 LAN，表现为「网页几十兆、App 只有几 KB」）
-      // 这里同时取 lan 与 wan 两路；同一份转发流量会在两侧各记一次，所以取较大者而不是相加
-      let rxRate = 0
-      let txRate = 0
+      // 实时速率：同时看 lan 与 wan 两路，避免经 VPN 隧道 / WAN 进出的流量漏计
+      // 方向换算：接口的 rx 是「路由器收到」，对用户就是「上传」；
+      //          tx 是「路由器发出」，对用户才是「下载」。
+      // 之前直接把 lan.rx 当下载，方向是反的。
+      // 同一份转发流量会在 lan / wan 两侧各记一次，因此每路取较大者而不是相加。
       const lanPair: number[] = this.rateOf(rateMap, lanIf)
-      rxRate = lanPair[0]
-      txRate = lanPair[1]
       const wanPair: number[] = this.rateOf(rateMap, this.findInterface(interfacesList, 'wan'))
-      if (wanPair[0] > rxRate) {
-        rxRate = wanPair[0]
-      }
-      if (wanPair[1] > txRate) {
-        txRate = wanPair[1]
-      }
+      let rxRate: number = Math.max(lanPair[1], wanPair[1])   // 下载 = 路由器发出
+      let txRate: number = Math.max(lanPair[0], wanPair[0])   // 上传 = 路由器接收
       if (rxRate === 0 && txRate === 0) {
-        rxRate = ObjectHelper.getNumber(lanIf, 'rx_rate', 0)
-        txRate = ObjectHelper.getNumber(lanIf, 'tx_rate', 0)
+        // 兜底：接口速率表为空时退回 ubus 原始字段（同样按接口视角换算方向）
+        rxRate = ObjectHelper.getNumber(lanIf, 'tx_rate', 0)
+        txRate = ObjectHelper.getNumber(lanIf, 'rx_rate', 0)
       }
 
       // 5. 将 uptime 秒数转为可读字符串
