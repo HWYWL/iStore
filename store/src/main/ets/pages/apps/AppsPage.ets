@@ -78,6 +78,8 @@ struct AppsPageRoute {
 export struct AppsPage {
   /** 嵌入分栏时透明背景，与其它栏共用同一块底 */
   @Prop embedded: boolean = false
+  /** 顶栏上留白（三栏时由外部收紧，保证各栏首个模块顶边对齐） */
+  @Prop topInset: number = 48
   @State theme: ThemePalette = LIGHT_THEME
   @State itemSlides: number[] = []
   @State deviceName: string = '未连接设备'
@@ -1548,7 +1550,7 @@ this.theme = AppState.getInstance().getTheme()
           Blank()
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 48, bottom: 12 })
+        .padding({ left: 16, right: 16, top: this.topInset, bottom: 12 })
 
         // ===== 抽屉区：左侧分类栏 + 可被挤压的内容区 =====
         Row() {

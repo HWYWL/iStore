@@ -22,6 +22,8 @@ import { AppIcon } from '../../common/components/AppIcon'
 @Component
 export struct DashboardTab {
   @Prop @Watch('onThemeChanged') theme: ThemePalette
+  /** 三栏模式下压矮顶栏（标题与连接状态同行），保证各栏首个模块顶边对齐 */
+  @Prop compactHeader: boolean = false
   @State systemInfo: SystemInfo = this.emptySys()
   @State wanStatus: WanStatus = this.emptyWan()
   @State lanStatus: WanStatus = this.emptyWan()
@@ -1659,16 +1661,16 @@ export struct DashboardTab {
     .margin({ top: 18, bottom: 9 })
   }
 
-  /** 顶栏图标按钮（无底板，只有图标） */
+  /** 顶栏图标按钮（无底板，只有图标；三栏紧凑模式略小，压矮顶栏） */
   @Builder
   glassBtn(icon: string, badge: boolean, route: string) {
     Stack({ alignContent: Alignment.TopEnd }) {
       Row() {
-        AppIcon({ name: icon, iconSize: 19 })
+        AppIcon({ name: icon, iconSize: this.compactHeader ? 16 : 19 })
       }
-      .width(38)
-      .height(38)
-      .borderRadius(13)
+      .width(this.compactHeader ? 30 : 38)
+      .height(this.compactHeader ? 30 : 38)
+      .borderRadius(this.compactHeader ? 11 : 13)
       .justifyContent(FlexAlign.Center)
 
       if (badge) {
@@ -1679,8 +1681,8 @@ export struct DashboardTab {
           .margin({ top: 7, right: 7 })
       }
     }
-    .width(38)
-    .height(38)
+    .width(this.compactHeader ? 30 : 38)
+    .height(this.compactHeader ? 30 : 38)
     .onClick(() => {
       AppNav.getInstance().open(route)
     })
@@ -1690,11 +1692,11 @@ export struct DashboardTab {
   @Builder
   logoutBtn() {
     Row() {
-      AppIcon({ name: 'power', iconSize: 19 })
+      AppIcon({ name: 'power', iconSize: this.compactHeader ? 16 : 19 })
     }
-    .width(38)
-    .height(38)
-    .borderRadius(13)
+    .width(this.compactHeader ? 30 : 38)
+    .height(this.compactHeader ? 30 : 38)
+    .borderRadius(this.compactHeader ? 11 : 13)
     .justifyContent(FlexAlign.Center)
     .onClick(() => {
       this.logout()
@@ -2303,27 +2305,52 @@ export struct DashboardTab {
       Column() {
         // ========== 顶栏：标题 + 图标按钮 ==========
         Row() {
-          Column() {
-            Text('仪表盘')
-              .fontSize(20)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(this.theme.textPrimary)
+          if (this.compactHeader) {
+            // 三栏模式：标题与连接状态同行，压矮顶栏，让首个模块与其它栏顶边齐平
             Row() {
-              Circle()
-                .width(5.5)
-                .height(5.5)
-                .fill(this.isOnline ? this.theme.success : this.theme.textTertiary)
-              Text(`${this.deviceLabel()} · ${this.isOnline ? '已连接' : '未连接'}`)
-                .fontSize(11.5)
-                .fontColor(this.theme.textSecondary)
-                .margin({ left: 6 })
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
+              Text('仪表盘')
+                .fontSize(19)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.theme.textPrimary)
+              Row() {
+                Circle()
+                  .width(5.5)
+                  .height(5.5)
+                  .fill(this.isOnline ? this.theme.success : this.theme.textTertiary)
+                Text(`${this.deviceLabel()} · ${this.isOnline ? '已连接' : '未连接'}`)
+                  .fontSize(11)
+                  .fontColor(this.theme.textSecondary)
+                  .margin({ left: 5 })
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+              }
+              .margin({ left: 8 })
+              .layoutWeight(1)
             }
-            .margin({ top: 3 })
+            .layoutWeight(1)
+          } else {
+            Column() {
+              Text('仪表盘')
+                .fontSize(20)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.theme.textPrimary)
+              Row() {
+                Circle()
+                  .width(5.5)
+                  .height(5.5)
+                  .fill(this.isOnline ? this.theme.success : this.theme.textTertiary)
+                Text(`${this.deviceLabel()} · ${this.isOnline ? '已连接' : '未连接'}`)
+                  .fontSize(11.5)
+                  .fontColor(this.theme.textSecondary)
+                  .margin({ left: 6 })
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+              }
+              .margin({ top: 3 })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
           }
-          .alignItems(HorizontalAlign.Start)
-          .layoutWeight(1)
 
           this.glassBtn('bell', !this.isOnline, 'pages/apps/NotifySettingsPage')
           Row().width(8)
@@ -2332,7 +2359,12 @@ export struct DashboardTab {
           this.logoutBtn()
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 4, bottom: 10 })
+        .padding({
+          left: 16,
+          right: 16,
+          top: this.compactHeader ? 2 : 4,
+          bottom: this.compactHeader ? 6 : 10
+        })
 
         if (this.isLoading) {
           Column() {

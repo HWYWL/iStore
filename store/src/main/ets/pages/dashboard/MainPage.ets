@@ -298,13 +298,14 @@ struct MainPage {
       Row() {
         // ===== 左栏：首页 =====
         Column() {
-          DashboardTab({ theme: this.theme })
+          DashboardTab({ theme: this.theme, compactHeader: this.isThreeColumn })
             .width('100%')
             .height('100%')
         }
         .height('100%')
         .width(this.isThreeColumn ? '25%' : (this.isTwoColumn ? '34%' : '100%'))
-        .padding({ top: 48 })
+        // 三栏时收紧顶部留白，让「实时速率」卡片与小管家首个模块顶边齐平
+        .padding({ top: this.isThreeColumn ? 24 : 48 })
 
         if (this.isTwoColumn) {
           Column()
@@ -316,7 +317,7 @@ struct MainPage {
         if (this.isThreeColumn) {
           // ===== 中栏：应用中心 =====
           Column() {
-            AppsPage({ embedded: true })
+            AppsPage({ embedded: true, topInset: 22 })
               .width('100%')
               .height('100%')
           }
