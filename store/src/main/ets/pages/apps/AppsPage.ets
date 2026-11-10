@@ -11,6 +11,7 @@ import { AppNav } from '../../common/utils/AppNav'
 import { LIVE_REFRESH_MS } from '../../common/utils/RefreshRate'
 import { LiveRateStore, RateListener } from '../../common/store/LiveRateStore'
 import { AppIcon } from '../../common/components/AppIcon'
+import { findPage, getPageGroups, PageEntry, PageGroupDef, searchPages } from '../../common/nav/PageRegistry'
 import { curves } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { PetState, PetStore } from '../../common/store/PetStore'
@@ -40,6 +41,26 @@ interface ToolEntry {
 interface ToolGroup {
   title: string
   items: ToolEntry[]
+}
+
+/** 把 PageRegistry 的扁平清单还原成应用中心的磁贴分组（单一数据源） */
+function buildToolGroups(): ToolGroup[] {
+  const defs: PageGroupDef[] = getPageGroups()
+  const out: ToolGroup[] = []
+  for (let i = 0; i < defs.length; i++) {
+    const items: ToolEntry[] = []
+    for (let j = 0; j < defs[i].items.length; j++) {
+      const p: PageEntry = defs[i].items[j]
+      const tool: ToolEntry = { icon: p.icon, name: p.title, desc: p.desc, route: p.route }
+      if (p.metric !== undefined) {
+        tool.metric = p.metric
+      }
+      items.push(tool)
+    }
+    const group: ToolGroup = { title: defs[i].title, items: items }
+    out.push(group)
+  }
+  return out
 }
 
 /** 图标底色渐变 */
@@ -146,6 +167,9 @@ export struct AppsPage {
   @State albumConfigured: boolean = false
   @State jellyfinConfigured: boolean = false
   @State widgetMetric: string = ''
+  // ===== 全局搜索（标题 / 拼音首字母 / 最近使用）=====
+  @State searchText: string = ''
+  @State searchFocused: boolean = false
   private overviewTimer: number = -1
   private rateListener: RateListener | null = null
   private sparkCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
@@ -164,89 +188,8 @@ export struct AppsPage {
   // 皮肤切换监听：应用中心是嵌在主页面里的常驻 Panel，不订阅的话换肤后背景/卡片会停留在旧配色
   private themeListener: (() => void) | null = null
 
-  private groups: ToolGroup[] = [
-    {
-      title: '我的',
-      items: [
-        { icon: 'heart', name: '小管家', desc: '养成式网络管家 · 每日任务', route: 'pages/pet/PetPage', metric: 'pet' },
-        { icon: 'bag', name: 'iStore 商店', desc: '浏览与安装路由器插件', route: 'pages/apps/StorePage', metric: 'store' },
-        { icon: 'square_stack_3d', name: 'Docker', desc: '容器、镜像与网络管理', route: 'pages/apps/DockerPage', metric: 'docker', logo: $r('app.media.docker_logo') },
-        { icon: 'wifi_router', name: 'OpenWRT 首页', desc: '打开路由器管理后台', route: 'pages/apps/WebViewPage', metric: 'ip' },
-      ]
-    },
-    {
-      title: '网络',
-      items: [
-        { icon: 'security_shield', name: '安全中心', desc: '安全评分 / 陌生设备 / 危险端口', route: 'pages/security/SecurityHubPage', metric: 'security' },
-        { icon: 'wifi', name: 'WiFi 管理', desc: '无线网络状态与配置管理', route: 'pages/apps/WifiPage', metric: 'wifi' },
-        { icon: 'globe_badge_message', name: '网络管理', desc: '接口状态与网络信息', route: 'pages/apps/NetworkPage', metric: 'network' },
-        { icon: 'arrow_up_right', name: '流量排行',  desc: '按速率排名的客户端活跃度', route: 'pages/apps/TrafficRankPage', metric: 'trafficRank' },
-        { icon: 'link', name: '连接排行',  desc: '发现 NAT 连接数最多的设备', route: 'pages/apps/ConntrackRankPage', metric: 'conntrack' },
-        { icon: 'arrow_up_and_down_square_portrait', name: '网口流量',  desc: '各接口实时速率与累计统计', route: 'pages/apps/PortTrafficPage', metric: 'portTraffic' },
-        { icon: 'square_grid_3x1_below_line_grid_1x2', name: '物理网口',  desc: '查看物理端口连接状态与速率', route: 'pages/apps/EthPortPage', metric: 'ethPort' },
-        { icon: 'list_square_bill', name: '流量统计',  desc: '近 7/30 天每日流量趋势', route: 'pages/apps/TrafficReportPage', metric: 'trafficReport' },
-        { icon: 'staroflife', name: '智能体检',  desc: '一键检测网络连通与延迟', route: 'pages/apps/NetworkCheckPage', metric: 'netCheck' },
-        { icon: 'circle_grid_2x2', name: '网络拓扑',  desc: '可视化设备连接关系图', route: 'pages/apps/TopologyPage', metric: 'topology' },
-      ]
-    },
-    {
-      title: '多媒体',
-      items: [
-        { icon: 'ohos_photo', name: '相册', desc: 'Immich 照片与视频管理', route: 'pages/apps/AlbumPage', metric: 'album' },
-        { icon: 'movie', name: 'Jellyfin', desc: '电影、剧集与音乐媒体中心', route: 'pages/apps/JellyfinPage', metric: 'jellyfin' },
-      ]
-    },
-    {
-      title: '趣味',
-      items: [
-        { icon: 'lightbulb', name: '智能管家', desc: '预知·侦探·值班·一句话·周报', route: 'pages/apps/SmartHubPage', metric: 'smart' },
-        { icon: 'flag', name: '运行里程碑', desc: '连续运行天数与纪念日', route: 'pages/apps/MileStonePage', metric: 'milestone' },
-        { icon: 'medal', name: '网络成就',  desc: '收集你的网络徽章', route: 'pages/apps/AchievementPage', metric: 'achievement' },
-        { icon: 'clock', name: '设备作息',  desc: '设备 24h 活跃热力图', route: 'pages/apps/DeviceActivityPage', metric: 'activity' },
-        { icon: 'book', name: '网络日记',  desc: '每日网络事件时间线', route: 'pages/apps/DiaryPage', metric: 'diary' },
-        { icon: 'doc_text', name: 'AI 周报',  desc: '7 天流量汇总与点评', route: 'pages/apps/NetworkReportPage', metric: 'report' },
-        { icon: 'wand_and_stars', name: '今日运势',  desc: '每天一次网络占卜', route: 'pages/apps/FortunePage', metric: 'fortune' },
-        { icon: 'face_smiling', name: '路由器心情', desc: '今天路由器心情如何', route: 'pages/apps/RouterMoodPage', metric: 'mood' },
-        { icon: 'qrcode', name: 'WiFi 访客卡', desc: '扫码连接 WiFi 卡片', route: 'pages/apps/WifiCardPage', metric: 'wifiCard' },
-        { icon: 'waveform', name: '网络心电图', desc: '实时延迟波形监测', route: 'pages/apps/NetEcgPage', metric: 'ecg' },
-        { icon: 'gauge_with_dots_needle_33percent', name: '网速排位赛', desc: '测速看全国排名', route: 'pages/apps/SpeedTestPage', metric: 'speedTest' },
-        { icon: 'label', name: '设备外号', desc: '给设备起社交外号', route: 'pages/apps/DeviceAliasPage', metric: 'alias' },
-        { icon: 'arrow_left_arrow_right', name: 'DNS 擂台', desc: '各家 DNS 谁最快', route: 'pages/apps/DnsBattlePage', metric: 'dns' },
-        { icon: 'bolt', name: '远程开机', desc: 'WOL 一键唤醒设备', route: 'pages/apps/WolPage', metric: 'wol' },
-        { icon: 'share', name: '装 B 分享卡', desc: '网络状态生成分享图', route: 'pages/apps/ShareCardPage', metric: 'shareCard' },
-        { icon: 'crown', name: '路由器等级', desc: 'Lv.1 到网络之神', route: 'pages/apps/RouterLevelPage', metric: 'level' },
-        { icon: 'yuansign_moneybag', name: '流量月账单', desc: '运营商账单风统计', route: 'pages/apps/TrafficBillPage', metric: 'bill' },
-      ]
-    },
-    {
-      title: '管理',
-      items: [
-        { icon: 'rectangle_stack', name: '设备管理',  desc: '设备列表与备注管理', route: 'pages/apps/DeviceManagePage', metric: 'deviceManage' },
-        { icon: 'AI_help_write', name: '设备辅助AI',  desc: '快捷问答 · 实时诊断网络', route: 'pages/apps/NetworkHelperPage', metric: 'aiHelper' },
-        { icon: 'person_shield', name: '家长控制',  desc: 'OAF 应用过滤引擎配置', route: 'pages/apps/OafPage', metric: 'oaf' },
-        { icon: 'gearshape', name: '系统进程',  desc: '查看和管理运行中的进程', route: 'pages/process/ProcessListPage', metric: 'process' },
-        { icon: 'play_circle', name: '启动项',   desc: '管理开机自启服务', route: 'pages/process/StartupPage', metric: 'startup' },
-        { icon: 'bell', name: '智能通知',  desc: '断网告警与新设备接入提醒', route: 'pages/apps/NotifySettingsPage', metric: 'notify' },
-        { icon: 'calendar', name: '定时任务',  desc: '定时重启与定时开关 WiFi', route: 'pages/apps/SchedulePage', metric: 'schedule' },
-        { icon: 'paintbrush', name: '皮肤管理',  desc: '更换应用主题皮肤', route: 'pages/apps/SkinManagePage', metric: 'skin' },
-        { icon: 'code_square', name: 'SSH 终端',   desc: '命令行管理路由器', route: 'pages/apps/SshTerminalPage', metric: 'ssh' },
-        { icon: 'folder', name: '文件管理',   desc: '浏览管理 OpenWrt 文件', route: 'pages/apps/FileManagerPage', metric: 'files' },
-      ]
-    },
-    {
-      title: '系统',
-      items: [
-        { icon: 'arrow_clockwise', name: '网络重启',  desc: '只重启网络服务不动整机', route: 'pages/system/NetworkRestartPage', metric: 'netRestart' },
-        { icon: 'card_package', name: '软件包管理', desc: 'opkg/apk 安装卸载软件', route: 'pages/system/PackageManagerPage', metric: 'packages' },
-        { icon: 'doc_plaintext', name: '系统日志',  desc: '实时查看路由器日志', route: 'pages/system/SystemLogPage', metric: 'syslog' },
-        { icon: 'externaldrive', name: '配置备份',  desc: '备份与恢复全部配置', route: 'pages/system/ConfigBackupPage', metric: 'backup' },
-        { icon: 'power', name: '重启',     desc: '重启路由器设备', route: 'pages/system/RebootPage', metric: 'reboot' },
-        { icon: 'arrow_counterclockwise', name: '恢复出厂', desc: '恢复设备到出厂设置', route: 'pages/system/FactoryResetPage', metric: 'factory' },
-        { icon: 'square_grid_2x2', name: '小组件设置', desc: '选择桌面卡片显示的主指标', route: 'pages/apps/WidgetSettingsPage', metric: 'widget' },
-        { icon: 'info_circle', name: '关于',     desc: '版本信息与更新检查', route: '__about__', metric: 'about' },
-      ]
-    },
-  ]
+  /** 磁贴分组：统一从 PageRegistry 生成，新增页面只改 PageRegistry */
+  private groups: ToolGroup[] = buildToolGroups()
 
   /** 扁平化获取总数量用于动画 */
   private flatTools(): ToolEntry[] {
@@ -858,13 +801,32 @@ export struct AppsPage {
     return 'B/s'
   }
 
-  /** 主卡迷你折线（渐变面积 + 橙色描边） */
+  /** 十六进制颜色 + 透明度 → rgba 字符串（折线渐变面积用） */
+  private tint(hex: string, alpha: number): string {
+    const h: string = hex.replace('#', '')
+    if (h.length !== 6) {
+      return hex
+    }
+    const r: number = parseInt(h.substring(0, 2), 16)
+    const g: number = parseInt(h.substring(2, 4), 16)
+    const b: number = parseInt(h.substring(4, 6), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+
+  /** 折线主色：跟随皮肤图表色板（缺省回退主色） */
+  private sparkColor(): string {
+    const colors: string[] = this.theme.chartColors
+    return colors.length > 0 ? colors[0] : this.theme.primary
+  }
+
+  /** 主卡迷你折线（渐变面积 + 主题色描边） */
   private drawSpark(): void {
     try {
       const ctx: CanvasRenderingContext2D = this.sparkCtx
       const w: number = ctx.width
       const h: number = ctx.height
       if (w <= 0 || h <= 0) return
+      const stroke: string = this.sparkColor()
       ctx.clearRect(0, 0, w, h)
       let data: number[] = this.rateSamples
       if (data.length < 2) data = [0, 0]
@@ -878,8 +840,8 @@ export struct AppsPage {
       const top: number = 5
       const span: number = h - top - 5
       const area: CanvasGradient = ctx.createLinearGradient(0, 0, 0, h)
-      area.addColorStop(0, 'rgba(255,122,61,0.26)')
-      area.addColorStop(1, 'rgba(255,122,61,0)')
+      area.addColorStop(0, this.tint(stroke, 0.26))
+      area.addColorStop(1, this.tint(stroke, 0))
       ctx.beginPath()
       ctx.moveTo(0, h)
       for (let i = 0; i < n; i++) {
@@ -894,7 +856,7 @@ export struct AppsPage {
       for (let i = 1; i < n; i++) {
         ctx.lineTo(i * step, top + span - (data[i] / max) * span)
       }
-      ctx.strokeStyle = '#FF7A3D'
+      ctx.strokeStyle = stroke
       ctx.lineWidth = 1.7
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
@@ -991,10 +953,11 @@ export struct AppsPage {
   aboutToAppear(): void {
     this.railW = 0
     this.railOpen = false
-this.theme = AppState.getInstance().getTheme()
-    // 跟随皮肤切换实时刷新配色
+    this.theme = AppState.getInstance().getTheme()
+    // 跟随皮肤切换实时刷新配色（Canvas 折线需手动重绘）
     this.themeListener = () => {
       this.theme = AppState.getInstance().getTheme()
+      this.drawSpark()
     }
     AppState.getInstance().onThemeChange(this.themeListener)
     
@@ -1312,7 +1275,7 @@ this.theme = AppState.getInstance().getTheme()
           .width(5)
           .height(5)
           .borderRadius(3)
-          .backgroundColor(this.deviceConnected ? '#22C55E' : '#C0C8D4')
+          .backgroundColor(this.deviceConnected ? this.theme.success : this.theme.textTertiary)
         Text(`${this.deviceName} · 实时速率`)
           .fontSize(9.5)
           .fontColor(this.theme.textTertiary)
@@ -1345,8 +1308,8 @@ this.theme = AppState.getInstance().getTheme()
         Text(`↑ ${this.rateValue(this.rateUp)} ${this.rateUnit(this.rateUp)}`)
           .fontSize(10.5)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#E0641B')
-          .backgroundColor('rgba(255,122,45,0.12)')
+          .fontColor(this.theme.accent)
+          .backgroundColor(this.tint(this.theme.accent, 0.12))
           .padding({ left: 8, right: 8, top: 4, bottom: 4 })
           .borderRadius(8)
           .margin({ bottom: 4 })
@@ -1515,6 +1478,199 @@ this.theme = AppState.getInstance().getTheme()
     })
   }
 
+  // ================= 全局搜索 / 命令面板 =================
+
+  /** 搜索结果（按标题 / 拼音首字母 / 描述 / 路由打分，最多 8 条） */
+  private searchHits(): PageEntry[] {
+    return searchPages(this.searchText, 8)
+  }
+
+  /** 最近使用（AppNav 记录的最近 4 个功能页） */
+  private recentHits(): PageEntry[] {
+    const out: PageEntry[] = []
+    const routes: string[] = AppNav.getInstance().getRecent()
+    for (let i = 0; i < routes.length; i++) {
+      const p: PageEntry | null = findPage(routes[i])
+      if (p !== null) {
+        out.push(p)
+      }
+    }
+    return out
+  }
+
+  /** 点选结果：跳转并收起搜索 */
+  private openPage(route: string): void {
+    this.searchText = ''
+    this.blurSearch()
+    try {
+      AppNav.getInstance().open(route)
+    } catch (e) {
+      hilog.error(0x0001, 'AppsPage', `open ${route} failed: ${e}`)
+    }
+  }
+
+  /** 退出搜索聚焦：收起键盘、恢复完整应用列表 */
+  private blurSearch(): void {
+    this.searchFocused = false
+    try {
+      const fc = this.getUIContext().getFocusController()
+      if (fc !== undefined) {
+        fc.clearFocus()
+      }
+    } catch (e) {
+      hilog.error(0x0001, 'AppsPage', `clearFocus failed: ${e}`)
+    }
+  }
+
+  /** 单条功能（搜索结果 / 最近使用共用） */
+  @Builder
+  searchRow(p: PageEntry) {
+    Row() {
+      Row() {
+        AppIcon({ name: p.icon, iconSize: 17, colors: [this.theme.primary] })
+      }
+      .width(32)
+      .height(32)
+      .borderRadius(10)
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor(this.theme.bgGlassLight)
+
+      Column() {
+        Text(p.title)
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme.textPrimary)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(p.desc)
+          .fontSize(10)
+          .fontColor(this.theme.textTertiary)
+          .margin({ top: 2 })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      .margin({ left: 10 })
+
+      Text(p.group)
+        .fontSize(9.5)
+        .fontColor(this.theme.textTertiary)
+    }
+    .width('100%')
+    .padding({ left: 10, right: 10, top: 7, bottom: 7 })
+    .borderRadius(12)
+    .onClick(() => this.openPage(p.route))
+  }
+
+  /** 搜索结果列表 */
+  @Builder
+  searchResults(hits: PageEntry[]) {
+    Column() {
+      Row() {
+        Text(hits.length > 0 ? `搜索到 ${hits.length} 个功能` : '没有匹配的功能')
+          .fontSize(10)
+          .fontColor(this.theme.textTertiary)
+        Blank()
+      }
+      .width('100%')
+      .padding({ left: 2, right: 2, bottom: 6 })
+
+      if (hits.length === 0) {
+        Column() {
+          Text('试试拼音首字母：aqzx → 安全中心')
+            .fontSize(11)
+            .fontColor(this.theme.textSecondary)
+          Text('也可以搜描述或英文名，如 docker / 流量')
+            .fontSize(10)
+            .fontColor(this.theme.textTertiary)
+            .margin({ top: 4 })
+        }
+        .width('100%')
+        .padding({ top: 26, bottom: 26 })
+      } else {
+        ForEach(hits, (p: PageEntry) => {
+          this.searchRow(p)
+        }, (p: PageEntry): string => `sr_${p.route}`)
+      }
+    }
+    .width('100%')
+    .padding({ top: 8 })
+  }
+
+  /** 最近使用（搜索框下方小胶囊，不替换主列表） */
+  @Builder
+  recentChips(hits: PageEntry[]) {
+    Flex({ wrap: FlexWrap.Wrap }) {
+      Text('最近')
+        .fontSize(9.5)
+        .fontColor(this.theme.textTertiary)
+        .margin({ right: 6, top: 4 })
+      ForEach(hits, (p: PageEntry) => {
+        Row() {
+          AppIcon({ name: p.icon, iconSize: 11 })
+          Text(p.title)
+            .fontSize(10)
+            .fontColor(this.theme.textSecondary)
+            .margin({ left: 4 })
+            .maxLines(1)
+        }
+        .padding({ left: 7, right: 8, top: 4, bottom: 4 })
+        .borderRadius(100)
+        .backgroundColor(this.theme.bgGlassLight)
+        .border({ width: 0.5, color: this.theme.borderGlass })
+        .margin({ right: 6, top: 4 })
+        .onClick(() => this.openPage(p.route))
+      }, (p: PageEntry): string => `rc_${p.route}`)
+    }
+    .width('100%')
+    .padding({ top: 2 })
+  }
+
+  /** 搜索框（平板分栏下 Ctrl+K 聚焦） */
+  @Builder
+  searchBar() {
+    Row() {
+      AppIcon({ name: 'magnifyingglass', iconSize: 15 })
+      TextInput({ text: this.searchText, placeholder: '搜索功能，拼音首字母也行' })
+        .key('app_search_input')
+        .layoutWeight(1)
+        .height(38)
+        .padding({ left: 8, right: 4 })
+        .backgroundColor(Color.Transparent)
+        .borderRadius(0)
+        .placeholderColor(this.theme.textTertiary)
+        .placeholderFont({ size: 12.5 })
+        .fontColor(this.theme.textPrimary)
+        .fontSize(13)
+        .caretColor(this.theme.primary)
+        .onChange((v: string) => {
+          this.searchText = v
+        })
+        .onFocus(() => {
+          this.searchFocused = true
+        })
+        .onBlur(() => {
+          this.searchFocused = false
+        })
+      if (this.searchText.length > 0) {
+        Row() {
+          AppIcon({ name: 'xmark', iconSize: 12 })
+        }
+        .padding(4)
+        .onClick(() => {
+          this.searchText = ''
+        })
+      }
+    }
+    .width('100%')
+    .height(40)
+    .padding({ left: 12, right: 8 })
+    .borderRadius(12)
+    .backgroundColor(this.theme.bgCard)
+    .border({ width: 0.5, color: this.theme.borderGlass })
+  }
+
   /** 嵌入分栏 + 薄玻璃时透明，让 MainPage 的统一背景透出 */
   private pageGradientColors(): Array<[ResourceColor, number]> {
     if (this.embedded && AppState.getInstance().isGlass()) {
@@ -1550,7 +1706,17 @@ this.theme = AppState.getInstance().getTheme()
           Blank()
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: this.topInset, bottom: 12 })
+        .padding({ left: 16, right: 16, top: this.topInset, bottom: 8 })
+
+        // ===== 全局搜索框（标题 / 拼音首字母 / 最近使用）=====
+        Column() {
+          this.searchBar()
+          if (this.searchText.length === 0 && this.searchFocused && this.recentHits().length > 0) {
+            this.recentChips(this.recentHits())
+          }
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16, bottom: 10 })
 
         // ===== 抽屉区：左侧分类栏 + 可被挤压的内容区 =====
         Row() {
@@ -1565,28 +1731,38 @@ this.theme = AppState.getInstance().getTheme()
           // 内容列表（仿鸿蒙应用商店「我的」排版）
           Scroll(this.scroller) {
           Column() {
-            // ===== Bento 主卡：设备 + 实时速率 =====
-            this.heroCard()
+            if (this.searchText.trim().length > 0) {
+              // ===== 搜索结果（标题 / 拼音首字母 / 描述 / 英文名）=====
+              this.searchResults(this.searchHits())
+            } else {
+              // ===== Bento 主卡：设备 + 实时速率 =====
+              this.heroCard()
 
-            // ===== 分组：Bento 磁贴栅格 =====
-            ForEach(this.groups, (group: ToolGroup, gIdx: number) => {
-              this.groupSection(group, gIdx)
-            }, (group: ToolGroup): string => `grp_${group.title}`)
+              // ===== 分组：Bento 磁贴栅格 =====
+              ForEach(this.groups, (group: ToolGroup, gIdx: number) => {
+                this.groupSection(group, gIdx)
+              }, (group: ToolGroup): string => `grp_${group.title}`)
 
-            // 底部版本信息
-            Column() {
-              Text('iStore 路由管家')
-                .fontSize(12).fontColor(this.theme.textTertiary)
-              Text(`${this.versionText} · 开源 · HarmonyOS`)
-                .fontSize(10).fontColor(this.theme.textTertiary).opacity(0.7)
-                .margin({ top: 3 })
+              // 底部版本信息
+              Column() {
+                Text('iStore 路由管家')
+                  .fontSize(12).fontColor(this.theme.textTertiary)
+                Text(`${this.versionText} · 开源 · HarmonyOS`)
+                  .fontSize(10).fontColor(this.theme.textTertiary).opacity(0.7)
+                  .margin({ top: 3 })
+              }
+              .width('100%')
+              .alignItems(HorizontalAlign.Center)
+              .padding({ top: 28, bottom: 40 })
             }
-            .width('100%')
-            .alignItems(HorizontalAlign.Center)
-            .padding({ top: 28, bottom: 40 })
           }
           .width('100%')
+          // 内容不足一屏时也从顶部开始（否则 Scroll 会把内容垂直居中）
+          .constraintSize({ minHeight: '100%' })
+          .justifyContent(FlexAlign.Start)
+          .alignItems(HorizontalAlign.Start)
           .padding({ left: 14, right: 14, top: 4 })
+          .onClick(() => this.blurSearch())
         }
         .layoutWeight(1)
         .height('100%')

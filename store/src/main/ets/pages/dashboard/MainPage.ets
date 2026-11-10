@@ -10,6 +10,7 @@ import { applyImmersiveBar } from '../../common/utils/WindowUtils'
 import { ScheduleStore } from '../../common/store/ScheduleStore'
 import { AppNav } from '../../common/utils/AppNav'
 import { PageHost } from '../../common/components/PageHost'
+import { KeyCode } from '@kit.InputKit'
 
 // 系统导航条高度：手势导航约 24vp，三键导航约 48vp
 const NAV_BAR_GESTURE: number = 24
@@ -350,6 +351,23 @@ struct MainPage {
     }
     .width('100%')
     .height('100%')
+    .focusable(true)
+    .onKeyEvent((event: KeyEvent) => {
+      // 平板分栏：Ctrl+K 聚焦应用中心搜索框（命令面板）
+      if (event.type === KeyType.Down && event.keyCode === KeyCode.KEYCODE_K &&
+        event.getModifierKeyState !== undefined && event.getModifierKeyState(['ctrl'])) {
+        try {
+          const fc = this.getUIContext().getFocusController()
+          if (fc !== undefined) {
+            fc.requestFocus('app_search_input')
+          }
+        } catch (e) {
+          hilog.warn(0x0001, 'MainPage', `Ctrl+K focus failed: ${e}`)
+        }
+        return true
+      }
+      return false
+    })
   }
 
   /** 三栏右栏：空栈时展示引导与最近访问，入栈后显示应用 */
