@@ -14,6 +14,9 @@ import { common } from '@kit.AbilityKit'
 import { promptAction } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 import { AppIcon } from '../../common/components/AppIcon'
+import { MoodState, pickMood } from '../../common/store/MoodEngine'
+import { ApiService } from '../../api/ApiService'
+import { SystemInfo } from '../../models/Models'
 
 /** 皮肤 → 小管家配色（HTML 原型同款） */
 interface PetSkinColor {
@@ -114,6 +117,13 @@ export struct PetView {
   @State breatheOn: boolean = false // 呼吸缩放
   @State particles: Particle[] = []
   @State taskFlags: boolean[] = [false, false, false, false, false]
+  // ===== 路由器体征（决定小管说什么话）=====
+  @State cpuUsage: number = 0
+  @State memPct: number = 0
+  @State cpuTemp: number = 0
+  @State uptimeDays: number = 0
+  private api: ApiService = new ApiService()
+  private sysTimerId: number = -1
   private speedCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private store: PetStore = PetStore.getInstance()
   private timerId: number = -1
@@ -174,10 +184,14 @@ export struct PetView {
       this.eyesOpen = false
       setTimeout(() => { this.eyesOpen = true }, 140)
     }, 4600)
-    // 心情小话轮播
+    // 路由器体征：进入时取一次，之后每 30s 刷新（心情文案据此变化）
+    this.loadRouterState()
+    this.sysTimerId = setInterval(() => {
+      this.loadRouterState()
+    }, 30000)
+    // 心情小话轮播（按当前状态挑，8s 换一条）
     this.timerId = setInterval(() => {
-      const msgs: string[] = ['今天网速不错，小管很开心～', '设备都好好的，我盯着呢！', '想喝口水…不对，我是路由器']
-      this.moodText = msgs[Math.floor(Math.random() * msgs.length)]
+      this.refreshMoodText()
     }, 8000)
   }
 
@@ -202,13 +216,46 @@ export struct PetView {
       clearInterval(this.taskTimerId)
       this.taskTimerId = -1
     }
+    if (this.sysTimerId >= 0) {
+      clearInterval(this.sysTimerId)
+      this.sysTimerId = -1
+    }
+  }
+
+  /** 拉取路由器体征（温度 / 负载 / 内存 / 运行天数），供心情文案判断 */
+  private async loadRouterState(): Promise<void> {
+    if (!AppState.getInstance().isConnected()) {
+      return
+    }
+    try {
+      const sys: SystemInfo = await this.api.fetchSystemInfo()
+      this.cpuUsage = sys.cpuUsage
+      this.cpuTemp = sys.cpuTemp
+      this.uptimeDays = Math.floor(sys.uptime / 86400)
+      this.memPct = sys.memoryTotal > 0 ? Math.round(sys.memoryUsed / sys.memoryTotal * 100) : 0
+    } catch (e) {
+      // 取不到就沿用上一份体征，不打断动画与轮播
+    }
+  }
+
+  /** 当前心情文案的判断依据 */
+  private moodState(): MoodState {
+    const st: MoodState = {
+      connected: AppState.getInstance().isConnected(),
+      cpu: this.cpuUsage,
+      memPct: this.memPct,
+      temp: this.cpuTemp,
+      uptimeDays: this.uptimeDays,
+      rxRate: this.rxRate,
+      txRate: this.txRate,
+      petMood: this.pet.mood,
+      level: this.pet.level
+    }
+    return st
   }
 
   refreshMoodText(): void {
-    if (this.pet.mood >= 95) this.moodText = '幸福爆棚'
-    else if (this.pet.mood >= 70) this.moodText = '很开心'
-    else if (this.pet.mood >= 40) this.moodText = '一般般'
-    else this.moodText = '有点委屈…'
+    this.moodText = pickMood(this.moodState(), this.moodText)
   }
 
   petColors(): PetSkinColor {
@@ -859,16 +906,21 @@ export struct PetView {
       }
       .width('100%')
 
-      // 轨道 + 刻度（刻度圆心落在 0/25/50/75/100% 上）
+      // 轨道 + 刻度（金线穿过 5 个刻度圆心）
       Column() {
         Stack({ alignContent: Alignment.Start }) {
+          // 轨道：金色细线
           Row()
-            .width('100%').height(7).borderRadius(4)
-            .backgroundColor('rgba(99,81,232,0.12)')
+            .width('100%').height(2).borderRadius(1)
+            .backgroundColor('rgba(184,134,11,0.22)')
+            .margin({ top: 7 })
+          // 进度：金线 + 柔光
           Row()
-            .height(7).borderRadius(4)
+            .height(2).borderRadius(1)
             .width(`${this.pet.xp}%`)
-            .linearGradient({ angle: 90, colors: [['#A79BFF', 0], ['#6351E8', 1]] })
+            .linearGradient({ angle: 90, colors: [['#EBCB7C', 0], ['#D4A73E', 0.5], ['#A9781A', 1]] })
+            .shadow({ radius: 6, color: 'rgba(212,175,55,0.6)', offsetY: 0 })
+            .margin({ top: 7 })
           // 刻度：放在 5 等分段的边界上
           Row() {
             ForEach([0, 1, 2, 3, 4], (idx: number) => {
@@ -877,13 +929,19 @@ export struct PetView {
                   if (this.pet.level > idx) {
                     Text('✓').fontSize(9).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
                   } else {
-                    Text(`${idx + 1}`).fontSize(9).fontWeight(FontWeight.Bold).fontColor('#8A96A8')
+                    Text(`${idx + 1}`).fontSize(9).fontWeight(FontWeight.Bold).fontColor('#A98C3E')
                   }
                 }
                 .width(17).height(17).borderRadius('50%')
                 .justifyContent(FlexAlign.Center)
-                .backgroundColor(this.pet.level > idx ? '#6351E8' : '#FFFFFF')
-                .shadow({ radius: 5, color: 'rgba(60,60,120,0.35)', offsetY: 2 })
+                .backgroundColor('#FFFFFF')
+                .linearGradient({
+                  angle: 135,
+                  colors: [[this.pet.level > idx ? '#F9E9B0' : 'rgba(255,255,255,0)', 0],
+                    [this.pet.level > idx ? '#D9AE4A' : 'rgba(255,255,255,0)', 1]]
+                })
+                .border({ width: this.pet.level > idx ? 0 : 0.5, color: 'rgba(184,134,11,0.35)' })
+                .shadow({ radius: 5, color: 'rgba(184,134,11,0.28)', offsetY: 2 })
               }
               .layoutWeight(1).height(17)
             }, (idx: number) => `${idx}_${this.pet.level}`)
@@ -1113,7 +1171,7 @@ export struct PetView {
               .backgroundColor(AppState.getInstance().isGlass() ? 'rgba(255,255,255,0.46)' : 'rgba(255,255,255,0.92)')
               .backdropBlur(AppState.getInstance().isGlass() ? 16 : 0)
               .border(this.cardBorder())
-              .constraintSize({ maxWidth: 200 })
+              .constraintSize({ maxWidth: 214 })
               .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               .position({ x: 16, y: 186 })
             // 粒子层（参考图同款：cube 数字块从脚底两侧上喷 / heart 头顶喷爱心 / spark 星星）
