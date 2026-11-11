@@ -7,7 +7,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardBorder,
-  cardTint
+  cardTint,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
@@ -224,7 +225,7 @@ export struct FortunePage {
     .width('100%').height('100%')
     .linearGradient({
       angle: 135,
-      colors: this.theme.pageGradient
+      colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
     })
   }
 }

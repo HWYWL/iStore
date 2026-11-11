@@ -9,7 +9,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
   ThemePalette,
-  cardBorder
+  cardBorder,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { AppNav } from '../../common/utils/AppNav'
 import { IStoreTabView } from '../dashboard/IStoreTabView'
@@ -38,7 +39,7 @@ export struct StorePage {
     Stack() {
       Column()
         .width('100%').height('100%')
-        .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+        .linearGradient({ angle: 135, colors: pageBgColors(this.theme, AppNav.getInstance().isWide()) })
 
       Column() {
         // 顶栏：返回

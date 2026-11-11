@@ -7,7 +7,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
   cardBorder,
-  cardTint
+  cardTint,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { SmartGuardStore, HourSample, NightEvent, DaySummary } from '../../common/store/SmartGuardStore'
 import { ApiClient } from '../../api/ApiClient'
@@ -542,7 +543,7 @@ export struct SmartHubPage {
       .edgeEffect(EdgeEffect.None)
     }
     .width('100%').height('100%')
-    .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+    .linearGradient({ angle: 135, colors: pageBgColors(this.theme, AppNav.getInstance().isWide()) })
   }
 
   // ===== 预言家 =====

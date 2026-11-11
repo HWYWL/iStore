@@ -7,7 +7,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
   ThemePalette,
-  cardTint
+  cardTint,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { DiaryStore, DayDiary, DiaryEvent } from '../../common/store/DiaryStore'
 import { TrafficStatStore } from '../../common/store/TrafficStatStore'
@@ -348,7 +349,7 @@ export struct DiaryPage {
       .align(Alignment.Top)
     }
     .width('100%').height('100%')
-    .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+    .linearGradient({ angle: 135, colors: pageBgColors(this.theme, AppNav.getInstance().isWide()) })
   }
 
   /** 概览格 */

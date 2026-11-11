@@ -632,3 +632,16 @@ export function listCardBlur(p: ThemePalette): number {
   return p.material.kind === 'liquid' ? p.material.blurControl : 0
 }
 
+/**
+ * 页面根背景：平板分栏（内嵌）时返回透明，让 MainPage 那一块背景直接透出来，
+ * 分栏之间才无缝；手机全屏或不能嵌栏的页面仍用自己的页面渐变。
+ * （两个渐变各自从自己的左上角起算，不透明就会在分栏边界形成一道色差接缝）
+ */
+export function pageBgColors(p: ThemePalette, embedded: boolean): Array<[ResourceColor, number]> {
+  if (embedded) {
+    const transparent: Array<[ResourceColor, number]> = [[Color.Transparent, 0], [Color.Transparent, 1]]
+    return transparent
+  }
+  return p.pageGradient
+}
+

@@ -12,7 +12,11 @@ import { fileUri } from '@kit.CoreFileKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  pageBgColors
+} from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface } from '../../models/Models'
 import { AppIcon } from '../../common/components/AppIcon'
@@ -308,7 +312,7 @@ export struct ShareCardPage {
     .width('100%').height('100%')
     .linearGradient({
       angle: 180,
-      colors: this.theme.pageGradient
+      colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
     })
   }
 

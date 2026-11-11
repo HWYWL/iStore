@@ -2,7 +2,8 @@
   LIGHT_THEME,
   ThemePalette,
   cardBorder,
-  cardTint
+  cardTint,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -152,7 +153,7 @@ export struct AboutPage {
         .height('100%')
         .linearGradient({
           angle: 135,
-          colors: this.theme.pageGradient
+          colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
         })
 
       Column() {

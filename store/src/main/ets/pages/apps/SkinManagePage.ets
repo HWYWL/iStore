@@ -12,7 +12,8 @@ import {
   MATERIALS,
   MaterialDef,
   applyMaterial,
-  cardElevation
+  cardElevation,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
@@ -345,7 +346,7 @@ export struct SkinManagePage {
     .height('100%')
     .linearGradient({
       angle: 180,
-      colors: this.theme.pageGradient
+      colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
     })
   }
 }

@@ -2,7 +2,11 @@
  * DeviceManagePage - 设备管理页（应用中心入口）
  * 原底部导航「设备」Tab 移入应用中心后的独立页面
  */
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  pageBgColors
+} from '../../common/theme/ThemeColors'
 import { DeviceTab } from '../dashboard/DeviceTab'
 import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
@@ -72,7 +76,7 @@ export struct DeviceManagePage {
     .height('100%')
     .linearGradient({
       angle: 180,
-      colors: this.theme.pageGradient
+      colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
     })
   }
 }

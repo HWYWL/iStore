@@ -8,7 +8,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardBorder,
-  cardTint
+  cardTint,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { SavedDevice } from '../../common/store/DeviceStore'
@@ -428,7 +429,7 @@ this.theme = AppState.getInstance().getTheme()
     .height('100%')
     .linearGradient({
       angle: 135,
-      colors: this.theme.pageGradient
+      colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
     })
   }
 }

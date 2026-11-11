@@ -6,7 +6,11 @@ import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  pageBgColors
+} from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { Poller } from '../../common/utils/Poller'
 
@@ -213,7 +217,7 @@ export struct SystemLogPage {
     .width('100%').height('100%')
     .linearGradient({
       angle: 180,
-      colors: this.theme.pageGradient
+      colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
     })
   }
 }

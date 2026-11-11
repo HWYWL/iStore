@@ -3,7 +3,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardBorder,
-  cardTint
+  cardTint,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { NetworkInterface, ConnectedDevice } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
@@ -111,7 +112,7 @@ this.theme = AppState.getInstance().getTheme()
         .height('100%')
         .linearGradient({
           angle: 135,
-          colors: this.theme.pageGradient
+          colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
         })
 
       Column() {

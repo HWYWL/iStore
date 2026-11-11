@@ -7,7 +7,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardBorder,
-  cardTint
+  cardTint,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { SshService } from '../../common/ssh/SshService'
@@ -401,7 +402,7 @@ export struct SpeedTestPage {
     .width('100%').height('100%')
     .linearGradient({
       angle: 135,
-      colors: this.theme.pageGradient
+      colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
     })
   }
 }

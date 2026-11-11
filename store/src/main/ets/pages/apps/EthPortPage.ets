@@ -2,7 +2,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
   ThemePalette,
-  cardBorder
+  cardBorder,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
@@ -164,7 +165,7 @@ this.theme = AppState.getInstance().getTheme()
         .width('100%').height('100%')
         .linearGradient({
           angle: 135,
-          colors: this.theme.pageGradient
+          colors: pageBgColors(this.theme, AppNav.getInstance().isWide())
         })
 
       Column() {

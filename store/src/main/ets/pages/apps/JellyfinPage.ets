@@ -8,7 +8,8 @@
 import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
-  cardTint
+  cardTint,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { JellyfinStore, JellyfinConfig } from '../../common/store/JellyfinStore'
 import { JellyfinClient, JellyfinItem, JellyfinView } from '../../api/JellyfinClient'
@@ -431,6 +432,6 @@ export struct JellyfinPage {
       }
     }
     .width('100%').height('100%')
-    .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+    .linearGradient({ angle: 135, colors: pageBgColors(this.theme, AppNav.getInstance().isWide()) })
   }
 }

@@ -6,7 +6,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
   ThemePalette,
-  cardBorder
+  cardBorder,
+  pageBgColors
 } from '../../common/theme/ThemeColors'
 import { AlbumTab } from '../dashboard/AlbumTab'
 import { AppNav } from '../../common/utils/AppNav'
@@ -65,7 +66,7 @@ export struct AlbumPage {
     }
     .width('100%')
     .height('100%')
-    .linearGradient({ angle: 135, colors: this.theme.pageGradient })
+    .linearGradient({ angle: 135, colors: pageBgColors(this.theme, AppNav.getInstance().isWide()) })
   }
 
   /**
