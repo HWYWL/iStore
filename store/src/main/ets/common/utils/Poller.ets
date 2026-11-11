@@ -73,7 +73,7 @@ export class Poller {
     }
     this.inFlight = true
     try {
-      await this.task()
+      await Promise.resolve(this.task())
     } finally {
       this.inFlight = false
     }

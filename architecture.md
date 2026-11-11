@@ -36,6 +36,23 @@ DEVECO_SDK_HOME='F:\OpenHarmony\command-line-tools\sdk' \
 最简单的入口是 `./scripts/ci.ps1`（`-Lint` 加代码检查、`-Pack` 打包）；它已会在 `DEVECO_SDK_HOME`
 未设置时自动指到 `<command-line-tools>/sdk`。
 
+### Lint 门禁
+
+**口径：0 error 通过，warn 不阻塞**（用户确认）。lint 步骤保留在 CI 里，不因存量告警而摘掉检查。
+
+- **成败由 `scripts/ci.ps1` 判定，不看 codelinter 的退出码**：codelinter 6.0.240 只要有任何 defect
+  就返回非零，且 `-e/--exit-on` 在该版本不生效（三种写法均实测无效）。脚本解析汇总行
+  `Defects: N; Errors: M; …`，仅当 `M > 0` 失败；**解析不到汇总行也判失败**，避免工具升级后门禁静默放宽。
+- **`@typescript-eslint/await-thenable` 为 warn**：它对「可空或含 `void` 的 Promise 联合类型」固有误报
+  （`await` 一个可能为 `null` 的值合法）；对 `libentry.so` 这个原生模块则解析不到类型（`Index.d.ts` 里
+  签名本就是 `Promise<...>`，见 `mod-remote`），靠改代码无法消除。其余规则保持 error/recommended。
+- **存量 40 个 warn 未清**（2026-11-11 基线），因为三类主力告警都无法在不改语义的前提下消掉：
+  `foreach-args-check` 加 keyGenerator 会改变 ForEach 的 diff 行为；`hp-arkui-*` 两条命中的是异步流程
+  里刻意驱动 UI 的 `@State` 写回；`reuse-date-instances-check` 命中的是循环内各自不同的 `new Date(...)`。
+  收敛它们需要独立任务 + 逐页手测，不能顺手做。
+- 未确认：GitHub CI runner 上的 codelinter 版本是否同为 6.0.240（不同则脚本以「no summary line」
+  失败——方向安全，但需要在 runner 上实测一次）。
+
 ## Layers
 
 ```

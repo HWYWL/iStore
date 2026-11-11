@@ -16,6 +16,8 @@
     "plugin:@typescript-eslint/recommended"
   ],
   "rules": {
+    // 降级理由见 architecture.md「Build & verify」：可空联合误报 + libentry.so 类型无法解析。
+    "@typescript-eslint/await-thenable": "warn",
     "@security/no-unsafe-aes": "error",
     "@security/no-unsafe-hash": "error",
     "@security/no-unsafe-mac": "warn",

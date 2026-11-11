@@ -60,8 +60,21 @@ try {
     $linter = Join-Path $CliPath 'codelinter.bat'
     if (Test-Path $linter) {
       Write-Host "==> Code linter" -ForegroundColor Cyan
-      & $linter -c code-linter.json5 .
-      if ($LASTEXITCODE -ne 0) { Write-Error "Code linter failed"; exit $LASTEXITCODE }
+      # codelinter 6.0.240 exits non-zero on ANY defect and does not honour --exit-on,
+      # so gate on the summary line instead: errors fail the build, warnings only report.
+      $lintLog = Join-Path $env:TEMP 'codelinter.log'
+      & $linter -c code-linter.json5 . 2>&1 | Tee-Object -FilePath $lintLog | Out-Host
+      $summary = Select-String -Path $lintLog -Pattern 'Defects:\s*\d+;\s*Errors:\s*(\d+)' | Select-Object -Last 1
+      if (-not $summary) {
+        Write-Error "Code linter produced no summary line"
+        exit 1
+      }
+      $lintErrors = [int]$summary.Matches[0].Groups[1].Value
+      if ($lintErrors -gt 0) {
+        Write-Error "Code linter found $lintErrors error(s)"
+        exit 1
+      }
+      Write-Host "==> Lint OK: 0 errors (warnings do not fail the build)" -ForegroundColor Green
     } else {
       Write-Host "==> Skip linter (codelinter.bat not found)" -ForegroundColor Yellow
     }

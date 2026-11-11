@@ -602,8 +602,9 @@ export class ApiClient {
     if (this.loginInFlight) {
       return this.loginInFlight
     }
-    this.loginInFlight = this.doUbusLogin()
-    const ok: boolean = await this.loginInFlight
+    const inflight: Promise<boolean> = this.doUbusLogin()
+    this.loginInFlight = inflight
+    const ok: boolean = await inflight
     this.loginInFlight = null
     return ok
   }
@@ -866,8 +867,9 @@ export class ApiClient {
     if (this.luciLoginInFlight) {
       return this.luciLoginInFlight
     }
-    this.luciLoginInFlight = this.doLuciFormLogin()
-    const ok: boolean = await this.luciLoginInFlight
+    const inflight: Promise<boolean> = this.doLuciFormLogin()
+    this.luciLoginInFlight = inflight
+    const ok: boolean = await inflight
     this.luciLoginInFlight = null
     return ok
   }
@@ -1937,8 +1939,9 @@ export class ApiClient {
     if (this.dtLoading !== null) {
       return await this.dtLoading
     }
-    this.dtLoading = this.loadDeviceTreeInfo()
-    const info: DeviceTreeInfo = await this.dtLoading
+    const loading: Promise<DeviceTreeInfo> = this.loadDeviceTreeInfo()
+    this.dtLoading = loading
+    const info: DeviceTreeInfo = await loading
     this.dtLoading = null
     // 只有拿到芯片型号才缓存：仅板卡名不足以判定处理器，下一轮继续尝试
     if (info.chip.length > 0) {
@@ -2192,8 +2195,9 @@ export class ApiClient {
     if (this.ratesInFlight) {
       return this.ratesInFlight
     }
-    this.ratesInFlight = this.doSampleRates(dump)
-    const result: Object[] = await this.ratesInFlight
+    const inflight: Promise<Object[]> = this.doSampleRates(dump)
+    this.ratesInFlight = inflight
+    const result: Object[] = await inflight
     this.ratesInFlight = null
     return result
   }
