@@ -219,8 +219,8 @@ export struct MileStonePage {
               Row() {
                 Progress({ value: Math.min(100, (this.uptimeDays / 365) * 100), total: 100 })
                   .width('100%').height(6)
-                  .color('#FF8A3D')
-                  .backgroundColor('#F0EBE0')
+                  .color(this.theme.primary)
+                  .backgroundColor(this.theme.progressTrack)
               }
               .width('100%').margin({ top: 10 })
             }
@@ -264,7 +264,7 @@ export struct MileStonePage {
                   .fontSize(11).fontColor('rgba(255,255,255,0.8)').margin({ top: 4 })
               }
               .width('100%').padding(18).borderRadius(20).margin({ top: 14 })
-              .backgroundColor('#FF8A3D')
+              .backgroundColor(this.theme.primary)
             }
           }
           .width('100%')

@@ -255,7 +255,7 @@ export struct NetworkCheckPage {
         Blank()
         if (this.checked) {
           Text(`${this.score} 分`)
-            .fontSize(13).fontColor(this.score >= 70 ? '#00C853' : '#E6A800')
+            .fontSize(13).fontColor(this.score >= 70 ? this.theme.success : this.theme.warning)
             .fontWeight(FontWeight.Bold)
             .margin({ right: 16 })
         }
@@ -269,7 +269,7 @@ export struct NetworkCheckPage {
           if (this.checked) {
             Column() {
               Text(this.scoreText)
-                .fontSize(18).fontColor(this.score >= 70 ? '#00C853' : '#E6A800')
+                .fontSize(18).fontColor(this.score >= 70 ? this.theme.success : this.theme.warning)
                 .fontWeight(FontWeight.Bold)
               Text(`综合评分 ${this.score} / 100`)
                 .fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 4 })
@@ -304,7 +304,7 @@ export struct NetworkCheckPage {
                   LoadingProgress().width(22).height(22).color(this.theme.primary)
                 } else if (item.status === 'ok') {
                   // 通过：鸿蒙原生 checkmark_circle 分层绿色
-                  AppIcon({ name: 'checkmark_circle', iconSize: 22, colors: ['#00C853', '#7CE495'] })
+                  AppIcon({ name: 'checkmark_circle', iconSize: 22, colors: [this.theme.success, '#7CE495'] })
                     .width(22)
                     .transition(TransitionEffect.opacity(0.2).combine(
                       TransitionEffect.scale({ x: 0.6, y: 0.6 }).animation({ duration: 200, curve: Curve.EaseOut })))
@@ -352,7 +352,7 @@ export struct NetworkCheckPage {
                       .fontSize(13).fontColor(this.theme.textPrimary).fontFamily('monospace')
                     if (item.lossPercent > 0) {
                       Text(`丢包 ${item.lossPercent}%`)
-                        .fontSize(9).fontColor('#E6A800').margin({ top: 2 })
+                        .fontSize(9).fontColor(this.theme.warning).margin({ top: 2 })
                     }
                   }
                   .alignItems(HorizontalAlign.End)
@@ -378,7 +378,7 @@ export struct NetworkCheckPage {
               .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
-          .backgroundColor(this.checking ? '#C9A98A' : '#FF8A3D')
+          .backgroundColor(this.checking ? '#C9A98A' : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 20 })
           .onClick(() => { this.startCheck() })

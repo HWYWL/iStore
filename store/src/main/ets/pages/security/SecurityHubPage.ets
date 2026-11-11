@@ -8,7 +8,8 @@ import {
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { SecurityHubEngine, SecurityItem, SecurityResult, SecurityHistory } from '../../common/security/SecurityHubEngine'
 import { SshService } from '../../common/ssh/SshService'
@@ -224,7 +225,7 @@ export struct SecurityHubPage {
                       .fontColor('#FF5252')
                       .padding({ left: 10, right: 10, top: 4, bottom: 4 })
                       .borderRadius(8)
-                      .backgroundColor('rgba(255,82,82,0.1)')
+                      .backgroundColor(withAlpha(this.theme.danger, 0.1))
                   }
                 }
                 .width('100%')

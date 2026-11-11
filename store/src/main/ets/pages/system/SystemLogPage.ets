@@ -9,7 +9,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
   ThemePalette,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { Poller } from '../../common/utils/Poller'
@@ -137,7 +138,7 @@ export struct SystemLogPage {
           Image($r('app.media.app_info')).width(18).height(18)
         }
         .width(34).height(34).borderRadius(17)
-        .backgroundColor('rgba(255,138,61,0.14)')
+        .backgroundColor(withAlpha(this.theme.primary, 0.14))
         .justifyContent(FlexAlign.Center)
 
         Column() {
@@ -150,7 +151,7 @@ export struct SystemLogPage {
           .fontSize(13).fontColor(this.theme.primary)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
-          .backgroundColor('rgba(255,138,61,0.1)')
+          .backgroundColor(withAlpha(this.theme.primary, 0.1))
           .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
@@ -166,7 +167,7 @@ export struct SystemLogPage {
           Text('刷新').fontSize(12).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
         }
         .padding({ left: 14, right: 14, top: 9, bottom: 9 })
-        .borderRadius(16).backgroundColor('#FF8A3D')
+        .borderRadius(16).backgroundColor(this.theme.primary)
         .onClick(() => { this.loadLogs() })
       }
       .width('100%').padding({ left: 16, right: 16, top: 10 })

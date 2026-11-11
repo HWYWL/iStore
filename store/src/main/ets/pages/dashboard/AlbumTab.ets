@@ -2,7 +2,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
   cardBorder,
-  cardTint
+  cardTint,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { ImmichStore, ImmichConfig } from '../../common/store/ImmichStore'
 import { ImmichClient, ImmichAlbum, ImmichServerInfo, ImmichAsset } from '../../api/ImmichClient'
@@ -1343,7 +1344,7 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 14, right: 14, top: 8, bottom: 8 })
           .borderRadius(14)
-          .backgroundColor('rgba(68,138,255,0.08)')
+          .backgroundColor(withAlpha(this.theme.info, 0.08))
           .border({ width: 0.5, color: '#448AFF33' })
           .onClick(() => this.probeLocalImmich())
 
@@ -1623,7 +1624,7 @@ this.theme = AppState.getInstance().getTheme()
             .fontSize(12).fontColor(this.theme.primary)
             .padding({ left: 14, right: 14, top: 8, bottom: 8 })
             .borderRadius(12)
-            .backgroundColor('rgba(68,138,255,0.08)')
+            .backgroundColor(withAlpha(this.theme.info, 0.08))
             .margin({ top: 16 })
             .onClick(() => this.runDiagnose())
           if (this.showDiagnose) {

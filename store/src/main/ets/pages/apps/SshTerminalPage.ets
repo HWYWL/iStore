@@ -275,7 +275,7 @@ this.theme = AppState.getInstance().getTheme()
         Blank()
         if (this.connected) {
           Row() {
-            Circle({ width: 6, height: 6 }).fill('#00C853')
+            Circle({ width: 6, height: 6 }).fill(this.theme.success)
             Text(` ${this.ssh.host()}`)
               .fontSize(11).fontColor(this.theme.success)
           }

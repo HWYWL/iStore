@@ -3,7 +3,8 @@ import {
   ThemePalette,
   cardBorder,
   cardTint,
-  listCardBlur
+  listCardBlur,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 /**
  * 客户端设备详情页面
@@ -612,7 +613,7 @@ this.theme = AppState.getInstance().getTheme()
             .fontColor(this.theme.primary)
             .padding({ left: 10, right: 10, top: 6, bottom: 6 })
             .borderRadius(10)
-            .backgroundColor('rgba(68,138,255,0.1)')
+            .backgroundColor(withAlpha(this.theme.info, 0.1))
             .onClick(() => { this.editingNote = true })
         }
       }
@@ -631,7 +632,7 @@ this.theme = AppState.getInstance().getTheme()
         }
         .padding({ left: 12, right: 12, top: 8, bottom: 8 })
         .borderRadius(12)
-        .backgroundColor(this.isDenied ? 'rgba(0,230,118,0.1)' : 'rgba(255,82,82,0.1)')
+        .backgroundColor(this.isDenied ? 'rgba(0,230,118,0.1)' : withAlpha(this.theme.danger, 0.1))
         .border({ width: 0.5, color: this.isDenied ? '#00E67644' : '#FF525244' })
         .onClick(() => this.toggleDeny())
 
@@ -644,7 +645,7 @@ this.theme = AppState.getInstance().getTheme()
         }
         .padding({ left: 12, right: 12, top: 8, bottom: 8 })
         .borderRadius(12)
-        .backgroundColor('rgba(255,152,0,0.1)')
+        .backgroundColor(withAlpha(this.theme.warning, 0.1))
         .border({ width: 0.5, color: '#FF980044' })
         .margin({ left: 10 })
         .onClick(() => this.kickDevice())
@@ -689,7 +690,7 @@ this.theme = AppState.getInstance().getTheme()
             .fontColor(this.theme.danger)
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .borderRadius(10)
-            .backgroundColor('rgba(255,82,82,0.1)')
+            .backgroundColor(withAlpha(this.theme.danger, 0.1))
             .onClick(() => this.removeDhcpBinding())
         } else {
           Row() {
@@ -700,7 +701,7 @@ this.theme = AppState.getInstance().getTheme()
           }
             .padding({ left: 12, right: 12, top: 8, bottom: 8 })
             .borderRadius(12)
-            .backgroundColor('rgba(68,138,255,0.1)')
+            .backgroundColor(withAlpha(this.theme.info, 0.1))
             .border({ width: 0.5, color: '#448AFF44' })
             .onClick(() => {
               this.showIpInput = true

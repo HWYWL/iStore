@@ -8,7 +8,8 @@ import {
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { AiHelper, ChatMsg } from '../../common/ai/AiHelper'
 import { window } from '@kit.ArkUI'
@@ -204,8 +205,8 @@ export struct NetworkHelperPage {
               .fontColor(this.theme.primary)
               .padding({ left: 12, right: 12, top: 6, bottom: 6 })
               .borderRadius(14)
-              .backgroundColor('rgba(68,138,255,0.1)')
-              .border({ width: 0.5, color: 'rgba(68,138,255,0.3)' })
+              .backgroundColor(withAlpha(this.theme.info, 0.1))
+              .border({ width: 0.5, color: withAlpha(this.theme.info, 0.3) })
               .onClick(() => { this.sendQuestion(q) })
           }, (q: string): string => q)
         }

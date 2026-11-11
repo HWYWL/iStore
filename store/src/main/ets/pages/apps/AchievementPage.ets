@@ -180,7 +180,7 @@ export struct AchievementPage {
             .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
         }
         .width('100%').padding(14).borderRadius(16).margin({ left: 16, right: 16, top: 6 })
-        .backgroundColor('#FF8A3D')
+        .backgroundColor(this.theme.primary)
         .transition(TransitionEffect.opacity(0.1).combine(
           TransitionEffect.scale({ x: 0.8, y: 0.8 }).animation({ duration: 250, curve: Curve.EaseOut })))
       }
@@ -204,7 +204,7 @@ export struct AchievementPage {
                     .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                   if (this.doneMap[a.id]) {
                     Text(' 已达成')
-                      .fontSize(10).fontColor('#00C853')
+                      .fontSize(10).fontColor(this.theme.success)
                   }
                 }
                 .width('100%')
@@ -214,7 +214,7 @@ export struct AchievementPage {
               .alignItems(HorizontalAlign.Start).layoutWeight(1)
               .margin({ left: 12 })
               if (this.doneMap[a.id]) {
-                AppIcon({ name: 'checkmark_circle', iconSize: 20, colors: ['#00C853', '#7CE495'] })
+                AppIcon({ name: 'checkmark_circle', iconSize: 20, colors: [this.theme.success, '#7CE495'] })
               } else {
                 AppIcon({ name: 'lock', iconSize: 16, colors: ['#94A3B8'] })
                   .opacity(0.7)

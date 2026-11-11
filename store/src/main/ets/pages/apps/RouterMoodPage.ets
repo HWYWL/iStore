@@ -70,21 +70,21 @@ export struct RouterMoodPage {
       return { icon: 'thermometer', title: '热到变形', talk: `我这体温都 ${temp.toFixed(0)}°C 了，快中暑了，能不能开空调…（把风扇对着我吹也行）`, color: '#FF5252' }
     }
     if (load >= 85) {
-      return { icon: 'bolt', title: '压力山大', talk: `CPU 都飙到 ${load.toFixed(0)}% 了！家里是不是有人在开矿？`, color: '#E6A800' }
+      return { icon: 'bolt', title: '压力山大', talk: `CPU 都飙到 ${load.toFixed(0)}% 了！家里是不是有人在开矿？`, color: this.theme.warning }
     }
     if (days >= 100) {
-      return { icon: 'heart', title: '佛系运行', talk: `已连续运行 ${days} 天，老夫稳如磐石，连觉都不用睡。`, color: '#00C853' }
+      return { icon: 'heart', title: '佛系运行', talk: `已连续运行 ${days} 天，老夫稳如磐石，连觉都不用睡。`, color: this.theme.success }
     }
     if (days >= 7) {
-      return { icon: 'face_smiling', title: '心情舒畅', talk: `连续跑了一周多，温温柔柔，不急不躁，状态正好。`, color: '#00C853' }
+      return { icon: 'face_smiling', title: '心情舒畅', talk: `连续跑了一周多，温温柔柔，不急不躁，状态正好。`, color: this.theme.success }
     }
     if (load >= 60) {
-      return { icon: 'clock', title: '小忙一下', talk: `负载 ${load.toFixed(0)}%，还行还行，忙里偷闲。`, color: '#FF8A3D' }
+      return { icon: 'clock', title: '小忙一下', talk: `负载 ${load.toFixed(0)}%，还行还行，忙里偷闲。`, color: this.theme.primary }
     }
     if (temp <= 0) {
       return { icon: 'info_circle', title: '数据缺失', talk: '传感器没传来温度，我就先装个深沉。', color: '#B0A99A' }
     }
-    return { icon: 'sun_max', title: '元气满满', talk: `温度 ${temp.toFixed(0)}°C，负载 ${load.toFixed(0)}%，本路由器今天状态拉满！`, color: '#00C853' }
+    return { icon: 'sun_max', title: '元气满满', talk: `温度 ${temp.toFixed(0)}°C，负载 ${load.toFixed(0)}%，本路由器今天状态拉满！`, color: this.theme.success }
   }
 
   build() {
@@ -137,7 +137,7 @@ export struct RouterMoodPage {
             .layoutWeight(1).alignItems(HorizontalAlign.Center)
             Column() {
               Text(`${this.load.toFixed(0)}%`)
-                .fontSize(22).fontColor(this.load >= 85 ? '#E6A800' : this.theme.textPrimary)
+                .fontSize(22).fontColor(this.load >= 85 ? this.theme.warning : this.theme.textPrimary)
                 .fontWeight(FontWeight.Bold).fontFamily('monospace')
               Text('CPU 负载')
                 .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 3 })
@@ -160,7 +160,7 @@ export struct RouterMoodPage {
               .fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
           }
           .width('100%').height(44).borderRadius(22)
-          .backgroundColor('#FF8A3D')
+          .backgroundColor(this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 16 })
           .onClick(() => { this.refresh() })

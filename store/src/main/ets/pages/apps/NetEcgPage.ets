@@ -178,7 +178,7 @@ export struct NetEcgPage {
           Column() {
             Row() {
               Text(this.lastStatus)
-                .fontSize(20).fontColor(this.lastLatency > 150 ? '#FF5252' : '#00C853')
+                .fontSize(20).fontColor(this.lastLatency > 150 ? '#FF5252' : this.theme.success)
                 .fontWeight(FontWeight.Bold)
               if (this.lastLatency > 0) {
                 Text(`  ${this.lastLatency.toFixed(1)} ms`)
@@ -199,8 +199,8 @@ export struct NetEcgPage {
                 .fontSize(12).fontColor(this.theme.textSecondary)
               Blank()
               if (this.running) {
-                Circle({ width: 6, height: 6 }).fill('#00C853')
-                Text(' 采样中').fontSize(10).fontColor('#00C853')
+                Circle({ width: 6, height: 6 }).fill(this.theme.success)
+                Text(' 采样中').fontSize(10).fontColor(this.theme.success)
               }
             }
             .width('100%').margin({ bottom: 8 })
@@ -226,7 +226,7 @@ export struct NetEcgPage {
               .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
-          .backgroundColor(this.running ? '#FF5252' : '#FF8A3D')
+          .backgroundColor(this.running ? '#FF5252' : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 16 })
           .onClick(() => {

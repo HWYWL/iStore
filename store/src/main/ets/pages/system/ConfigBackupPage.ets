@@ -16,7 +16,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { FileManagerService } from '../../common/fs/FileManagerService'
@@ -179,7 +180,7 @@ export struct ConfigBackupPage {
           Image($r('app.media.folder_file')).width(18).height(18)
         }
         .width(34).height(34).borderRadius(17)
-        .backgroundColor('rgba(255,138,61,0.14)')
+        .backgroundColor(withAlpha(this.theme.primary, 0.14))
         .justifyContent(FlexAlign.Center)
 
         Column() {
@@ -192,7 +193,7 @@ export struct ConfigBackupPage {
           .fontSize(13).fontColor(this.theme.primary)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
-          .backgroundColor('rgba(255,138,61,0.1)')
+          .backgroundColor(withAlpha(this.theme.primary, 0.1))
           .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
@@ -241,11 +242,11 @@ export struct ConfigBackupPage {
                   Text('分享').fontSize(12).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
                 }
                 .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-                .borderRadius(16).backgroundColor('#FF8A3D')
+                .borderRadius(16).backgroundColor(this.theme.primary)
                 .onClick(() => { this.shareBackup() })
               }
               .width('100%').padding(12).borderRadius(12).margin({ top: 10 })
-              .backgroundColor('rgba(255,138,61,0.08)')
+              .backgroundColor(withAlpha(this.theme.primary, 0.08))
             }
 
             Row() {

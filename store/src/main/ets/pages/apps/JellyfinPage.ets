@@ -9,7 +9,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { JellyfinStore, JellyfinConfig } from '../../common/store/JellyfinStore'
 import { JellyfinClient, JellyfinItem, JellyfinView } from '../../api/JellyfinClient'
@@ -289,7 +290,7 @@ export struct JellyfinPage {
                 .padding({ top: 12, bottom: 12 })
                 .borderRadius(14)
                 .backgroundColor(this.theme.primary)
-                .shadow({ radius: 10, color: 'rgba(255,138,61,0.3)', offsetY: 4 })
+                .shadow({ radius: 10, color: withAlpha(this.theme.primary, 0.3), offsetY: 4 })
                 .margin({ top: 16 })
                 .onClick(() => { this.doLogin() })
             }

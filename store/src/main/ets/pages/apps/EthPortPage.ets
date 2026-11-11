@@ -3,7 +3,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardBorder,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
@@ -257,7 +258,7 @@ this.theme = AppState.getInstance().getTheme()
                         }.alignItems(HorizontalAlign.Center)
                         .padding({ left: 14, right: 14, top: 8, bottom: 8 })
                         .borderRadius(10)
-                        .backgroundColor(port.up ? 'rgba(68,138,255,0.08)' : 'rgba(117,117,117,0.06)')
+                        .backgroundColor(port.up ? withAlpha(this.theme.info, 0.08) : 'rgba(117,117,117,0.06)')
                         .border({ width: 0.5, color: port.up ? '#448AFF33' : '#75757533' })
                       }
 

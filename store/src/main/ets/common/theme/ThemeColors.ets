@@ -633,6 +633,21 @@ export function listCardBlur(p: ThemePalette): number {
 }
 
 /**
+ * 把十六进制颜色按 alpha 转成 rgba。页面做「半透明强调底」时应调它，
+ * 而不是写死 rgba(255,138,61,…)——后者会在换色板后仍是米色主题的橙色。
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  const h: string = hex.replace('#', '')
+  if (h.length !== 6) {
+    return hex
+  }
+  const r: number = parseInt(h.substring(0, 2), 16)
+  const g: number = parseInt(h.substring(2, 4), 16)
+  const b: number = parseInt(h.substring(4, 6), 16)
+  return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')'
+}
+
+/**
  * 页面根背景：平板分栏（内嵌）时返回透明，让 MainPage 那一块背景直接透出来，
  * 分栏之间才无缝；手机全屏或不能嵌栏的页面仍用自己的页面渐变。
  * （两个渐变各自从自己的左上角起算，不透明就会在分栏边界形成一道色差接缝）

@@ -156,13 +156,13 @@ export struct DeviceActivityPage {
             Column() {
               Row() {
                 Circle({ width: 6, height: 6 })
-                  .fill(row.isOnline ? '#00C853' : '#C9C4B8')
+                  .fill(row.isOnline ? this.theme.success : '#C9C4B8')
                 Text(row.name)
                   .fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                   .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
                   .margin({ left: 6 }).layoutWeight(1)
                 Text(row.isOnline ? '在线' : '离线')
-                  .fontSize(9).fontColor(row.isOnline ? '#00C853' : '#B0A99A')
+                  .fontSize(9).fontColor(row.isOnline ? this.theme.success : '#B0A99A')
               }
               .width('100%')
 
@@ -215,7 +215,7 @@ export struct DeviceActivityPage {
               .fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
           }
           .width('100%').height(44).borderRadius(22)
-          .backgroundColor('#FF8A3D')
+          .backgroundColor(this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 16 })
           .onClick(() => { this.load() })

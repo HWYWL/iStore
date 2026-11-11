@@ -173,14 +173,14 @@ export struct FortunePage {
           // 宜
           Column() {
             Row() {
-              AppIcon({ name: 'checkmark_circle', iconSize: 14, colors: ['#00C853'] })
-              Text(' 宜').fontSize(13).fontColor('#00C853').fontWeight(FontWeight.Bold)
+              AppIcon({ name: 'checkmark_circle', iconSize: 14, colors: [this.theme.success] })
+              Text(' 宜').fontSize(13).fontColor(this.theme.success).fontWeight(FontWeight.Bold)
               Blank()
             }
             .width('100%')
             ForEach(this.yiText, (t: string) => {
               Row() {
-                Text('·').fontColor('#00C853').fontSize(12)
+                Text('·').fontColor(this.theme.success).fontSize(12)
                 Text(t).fontSize(12).fontColor(this.theme.textPrimary).margin({ left: 6 })
                 Blank()
               }

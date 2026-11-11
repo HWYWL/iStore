@@ -11,7 +11,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { AppIcon } from '../../common/components/AppIcon'
@@ -84,7 +85,7 @@ export struct NetworkRestartPage {
         message: '将重启路由器网络服务（约 10~30 秒），期间网络会短暂中断，是否继续？',
         buttons: [
           { text: '取消', color: '#999999' },
-          { text: '确认重启', color: '#FF8A3D' }
+          { text: '确认重启', color: this.theme.primary }
         ]
       }).then((res: promptAction.ShowDialogSuccessResponse) => {
         if (res.index === 1) {
@@ -136,7 +137,7 @@ export struct NetworkRestartPage {
           Image($r('app.media.network_mgmt')).width(18).height(18)
         }
         .width(34).height(34).borderRadius(17)
-        .backgroundColor('rgba(255,138,61,0.14)')
+        .backgroundColor(withAlpha(this.theme.primary, 0.14))
         .justifyContent(FlexAlign.Center)
 
         Column() {
@@ -149,7 +150,7 @@ export struct NetworkRestartPage {
           .fontSize(13).fontColor(this.theme.primary)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
-          .backgroundColor('rgba(255,138,61,0.1)')
+          .backgroundColor(withAlpha(this.theme.primary, 0.1))
           .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
@@ -193,7 +194,7 @@ export struct NetworkRestartPage {
             }
           }
           .width('100%').height(48).borderRadius(24).margin({ top: 16 })
-          .backgroundColor(this.busy ? '#C9A98A' : '#FF8A3D')
+          .backgroundColor(this.busy ? '#C9A98A' : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .onClick(() => { this.confirmRestart() })
 

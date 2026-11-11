@@ -9,7 +9,8 @@ import {
   cardBorder,
   cardTint,
   listCardBlur,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { TrafficStatStore, DayTraffic, HourTraffic } from '../../common/store/TrafficStatStore'
 import { window } from '@kit.ArkUI'
@@ -254,7 +255,7 @@ export struct TrafficReportPage {
             .padding({ left: 14, right: 14, top: 10, bottom: 10 })
             .borderRadius(14)
             .backgroundColor('rgba(255,168,61,0.14)')
-            .border({ width: 0.5, color: 'rgba(255,138,61,0.35)' })
+            .border({ width: 0.5, color: withAlpha(this.theme.primary, 0.35) })
             .margin({ bottom: 10 })
           }
 

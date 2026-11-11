@@ -2,7 +2,8 @@
 import {
   ThemePalette,
   cardBorder,
-  cardTint
+  cardTint,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { IStoreApp } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
@@ -151,10 +152,10 @@ export struct IStoreTabView {
           if (app.hasUpdate) {
             Text('有新版')
               .fontSize(8)
-              .fontColor('#FF8A3D')
+              .fontColor(this.theme.primary)
               .padding({ left: 5, right: 5, top: 1, bottom: 1 })
               .borderRadius(4)
-              .backgroundColor('rgba(255,138,61,0.14)')
+              .backgroundColor(withAlpha(this.theme.primary, 0.14))
               .margin({ left: 5 })
           }
         }

@@ -102,7 +102,7 @@ export struct WifiCardPage {
               .fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
               .margin({ top: 8 })
             Text(this.ssid || 'WiFi 名称')
-              .fontSize(20).fontColor('#FF8A3D').fontWeight(FontWeight.Bold).fontFamily('monospace')
+              .fontSize(20).fontColor(this.theme.primary).fontWeight(FontWeight.Bold).fontFamily('monospace')
               .margin({ top: 6 })
 
             // 二维码
@@ -157,7 +157,7 @@ export struct WifiCardPage {
               .fontSize(12).fontColor(this.theme.textSecondary).width('100%').margin({ top: 12 })
             TextInput({ placeholder: '输入 WiFi 密码', text: this.password })
               .width('100%').height(42).borderRadius(10)
-              .backgroundColor('#F0EBE0')
+              .backgroundColor(this.theme.progressTrack)
               .fontSize(13)
               .type(InputType.Password)
               .onChange((v: string) => {

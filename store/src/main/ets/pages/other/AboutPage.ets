@@ -3,7 +3,8 @@
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -226,12 +227,12 @@ export struct AboutPage {
                   .width(68)
                 Text(this.latestVersion)
                   .fontSize(12)
-                  .fontColor(this.checkText.includes('发现新版本') ? '#00C853' : this.theme.textPrimary)
+                  .fontColor(this.checkText.includes('发现新版本') ? this.theme.success : this.theme.textPrimary)
                   .fontWeight(FontWeight.Medium)
                 Blank()
                 if (this.checking) {
                   Row() {
-                    LoadingProgress().width(14).height(14).color('#FF8A3D')
+                    LoadingProgress().width(14).height(14).color(this.theme.primary)
                     Text('  检查中...').fontSize(11).fontColor(this.theme.primary)
                   }
                 } else {
@@ -243,7 +244,7 @@ export struct AboutPage {
                   }
                   .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                   .borderRadius(14)
-                  .backgroundColor(this.checkDone && this.checkText.includes('发现新版本') ? '#FF8A3D' : 'rgba(255,138,61,0.1)')
+                  .backgroundColor(this.checkDone && this.checkText.includes('发现新版本') ? this.theme.primary : withAlpha(this.theme.primary, 0.1))
                   .onClick(() => { this.checkUpdate() })
                 }
               }
@@ -254,7 +255,7 @@ export struct AboutPage {
               if (this.checkText) {
                 Text(this.checkText)
                   .fontSize(10)
-                  .fontColor(this.checkText.includes('发现新版本') ? '#00C853' : this.theme.textTertiary)
+                  .fontColor(this.checkText.includes('发现新版本') ? this.theme.success : this.theme.textTertiary)
                   .margin({ top: 6 })
                   .width('100%')
               }
@@ -294,7 +295,7 @@ export struct AboutPage {
                     .width(16).height(16)
                 }
                 .width(28).height(28).borderRadius(14)
-                .backgroundColor('rgba(68,138,255,0.1)')
+                .backgroundColor(withAlpha(this.theme.info, 0.1))
                 .justifyContent(FlexAlign.Center)
                 .onClick(() => this.copyQqGroup())
               }

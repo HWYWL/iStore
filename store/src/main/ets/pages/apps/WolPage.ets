@@ -12,7 +12,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { FunStore, WolDevice } from '../../common/store/FunStore'
 import { SshService } from '../../common/ssh/SshService'
@@ -185,7 +186,7 @@ export struct WolPage {
           AppIcon({ name: 'bolt', iconSize: 18, colors: ['#F97316'] })
         }
         .width(34).height(34).borderRadius(17)
-        .backgroundColor('rgba(255,138,61,0.14)')
+        .backgroundColor(withAlpha(this.theme.primary, 0.14))
         .justifyContent(FlexAlign.Center)
 
         Column() {
@@ -198,7 +199,7 @@ export struct WolPage {
           .fontSize(13).fontColor(this.theme.primary)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
-          .backgroundColor('rgba(255,138,61,0.1)')
+          .backgroundColor(withAlpha(this.theme.primary, 0.1))
           .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
@@ -228,12 +229,12 @@ export struct WolPage {
               .width('100%')
             TextInput({ placeholder: '设备名称（如：客厅 NAS）', text: this.newName })
               .fontSize(13).height(42).margin({ top: 10 })
-              .backgroundColor('#F0EBE0')
+              .backgroundColor(this.theme.progressTrack)
               .borderRadius(12)
               .onChange((v: string) => { this.newName = v })
             TextInput({ placeholder: 'MAC 地址（如：00:11:22:33:44:55）', text: this.newMac })
               .fontSize(13).height(42).margin({ top: 8 })
-              .backgroundColor('#F0EBE0')
+              .backgroundColor(this.theme.progressTrack)
               .borderRadius(12)
               .onChange((v: string) => { this.newMac = v })
             Row({ space: 10 }) {
@@ -249,7 +250,7 @@ export struct WolPage {
                 Text('导入在线设备').fontSize(13).fontColor(this.theme.primary).fontWeight(FontWeight.Medium)
               }
               .layoutWeight(1).height(42).borderRadius(21)
-              .backgroundColor('rgba(255,138,61,0.1)')
+              .backgroundColor(withAlpha(this.theme.primary, 0.1))
               .justifyContent(FlexAlign.Center)
               .onClick(() => { this.importOnline() })
             }
@@ -291,7 +292,7 @@ export struct WolPage {
                 }
                 .padding({ left: 10, right: 10, top: 6, bottom: 6 })
                 .borderRadius(12)
-                .backgroundColor('rgba(255,82,82,0.1)')
+                .backgroundColor(withAlpha(this.theme.danger, 0.1))
                 .margin({ right: 8 })
                 .onClick(() => { this.removeDevice(idx) })
 
@@ -306,7 +307,7 @@ export struct WolPage {
                 }
                 .padding({ left: 12, right: 12, top: 8, bottom: 8 })
                 .borderRadius(16)
-                .backgroundColor('#00C853')
+                .backgroundColor(this.theme.success)
                 .onClick(() => { this.wake(d) })
               }
               .width('100%').padding(12).borderRadius(14).margin({ top: 8 })

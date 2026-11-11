@@ -8,7 +8,8 @@ import {
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { ConnectedDevice } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
@@ -711,7 +712,7 @@ this.theme = AppState.getInstance().getTheme()
         }
           .padding({ left: 14, right: 14, top: 7, bottom: 7 })
           .borderRadius(16)
-          .backgroundColor('rgba(68,138,255,0.1)')
+          .backgroundColor(withAlpha(this.theme.info, 0.1))
           .onClick(() => { this.loadData() })
       }
       .width('100%')
@@ -807,7 +808,7 @@ this.theme = AppState.getInstance().getTheme()
                     .fontSize(10).fontColor(this.theme.primary)
                     .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                     .borderRadius(10)
-                    .backgroundColor('rgba(68,138,255,0.1)')
+                    .backgroundColor(withAlpha(this.theme.info, 0.1))
                     .margin({ left: 6 })
                 }
               }

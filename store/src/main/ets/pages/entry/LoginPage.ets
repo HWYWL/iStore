@@ -17,7 +17,8 @@ import {
   cardTint,
   cardBorder,
   cardElevation,
-  cardRadius
+  cardRadius,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { common } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -407,7 +408,7 @@ struct LoginPage {
         title: '提示',
         message: msg,
         buttons: [
-          { text: '确定', color: '#FF8A3D' }
+          { text: '确定', color: this.theme.primary }
         ]
       })
     } catch (e) {
@@ -669,7 +670,7 @@ struct LoginPage {
                         .fontColor(device.favorite ? this.theme.primary : this.theme.textTertiary)
                     }
                     .width(30).height(30).borderRadius(15)
-                    .backgroundColor(device.favorite ? 'rgba(255,138,61,0.14)' : 'transparent')
+                    .backgroundColor(device.favorite ? withAlpha(this.theme.primary, 0.14) : 'transparent')
                     .justifyContent(FlexAlign.Center)
                     .margin({ right: 6 })
                     .onClick(() => { this.toggleFavorite(device) })
@@ -679,7 +680,7 @@ struct LoginPage {
                         .width(15).height(15)
                     }
                     .width(30).height(30).borderRadius(15)
-                    .backgroundColor('rgba(255,138,61,0.14)')
+                    .backgroundColor(withAlpha(this.theme.primary, 0.14))
                     .justifyContent(FlexAlign.Center)
                     .margin({ right: 6 })
                     .onClick(() => { this.fillForm(device) })
@@ -689,7 +690,7 @@ struct LoginPage {
                         .width(15).height(15)
                     }
                     .width(30).height(30).borderRadius(15)
-                    .backgroundColor('rgba(255,82,82,0.13)')
+                    .backgroundColor(withAlpha(this.theme.danger, 0.13))
                     .justifyContent(FlexAlign.Center)
                     .onClick(() => { this.deleteDevice(device.id) })
                   }
@@ -721,8 +722,8 @@ struct LoginPage {
               }
               .width('100%').padding({ left: 14, right: 14, top: 12, bottom: 12 })
               .borderRadius(12).margin({ top: 14 })
-              .backgroundColor('rgba(255, 82, 82, 0.05)')
-              .border({ width: 0.5, color: 'rgba(255, 82, 82, 0.15)' })
+              .backgroundColor(withAlpha(this.theme.danger, 0.05))
+              .border({ width: 0.5, color: withAlpha(this.theme.danger, 0.15) })
             }
 
             if (this.successMessage) {
@@ -890,8 +891,8 @@ struct LoginPage {
         }
         .width('100%').padding({ left: 14, right: 14, top: 10, bottom: 10 })
         .borderRadius(12).margin({ bottom: 12 })
-        .backgroundColor('rgba(255, 82, 82, 0.05)')
-        .border({ width: 0.5, color: 'rgba(255, 82, 82, 0.15)' })
+        .backgroundColor(withAlpha(this.theme.danger, 0.05))
+        .border({ width: 0.5, color: withAlpha(this.theme.danger, 0.15) })
       }
 
       // 按钮

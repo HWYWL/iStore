@@ -310,7 +310,7 @@ export struct SpeedTestPage {
               .borderRadius(24)
               .linearGradient({
                 angle: 135,
-                colors: [['#FF9A5C', 0], ['#FF8A3D', 0.55], ['#FF7043', 1]]
+                colors: [['#FF9A5C', 0], [this.theme.primary, 0.55], ['#FF7043', 1]]
               })
               .alignItems(HorizontalAlign.Center)
             }
@@ -337,12 +337,12 @@ export struct SpeedTestPage {
           if (this.testing) {
             Column() {
               Row() {
-                LoadingProgress().width(20).height(20).color('#FF8A3D')
+                LoadingProgress().width(20).height(20).color(this.theme.primary)
                 Text(`  测速中 ${this.countdown}s`).fontSize(12).fontColor(this.theme.textSecondary)
               }
               Progress({ value: 15 - this.countdown, total: 15 })
                 .width('70%').height(6).margin({ top: 10 })
-                .color('#FF8A3D').backgroundColor('#F0EBE0')
+                .color(this.theme.primary).backgroundColor(this.theme.progressTrack)
             }
             .width('100%').justifyContent(FlexAlign.Center).margin({ top: 16 })
             .alignItems(HorizontalAlign.Center)
@@ -362,7 +362,7 @@ export struct SpeedTestPage {
                   .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
               }
               .layoutWeight(1).height(46).borderRadius(23)
-              .backgroundColor('#FF8A3D')
+              .backgroundColor(this.theme.primary)
               .justifyContent(FlexAlign.Center)
               .onClick(() => { this.runTest() })
 
@@ -372,7 +372,7 @@ export struct SpeedTestPage {
                   .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
               }
               .layoutWeight(1).height(46).borderRadius(23)
-              .backgroundColor('#FF8A3D')
+              .backgroundColor(this.theme.primary)
               .justifyContent(FlexAlign.Center)
               .onClick(() => { this.shareResult() })
             }
@@ -383,7 +383,7 @@ export struct SpeedTestPage {
                 .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
             }
             .width('100%').height(48).borderRadius(24)
-            .backgroundColor(this.testing ? '#C9A98A' : '#FF8A3D')
+            .backgroundColor(this.testing ? '#C9A98A' : this.theme.primary)
             .justifyContent(FlexAlign.Center)
             .margin({ top: 16 })
             .onClick(() => { this.runTest() })

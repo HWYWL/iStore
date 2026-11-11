@@ -12,7 +12,8 @@ import {
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { NotifyStore, NotifyRecord } from '../../common/store/NotifyStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -329,8 +330,8 @@ this.theme = AppState.getInstance().getTheme()
             .width('100%')
             .padding(14)
             .borderRadius(14)
-            .backgroundColor('rgba(255,152,0,0.1)')
-            .border({ width: 0.5, color: 'rgba(255,152,0,0.3)' })
+            .backgroundColor(withAlpha(this.theme.warning, 0.1))
+            .border({ width: 0.5, color: withAlpha(this.theme.warning, 0.3) })
             .margin({ top: 8, bottom: 4 })
           }
 

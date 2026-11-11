@@ -5,7 +5,8 @@ import {
   cardBorder,
   cardTint,
   listCardBlur,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { WifiApInfo, WifiClientDetail } from '../../models/Models'
@@ -301,13 +302,13 @@ this.theme = AppState.getInstance().getTheme()
           Text(this.bandLabel(ap.frequency))
             .fontSize(10).fontColor('#448AFF')
             .padding({ left: 8, right: 8, top: 2, bottom: 2 }).borderRadius(8)
-            .backgroundColor('rgba(68,138,255,0.12)')
+            .backgroundColor(withAlpha(this.theme.info, 0.12))
             .margin({ left: 6 })
         }
         Text(ap.up ? '开启' : '关闭')
           .fontSize(10).fontColor(ap.up ? '#00E676' : '#FF5252')
           .padding({ left: 8, right: 8, top: 2, bottom: 2 }).borderRadius(8)
-          .backgroundColor(ap.up ? 'rgba(0,230,118,0.12)' : 'rgba(255,82,82,0.12)')
+          .backgroundColor(ap.up ? 'rgba(0,230,118,0.12)' : withAlpha(this.theme.danger, 0.12))
           .margin({ left: 6 })
       }.width('100%')
 
@@ -328,7 +329,7 @@ this.theme = AppState.getInstance().getTheme()
             .fontSize(12).fontColor(this.theme.primary)
         }
         .padding({ left: 12, right: 12, top: 6, bottom: 6 }).borderRadius(12)
-        .backgroundColor('rgba(68,138,255,0.08)')
+        .backgroundColor(withAlpha(this.theme.info, 0.08))
         .border({ width: 0.5, color: '#448AFF33' })
         .onClick(() => this.openEdit(ap))
 
@@ -374,7 +375,7 @@ this.theme = AppState.getInstance().getTheme()
                   Text('踢下线')
                     .fontSize(11).fontColor('#FF5252')
                     .padding({ left: 8, right: 8, top: 4, bottom: 4 }).borderRadius(8)
-                    .backgroundColor('rgba(255,82,82,0.10)')
+                    .backgroundColor(withAlpha(this.theme.danger, 0.10))
                     .onClick(() => {
                       this.kickTarget = c.mac
                       this.kickDevice = ap.device
@@ -450,7 +451,7 @@ this.theme = AppState.getInstance().getTheme()
             .fontColor(this.theme.danger)
             .padding({ left: 12, right: 12, top: 7, bottom: 7 })
             .borderRadius(12)
-            .backgroundColor('rgba(255,82,82,0.1)')
+            .backgroundColor(withAlpha(this.theme.danger, 0.1))
             .onClick(() => this.doDisableGuest())
         }
         .width('100%')
@@ -508,7 +509,7 @@ this.theme = AppState.getInstance().getTheme()
             .fontColor(this.theme.primary)
             .padding({ left: 14, right: 14, top: 8, bottom: 8 })
             .borderRadius(12)
-            .backgroundColor('rgba(68,138,255,0.1)')
+            .backgroundColor(withAlpha(this.theme.info, 0.1))
             .onClick(() => {
               this.guestShowForm = true
               this.guestErr = ''

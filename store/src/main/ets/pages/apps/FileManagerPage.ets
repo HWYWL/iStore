@@ -8,7 +8,8 @@ import {
   LIGHT_THEME,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { FileManagerService, FsEntry } from '../../common/fs/FileManagerService'
 import { SshService } from '../../common/ssh/SshService'
@@ -551,7 +552,7 @@ export struct FileManagerPage {
             .fontSize(12).fontColor('#FFFFFF')
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .borderRadius(14)
-            .backgroundColor('#FF8A3D')
+            .backgroundColor(this.theme.primary)
             .onClick(() => { this.paste() })
         }
       }
@@ -594,7 +595,7 @@ export struct FileManagerPage {
             .margin({ top: 8 }).padding({ left: 30, right: 30 })
           Text('重新连接').fontSize(13).fontColor('#FFFFFF')
             .padding({ left: 20, right: 20, top: 8, bottom: 8 })
-            .borderRadius(12).backgroundColor('#FF8A3D')
+            .borderRadius(12).backgroundColor(this.theme.primary)
             .margin({ top: 16 })
             .onClick(() => { this.doConnect() })
         }
@@ -610,14 +611,14 @@ export struct FileManagerPage {
             Column() {
               Row() {
                 Text('⚠ 路由器未安装 SFTP 组件')
-                  .fontSize(12).fontColor('#E6A800').fontWeight(FontWeight.Medium)
+                  .fontSize(12).fontColor(this.theme.warning).fontWeight(FontWeight.Medium)
                 Blank()
                 // 一键安装按钮
                 Text('🔧 一键安装')
                   .fontSize(11).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
                   .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                   .borderRadius(12)
-                  .backgroundColor('#FF8A3D')
+                  .backgroundColor(this.theme.primary)
                   .onClick(() => { this.startInstall() })
               }
               .width('100%')
@@ -643,8 +644,8 @@ export struct FileManagerPage {
                   if (this.selectMode) {
                     Circle()
                       .width(18).height(18)
-                      .fill(this.selected.indexOf(entry.path) >= 0 ? '#FF8A3D' : 'transparent')
-                      .stroke('#FF8A3D')
+                      .fill(this.selected.indexOf(entry.path) >= 0 ? this.theme.primary : 'transparent')
+                      .stroke(this.theme.primary)
                       .strokeWidth(1.5)
                       .margin({ right: 10 })
                   }
@@ -682,7 +683,7 @@ export struct FileManagerPage {
                         .width(18).height(18)
                     }
                       .width(32).height(32).borderRadius(10)
-                      .backgroundColor('rgba(255,138,61,0.12)')
+                      .backgroundColor(withAlpha(this.theme.primary, 0.12))
                       .justifyContent(FlexAlign.Center)
                       .onClick(() => { this.download(entry) })
                   }
@@ -781,7 +782,7 @@ export struct FileManagerPage {
             .onClick(() => { this.showSheet = false })
           Text('确定').fontSize(14).fontColor('#FFFFFF')
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
-            .borderRadius(14).backgroundColor('#FF8A3D')
+            .borderRadius(14).backgroundColor(this.theme.primary)
             .onClick(() => { this.onSheetOk() })
         }
         .margin({ top: 16 })
@@ -837,12 +838,12 @@ export struct FileManagerPage {
           if (!this.editMode) {
             Text('编辑').fontSize(13).fontColor(this.theme.primary)
               .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-              .borderRadius(10).backgroundColor('rgba(255,138,61,0.12)')
+              .borderRadius(10).backgroundColor(withAlpha(this.theme.primary, 0.12))
               .onClick(() => { this.editMode = true })
           } else {
             Text('保存').fontSize(13).fontColor(this.theme.primary)
               .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-              .borderRadius(10).backgroundColor('rgba(255,138,61,0.12)')
+              .borderRadius(10).backgroundColor(withAlpha(this.theme.primary, 0.12))
               .onClick(() => { this.saveViewer() })
             Text(' 取消').fontSize(13).fontColor(this.theme.textSecondary)
               .onClick(() => { this.editMode = false; this.openViewer({ name: '', path: this.viewerPath, isDir: false, isLink: false, size: 0, modified: '', isHidden: false }) })
@@ -933,7 +934,7 @@ export struct FileManagerPage {
         .scrollable(ScrollDirection.Vertical)
         if (this.installing) {
           Row() {
-            LoadingProgress().width(22).height(22).color('#FF8A3D')
+            LoadingProgress().width(22).height(22).color(this.theme.primary)
             Text('  安装中…（更新软件源可能需要 1-2 分钟）')
               .fontSize(12).fontColor(this.theme.textSecondary)
           }

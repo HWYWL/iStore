@@ -8,7 +8,8 @@ import {
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { TrafficStatStore, DayTraffic, HourTraffic } from '../../common/store/TrafficStatStore'
 import { FunStore } from '../../common/store/FunStore'
@@ -203,7 +204,7 @@ export struct NetworkReportPage {
               // 总流量
               Row() {
                 Text(this.totalText)
-                  .fontSize(30).fontColor('#FF8A3D').fontWeight(FontWeight.Bold).fontFamily('monospace')
+                  .fontSize(30).fontColor(this.theme.primary).fontWeight(FontWeight.Bold).fontFamily('monospace')
                 Text('总流量')
                   .fontSize(11).fontColor(this.theme.textTertiary).margin({ left: 8 })
               }
@@ -231,7 +232,7 @@ export struct NetworkReportPage {
                 .margin({ top: 8 })
               }
               .width('100%').padding(12).borderRadius(12)
-              .backgroundColor('rgba(255,138,61,0.08)')
+              .backgroundColor(withAlpha(this.theme.primary, 0.08))
               .margin({ top: 12 })
               .alignItems(HorizontalAlign.Center)
 
@@ -259,7 +260,7 @@ export struct NetworkReportPage {
                   .fontSize(13).fontColor(this.theme.textPrimary).lineHeight(20).margin({ top: 6 })
               }
               .width('100%').padding(14).borderRadius(14)
-              .border({ width: 0.5, color: 'rgba(255,138,61,0.4)' })
+              .border({ width: 0.5, color: withAlpha(this.theme.primary, 0.4) })
               .margin({ top: 14 })
               .alignItems(HorizontalAlign.Start)
             }
@@ -285,7 +286,7 @@ export struct NetworkReportPage {
               .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
-          .backgroundColor(this.generating ? '#C9A98A' : '#FF8A3D')
+          .backgroundColor(this.generating ? '#C9A98A' : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 20 })
           .onClick(() => { this.generate() })

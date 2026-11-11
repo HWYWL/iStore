@@ -8,7 +8,8 @@ import {
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -145,7 +146,7 @@ export struct DnsBattlePage {
         Column() {
           if (this.curName) {
             Row() {
-              LoadingProgress().width(18).height(18).color('#FF8A3D')
+              LoadingProgress().width(18).height(18).color(this.theme.primary)
               Text(`  正在挑战 ${this.curName} DNS...`)
                 .fontSize(12).fontColor(this.theme.textSecondary)
             }
@@ -191,7 +192,7 @@ export struct DnsBattlePage {
               .alignItems(VerticalAlign.Top)
             }
             .width('100%').padding(14).borderRadius(14)
-            .border({ width: 0.5, color: 'rgba(255,138,61,0.4)' })
+            .border({ width: 0.5, color: withAlpha(this.theme.primary, 0.4) })
             .margin({ top: 14 })
             .backgroundColor(cardTint(this.theme))
             .alignItems(HorizontalAlign.Start)
@@ -202,7 +203,7 @@ export struct DnsBattlePage {
               .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
-          .backgroundColor(this.testing ? '#C9A98A' : '#FF8A3D')
+          .backgroundColor(this.testing ? '#C9A98A' : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 16 })
           .onClick(() => { this.runBattle() })

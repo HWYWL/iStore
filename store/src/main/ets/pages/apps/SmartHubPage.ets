@@ -8,7 +8,8 @@ import {
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { SmartGuardStore, HourSample, NightEvent, DaySummary } from '../../common/store/SmartGuardStore'
 import { ApiClient } from '../../api/ApiClient'
@@ -344,7 +345,7 @@ export struct SmartHubPage {
         this.getUIContext().getPromptAction().showDialog({
           title: '重启路由器',
           message: '确定要重启吗？所有设备会短暂断网（约 1-2 分钟）。',
-          buttons: [{ text: '取消', color: '#8A8378' }, { text: '重启', color: '#FF8A3D' }]
+          buttons: [{ text: '取消', color: '#8A8378' }, { text: '重启', color: this.theme.primary }]
         }).then(() => {
           api.reboot().then((ok: boolean) => {
             this.cmdResult = ok ? '✅ 重启指令已下发，路由器正在重启…' : '❌ 重启失败'
@@ -505,7 +506,7 @@ export struct SmartHubPage {
           .padding({ top: 7, bottom: 7 })
             .borderRadius(14)
             .backgroundColor(this.tab === idx ? this.theme.primary : Color.Transparent)
-            .shadow(this.tab === idx ? { radius: 6, color: 'rgba(255,138,61,0.3)', offsetY: 2 } : { radius: 0 })
+            .shadow(this.tab === idx ? { radius: 6, color: withAlpha(this.theme.primary, 0.3), offsetY: 2 } : { radius: 0 })
             .animation({ duration: 240, curve: Curve.EaseOut })
             .onClick(() => {
               this.tab = idx
@@ -596,7 +597,7 @@ export struct SmartHubPage {
           .width('100%')
           .padding(12)
           .borderRadius(12)
-          .backgroundColor('rgba(255,138,61,0.08)')
+          .backgroundColor(withAlpha(this.theme.primary, 0.08))
           .margin({ top: 12 })
           .lineHeight(18)
       }
@@ -743,7 +744,7 @@ export struct SmartHubPage {
           .width('100%')
           .padding(12)
           .borderRadius(14)
-          .backgroundColor('#00C853')
+          .backgroundColor(this.theme.success)
           .margin({ top: 12 })
           .transition(TransitionEffect.opacity(0.1).combine(TransitionEffect.translate({ y: 10 })))
           .animation({ duration: 300, curve: Curve.EaseOut })
@@ -862,7 +863,7 @@ export struct SmartHubPage {
               .fontSize(10).fontColor(this.theme.primary)
               .padding({ left: 10, right: 10, top: 5, bottom: 5 })
               .borderRadius(8)
-              .backgroundColor('rgba(255,138,61,0.08)')
+              .backgroundColor(withAlpha(this.theme.primary, 0.08))
               .onClick(() => {
                 this.commandText = s
                 this.runCommand()
@@ -907,7 +908,7 @@ export struct SmartHubPage {
             .fontSize(11).fontColor(this.theme.primary)
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
             .borderRadius(8)
-            .backgroundColor('rgba(255,138,61,0.08)')
+            .backgroundColor(withAlpha(this.theme.primary, 0.08))
             .onClick(() => { this.recordTodaySummary() })
         }
         .width('100%')

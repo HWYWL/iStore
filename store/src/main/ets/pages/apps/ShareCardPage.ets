@@ -15,7 +15,8 @@ import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
   ThemePalette,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface } from '../../models/Models'
@@ -182,7 +183,7 @@ export struct ShareCardPage {
           Image($r('app.media.ranking')).width(18).height(18)
         }
         .width(34).height(34).borderRadius(17)
-        .backgroundColor('rgba(255,138,61,0.14)')
+        .backgroundColor(withAlpha(this.theme.primary, 0.14))
         .justifyContent(FlexAlign.Center)
 
         Column() {
@@ -195,7 +196,7 @@ export struct ShareCardPage {
           .fontSize(13).fontColor(this.theme.primary)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
-          .backgroundColor('rgba(255,138,61,0.1)')
+          .backgroundColor(withAlpha(this.theme.primary, 0.1))
           .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
@@ -278,7 +279,7 @@ export struct ShareCardPage {
               .borderRadius(24)
               .linearGradient({
                 angle: 135,
-                colors: [['#FF9A5C', 0], ['#FF8A3D', 0.55], ['#FF7043', 1]]
+                colors: [['#FF9A5C', 0], [this.theme.primary, 0.55], ['#FF7043', 1]]
               })
               .alignItems(HorizontalAlign.Center)
             }
@@ -291,13 +292,13 @@ export struct ShareCardPage {
               Text('  分享这张卡').fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
             }
             .width('100%').height(46).borderRadius(23).margin({ top: 16 })
-            .backgroundColor('#FF8A3D')
+            .backgroundColor(this.theme.primary)
             .justifyContent(FlexAlign.Center)
             .onClick(() => { this.shareCard() })
 
             Row() {
-              AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: ['#FF8A3D'] })
-              Text('  刷新数据').fontSize(13).fontColor('#FF8A3D').fontWeight(FontWeight.Medium)
+              AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: [this.theme.primary] })
+              Text('  刷新数据').fontSize(13).fontColor(this.theme.primary).fontWeight(FontWeight.Medium)
             }
             .width('100%').height(44).borderRadius(22).margin({ top: 10 })
             .backgroundColor('#FFF3E7')

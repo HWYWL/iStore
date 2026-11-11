@@ -4,7 +4,8 @@ import {
   cardTint,
   cardBorder,
   cardElevation,
-  cardRadius
+  cardRadius,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -616,7 +617,7 @@ export struct AppsPage {
 
   private chipBg(color: string): string {
     if (color === '#22C55E') return 'rgba(34,197,94,0.12)'
-    if (color === '#FF8A3D') return 'rgba(255,138,61,0.12)'
+    if (color === '#FF8A3D') return withAlpha(this.theme.primary, 0.12)
     if (color === '#FF5C8A') return 'rgba(255,92,138,0.12)'
     if (color === '#17B8A6') return 'rgba(23,184,166,0.12)'
     if (color === '#7A5CFF') return 'rgba(122,92,255,0.12)'

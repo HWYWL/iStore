@@ -11,7 +11,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 
@@ -195,7 +196,7 @@ export struct PackageManagerPage {
         message: `将通过 ${this.pkgMgr} 安装「${name}」，可能需要更新软件源，是否继续？`,
         buttons: [
           { text: '取消', color: '#999999' },
-          { text: '安装', color: '#FF8A3D' }
+          { text: '安装', color: this.theme.primary }
         ]
       }).then(async (res: promptAction.ShowDialogSuccessResponse) => {
         if (res.index !== 1) return
@@ -280,7 +281,7 @@ export struct PackageManagerPage {
           Image($r('app.media.app_gear')).width(18).height(18)
         }
         .width(34).height(34).borderRadius(17)
-        .backgroundColor('rgba(255,138,61,0.14)')
+        .backgroundColor(withAlpha(this.theme.primary, 0.14))
         .justifyContent(FlexAlign.Center)
 
         Column() {
@@ -293,7 +294,7 @@ export struct PackageManagerPage {
           .fontSize(13).fontColor(this.theme.primary)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
-          .backgroundColor('rgba(255,138,61,0.1)')
+          .backgroundColor(withAlpha(this.theme.primary, 0.1))
           .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
@@ -322,14 +323,14 @@ export struct PackageManagerPage {
                 .fontSize(12).fontColor('#FFFFFF')
                 .padding({ left: 14, right: 14, top: 6, bottom: 6 })
                 .borderRadius(12)
-                .backgroundColor('#FF8A3D')
+                .backgroundColor(this.theme.primary)
                 .onClick(() => { this.retryDetect() })
             } else {
               Text(`${this.pkgs.length} 个已装包`)
                 .fontSize(11).fontColor(this.theme.primary)
                 .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                 .borderRadius(12)
-                .backgroundColor('rgba(255,138,61,0.1)')
+                .backgroundColor(withAlpha(this.theme.primary, 0.1))
             }
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
@@ -349,7 +350,7 @@ export struct PackageManagerPage {
               }
             }
             .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-            .borderRadius(18).backgroundColor(this.busy ? '#C9A98A' : '#FF8A3D')
+            .borderRadius(18).backgroundColor(this.busy ? '#C9A98A' : this.theme.primary)
             .onClick(() => { this.installPkg() })
           }
           .width('100%').margin({ top: 10 })
@@ -361,10 +362,10 @@ export struct PackageManagerPage {
               .backgroundColor('#FFFFFF').borderRadius(12)
               .onChange((v: string) => { this.filtered = v })
             Row() {
-              Text('刷新').fontSize(12).fontColor('#FF8A3D').fontWeight(FontWeight.Bold)
+              Text('刷新').fontSize(12).fontColor(this.theme.primary).fontWeight(FontWeight.Bold)
             }
             .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-            .borderRadius(14).backgroundColor('rgba(255,138,61,0.1)')
+            .borderRadius(14).backgroundColor(withAlpha(this.theme.primary, 0.1))
             .onClick(() => { this.loadList() })
           }
           .width('100%').margin({ top: 8 })
@@ -402,7 +403,7 @@ export struct PackageManagerPage {
                 }
                 .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                 .borderRadius(12)
-                .backgroundColor('rgba(255,82,82,0.1)')
+                .backgroundColor(withAlpha(this.theme.danger, 0.1))
                 .onClick(() => { this.removePkg(p) })
               }
               .width('100%').padding(12).borderRadius(14).margin({ top: 8 })

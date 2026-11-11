@@ -11,7 +11,8 @@ import {
   LIGHT_THEME,
   ThemePalette,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
@@ -142,7 +143,7 @@ export struct RouterLevelPage {
           Image($r('app.media.app_bell')).width(18).height(18)
         }
         .width(34).height(34).borderRadius(17)
-        .backgroundColor('rgba(255,138,61,0.14)')
+        .backgroundColor(withAlpha(this.theme.primary, 0.14))
         .justifyContent(FlexAlign.Center)
 
         Column() {
@@ -155,7 +156,7 @@ export struct RouterLevelPage {
           .fontSize(13).fontColor(this.theme.primary)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .borderRadius(14)
-          .backgroundColor('rgba(255,138,61,0.1)')
+          .backgroundColor(withAlpha(this.theme.primary, 0.1))
           .onClick(() => { AppNav.getInstance().back() })
       }
       .width('100%').padding({ left: 16, right: 16, top: this.topSafeArea + 4 })
@@ -182,7 +183,7 @@ export struct RouterLevelPage {
           .width('100%').padding({ top: 28, bottom: 26 }).borderRadius(24).margin({ top: 12 })
           .linearGradient({
             angle: 135,
-            colors: [['#FF9A5C', 0], ['#FF8A3D', 0.55], ['#FF7043', 1]]
+            colors: [['#FF9A5C', 0], [this.theme.primary, 0.55], ['#FF7043', 1]]
           })
           .alignItems(HorizontalAlign.Center)
 
