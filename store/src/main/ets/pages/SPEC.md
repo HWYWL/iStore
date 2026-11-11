@@ -59,9 +59,8 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
 
 - 五个超大页面承担了过多逻辑：`DashboardTab`(2595)、`AppsPage`(1819)、`AlbumTab`(1724)、`PetPage`(1282)。
   已知并接受，改动时局部收敛（见 `istore-architecture`）。
-- **材质迁移尚未全量**：核心 5 页（`MainPage`/`DashboardTab`/`AppsPage`/`PetPage`/`LoginPage`）已改用
-  材质派生值，其余页面（`SmartHubPage`/`AlbumTab`/`FileManagerPage`/`TopologyPage`/`WifiPage`/
-  `ClientDetailPage` 等）仍带大量硬编码色，切到液态玻璃时只跟随色板与页面背景。批 2/3 逐页收敛。
+- **材质已全量覆盖**：57 个页面文件的卡片底色/描边/模糊半径已改为材质派生值，所以切到液态玻璃时
+  **每个页面的表面都会变**；剩余偏差是页面内的语义色与插画色（见 `mod-theme` 的限制）。
 - 部分页面仍自带 `setInterval`（`DashboardTab`/`AppsPage`/`PetPage`/`SmartHubPage`/`NetEcgPage`/
   `NetworkCheckPage`/`SpeedTestPage`/`RebootPage`/`FactoryResetPage`），与 `Poller` 约定不一致。
 - 部分页面直接 import `@kit.NetworkKit`（`SmartHubPage` 探测、`SpeedTestPage` 测速、`AlbumTab` 图片、

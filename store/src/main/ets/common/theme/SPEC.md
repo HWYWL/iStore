@@ -52,10 +52,14 @@ parent: istore-architecture
 
 ## Known limitations
 
-- **硬编码色残留仍然是主要偏差**（2026-11 实测）：`PetPage` 79 处、`AppsPage` 75、`SmartHubPage` 34、
-  `AlbumTab` 28、`FileManagerPage` 24、`ClientDetailPage` 17、`WifiPage` 16、`TopologyPage` 14、
-  `DashboardTab` 11；`pages/` 下 274 处 `rgba(`。批 2/3 逐页收敛。
-- **液态玻璃只在 5 个核心页完整生效**（MainPage / DashboardTab / AppsPage / PetPage / LoginPage +
-  主题页）；其余页面的卡片仍走各自的历史写法，切材质时只跟随色板与页面背景，形态变化有限。
+- **表面与模糊已全量材质化，剩颜色字面量**：`backgroundColor(bgCard)` / 卡片描边 / 硬编码 `backdropBlur(20|28|10)`
+  已由 codemod 换为 `cardTint/cardBorder/cardElevation/material.blur`（57 个页面文件、368 处），现在没有任何
+  页面再自己写卡片底色或模糊半径。但仍有 **732 处 `#RRGGBB` / 274 处 `rgba(`**，集中在
+  `PetPage`(79)、`AppsPage`(75)、`DeviceAliasPage`(36)、`SmartHubPage`(34)、`AlbumTab`(28)、
+  `FileManagerPage`(24)；其中相当一部分是语义色（状态点/图表序列）与插画色（小管家形象、磁贴徽标），
+  必须逐处判断能不能换主题值，不能批量替换。
+- **密集列表的模糊降级是白名单式**：只有 8 个明确的长列表页（设备详情/Docker/路由表/启动项/进程/
+  WiFi/流量报表/仪表盘设备列表）改用 `listCardBlur()`（降到控件级）；其余含 `ForEach` 的页面仍用页级
+  blur 28，若后续出现大量行列表需继续归类。
 - 8 套色板 × 2 材质 = 16 种组合，没有视觉回归测试；新增色板靠人眼过主要页面。
 - `IconPack` 的另外 4 套渲染分支与 ~380 个图标资源仍随包发布，属待清理死重量（只删了选择入口）。
