@@ -52,6 +52,10 @@ if (-not $env:DEVECO_SDK_HOME) {
 
 Push-Location $root
 try {
+  Write-Host "==> Page registration" -ForegroundColor Cyan
+  & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-pages.ps1')
+  if ($LASTEXITCODE -ne 0) { Write-Error "Page registration drift (see above)"; exit $LASTEXITCODE }
+
   Write-Host "==> Compile ArkTS" -ForegroundColor Cyan
   & $hvigorw --mode module -p module=store@default -p buildMode=debug default@CompileArkTS --no-daemon
   if ($LASTEXITCODE -ne 0) { Write-Error "ArkTS compile failed"; exit $LASTEXITCODE }
