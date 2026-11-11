@@ -40,6 +40,24 @@ parent: istore-architecture
 `common/components/GlassCard.ets` 实现：外层 `Stack` 铺渐变底色 → 内层卡片 `margin` 1vp 并用玻璃 tint
 盖住中间，只留一圈 1vp 渐变环；再叠 `backdropBlur` + 内高光 + 浮起投影。`GlassChip` 是同材质的胶囊控件。
 
+## 动效
+
+动效是材质的一部分，只在液态玻璃下明显（实色材质只保留最小反馈）：
+
+| 效果 | 实现 | 位置 |
+|---|---|---|
+| 按压反馈 | `scale 0.985` + `.animation(120ms)`，`onTouch` 驱动 | `GlassCard`、`DashboardTab` 7 张卡、`PetPage` 4 张卡 |
+| 高光渐显 | 顶部 1vp 内高光行 0.25→1，900ms | `GlassCard`（液态玻璃） |
+| 数字滚动 | `RollingNumber`：16ms 步进、420ms easeOutQuad | 应用中心处理器/内存/连接统计 |
+| 切主题淡入 | 整屏 0.72→1，220ms 声明式 `.animation` | `MainPage` 根节点 |
+
+**坑（已踩）**：
+- `Text.contentTransition(new NumericTextTransition())` 在本机（API 26 真机）**编译通过但运行时直接退出应用**，
+  且只支持正整数。改用自绘 `RollingNumber`（定时器插值）。
+- 百分比高度的装饰层（如“亮带扫过”的 `height('120%')`）会把未定高的卡片撑成整屏；
+  高光只能用与内容同高的元素。
+- 动画一律用声明式 `.animation()`，不要在 `@Watch`/`aboutToAppear` 里调 `getUIContext().animateTo`。
+
 ## Invariants
 
 - **颜色只从色板取**（`this.theme.<field>`），**形态只从材质取**（`theme.material.*` 或四个派生函数）。
@@ -72,3 +90,5 @@ parent: istore-architecture
   WiFi/流量报表/仪表盘设备列表）改用 `listCardBlur()`（降到控件级）；其余含 `ForEach` 的页面仍用页级
   blur 28，若后续出现大量行列表需继续归类。
 - 8 套色板 × 2 材质 = 16 种组合，没有视觉回归测试；新增色板靠人眼过主要页面。
+- **动效只覆盖核心页**：按压反馈在 `GlassCard` 与两张仪表盘/管家卡片上，数字滚动只在应用中心三个统计；
+  其余页面尚未接入（性能敏感页也不建议加）。
