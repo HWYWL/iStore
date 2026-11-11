@@ -596,7 +596,7 @@ struct LoginPage {
                 Row() {
                   Text('全部')
                     .fontSize(11)
-                    .fontColor(this.groupFilter === '' ? '#FFFFFF' : this.theme.textSecondary)
+                    .fontColor(this.groupFilter === '' ? Color.White : this.theme.textSecondary)
                     .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                     .borderRadius(10)
                     .backgroundColor(this.groupFilter === '' ? this.theme.primary : this.theme.bgGlassLight)
@@ -605,7 +605,7 @@ struct LoginPage {
                   ForEach(this.deviceGroups(), (g: string) => {
                     Text(g)
                       .fontSize(11)
-                      .fontColor(this.groupFilter === g ? '#FFFFFF' : this.theme.textSecondary)
+                      .fontColor(this.groupFilter === g ? Color.White : this.theme.textSecondary)
                       .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                       .borderRadius(10)
                       .backgroundColor(this.groupFilter === g ? this.theme.primary : this.theme.bgGlassLight)
@@ -835,7 +835,7 @@ struct LoginPage {
         Row() {
           Text(this.useHttps ? 'HTTPS' : 'HTTP')
             .fontSize(11)
-            .fontColor(this.useHttps ? '#FFFFFF' : this.theme.textSecondary)
+            .fontColor(this.useHttps ? Color.White : this.theme.textSecondary)
             .fontWeight(FontWeight.Medium)
         }
         .padding({ left: 12, right: 12, top: 6, bottom: 6 })
@@ -909,7 +909,7 @@ struct LoginPage {
 
         Button() {
           Text('连接并进入')
-            .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
+            .fontSize(14).fontColor(Color.White).fontWeight(FontWeight.Medium)
         }
         .width('47%').height(52).borderRadius(26)
         .linearGradient({ angle: 135, colors: [[this.theme.primary, 0], [this.theme.secondary, 1]] })

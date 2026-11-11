@@ -285,7 +285,7 @@ export struct JellyfinPage {
                 Text(this.errText).fontSize(11).fontColor(this.theme.warning).margin({ top: 8 })
               }
               Text(this.isLogging ? '登录中…' : '登录')
-                .fontSize(14).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                .fontSize(14).fontWeight(FontWeight.Bold).fontColor(Color.White)
                 .width('100%').textAlign(TextAlign.Center)
                 .padding({ top: 12, bottom: 12 })
                 .borderRadius(14)
@@ -315,7 +315,7 @@ export struct JellyfinPage {
               ListItem() {
                 Text(tab.label)
                   .fontSize(14).fontWeight(FontWeight.Medium)
-                  .fontColor(this.selectedChipId === tab.id ? '#FFFFFF' : this.theme.textSecondary)
+                  .fontColor(this.selectedChipId === tab.id ? Color.White : this.theme.textSecondary)
                   .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
                   .height(36)
                   .padding({ left: 14, right: 14 })

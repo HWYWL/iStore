@@ -2,6 +2,7 @@
  * TopologyPage - 网络拓扑图
  * 可视化设备连接关系：路由器在中心，无线设备（下半区）/ 有线设备（上半区）围绕分布
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -411,15 +412,15 @@ this.theme = AppState.getInstance().getTheme()
 
   private nodeColor(kind: number): string {
     if (kind === 0) {
-      return '#10B981'
+      return BrandColors.green
     }
     if (kind === 2) {
-      return '#8B5CF6'
+      return BrandColors.violet
     }
     if (kind === 3) {
       return this.theme.semantic.neutral
     }
-    return '#3B82F6'
+    return BrandColors.blue
   }
 
   private findGroupNode(list: TopoNode[], gi: number): TopoNode | null {
@@ -625,8 +626,8 @@ this.theme = AppState.getInstance().getTheme()
     ctx.restore()
 
     // 白色 WiFi 波纹
-    ctx.strokeStyle = '#FFFFFF'
-    ctx.fillStyle = '#FFFFFF'
+    ctx.strokeStyle = Color.White
+    ctx.fillStyle = Color.White
     ctx.lineCap = 'round'
     for (let i = 1; i <= 2; i++) {
       ctx.lineWidth = 2.4
@@ -663,7 +664,7 @@ this.theme = AppState.getInstance().getTheme()
       ctx.shadowBlur = 8
       ctx.shadowOffsetY = 3
       this.capsulePath(ctx, x0, y0, n.w, n.h, r)
-      ctx.fillStyle = n.kind === 4 ? 'rgba(255,255,255,0.94)' : '#FFFFFF'
+      ctx.fillStyle = n.kind === 4 ? 'rgba(255,255,255,0.94)' : Color.White
       ctx.fill()
       ctx.restore()
 
@@ -690,7 +691,7 @@ this.theme = AppState.getInstance().getTheme()
       // 标题栏
       Row() {
         Row() {
-          AppIcon({ name: 'circle_grid_2x2', iconSize: 15, colors: ['#8B5CF6'] })
+          AppIcon({ name: 'circle_grid_2x2', iconSize: 15, colors: [BrandColors.violet] })
           Text(' 网络拓扑')
             .fontSize(16)
             .fontColor(this.theme.textPrimary)
@@ -761,16 +762,16 @@ this.theme = AppState.getInstance().getTheme()
         Column() {
           Row() {
             Row() {
-              Circle({ width: 8, height: 8 }).fill('#10B981')
+              Circle({ width: 8, height: 8 }).fill(BrandColors.green)
               Text(' 无线').fontSize(11).fontColor(this.theme.textSecondary)
             }
             Row() {
-              Circle({ width: 8, height: 8 }).fill('#3B82F6')
+              Circle({ width: 8, height: 8 }).fill(BrandColors.blue)
               Text(' 直连').fontSize(11).fontColor(this.theme.textSecondary)
             }
             .margin({ left: 14 })
             Row() {
-              Circle({ width: 8, height: 8 }).fill('#8B5CF6')
+              Circle({ width: 8, height: 8 }).fill(BrandColors.violet)
               Text(' 经 AP/交换机').fontSize(11).fontColor(this.theme.textSecondary)
             }
             .margin({ left: 14 })

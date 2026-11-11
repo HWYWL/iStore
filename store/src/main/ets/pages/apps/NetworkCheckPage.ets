@@ -3,6 +3,7 @@
  * 一键检测：网关连通性 / 外网连通 / 公网延迟 / DNS 解析
  * 逐项展示状态（优秀/正常/警告/不可达）+ 延迟 + 丢包，并给出总评分
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -229,11 +230,11 @@ export struct NetworkCheckPage {
   }
 
   statusColor(status: string): string {
-    if (status === 'ok') return '#00C853'
-    if (status === 'warn') return '#E6A800'
-    if (status === 'fail') return '#FF5252'
-    if (status === 'running') return '#FF8A3D'
-    return '#B0A99A'
+    if (status === 'ok') return BrandColors.greenDeep
+    if (status === 'warn') return this.theme.semantic.warning
+    if (status === 'fail') return BrandColors.red
+    if (status === 'running') return this.theme.primary
+    return BrandColors.beige
   }
 
   build() {
@@ -315,7 +316,7 @@ export struct NetworkCheckPage {
                       TransitionEffect.scale({ x: 0.6, y: 0.6 }).animation({ duration: 200, curve: Curve.EaseOut })))
                 } else {
                   Text('·')
-                    .fontSize(20).fontColor('#B0A99A').width(22)
+                    .fontSize(20).fontColor(BrandColors.beige).width(22)
                 }
                 Column() {
                   Row() {
@@ -375,10 +376,10 @@ export struct NetworkCheckPage {
           // 重新体检
           Row() {
             Text(this.checking ? '体检中...' : (this.checked ? '重新体检' : '开始体检'))
-              .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+              .fontSize(15).fontColor(Color.White).fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
-          .backgroundColor(this.checking ? '#C9A98A' : this.theme.primary)
+          .backgroundColor(this.checking ? BrandColors.sand : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 20 })
           .onClick(() => { this.startCheck() })

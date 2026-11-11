@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -154,7 +155,7 @@ this.theme = AppState.getInstance().getTheme()
               // LAN 网络状态卡片
               Column() {
                 Row() {
-                  AppIcon({ name: 'house', iconSize: 15, colors: ['#10B981'] })
+                  AppIcon({ name: 'house', iconSize: 15, colors: [BrandColors.green] })
                   Text(' LAN 网络状态')
                     .fontSize(14)
                     .fontColor(this.theme.textPrimary)

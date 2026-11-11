@@ -167,16 +167,16 @@ export struct RouterLevelPage {
           Column() {
             Text(this.title()).fontSize(15).fontColor('rgba(255,255,255,0.9)')
             Row() {
-              Text(`Lv.`).fontSize(22).fontColor('#FFFFFF').margin({ bottom: 10 })
+              Text(`Lv.`).fontSize(22).fontColor(Color.White).margin({ bottom: 10 })
               Text(`${this.level}`)
-                .fontSize(88).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
+                .fontSize(88).fontColor(Color.White).fontWeight(FontWeight.Bold).fontFamily('monospace')
               Text(`/ 99`).fontSize(16).fontColor('rgba(255,255,255,0.7)').margin({ bottom: 18 })
             }
             .alignItems(VerticalAlign.Bottom)
             // 进度条
             Progress({ value: this.expProgress() * 100, total: 100 })
               .width('80%').height(8).margin({ top: 4 })
-              .color('#FFFFFF').backgroundColor('rgba(255,255,255,0.25)')
+              .color(Color.White).backgroundColor('rgba(255,255,255,0.25)')
             Text(this.toNext() > 0 ? `再活跃约 ${this.toNext()} 天升级` : '已达当前顶级')
               .fontSize(10).fontColor('rgba(255,255,255,0.8)').margin({ top: 8 })
           }

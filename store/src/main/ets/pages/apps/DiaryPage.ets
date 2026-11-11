@@ -3,6 +3,7 @@
  * 小管点评 + 4 格概览 + 事件时间线 + 日期翻页
  * 数据源：DiaryStore（事件）+ TrafficStatStore（流量）+ fetchConnectedDevices（在线）
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -160,9 +161,9 @@ export struct DiaryPage {
   /** 事件圆点色 */
   dotColor(type: string): string {
     if (type === 'new_device') return '#4A7FB5'
-    if (type === 'offline' || type === 'peak') return '#FF5252'
+    if (type === 'offline' || type === 'peak') return BrandColors.red
     if (type === 'traffic' || type === 'security') return '#2FBFA8'
-    return '#E6A800'
+    return this.theme.semantic.warning
   }
 
   dotIcon(type: string): string {
@@ -232,7 +233,7 @@ export struct DiaryPage {
           // 小管点评卡
           Row() {
             Row() {
-              AppIcon({ name: 'face_smiling', iconSize: 19, colors: ['#FFFFFF'] })
+              AppIcon({ name: 'face_smiling', iconSize: 19, colors: [Color.White] })
             }
             .width(38).height(38).borderRadius(13)
             .backgroundColor(this.theme.primary)
@@ -281,7 +282,7 @@ export struct DiaryPage {
                 // 圆点 + 竖线
                 Column() {
                   Text(this.dotIcon(ev.type))
-                    .fontSize(8).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                    .fontSize(8).fontColor(Color.White).fontWeight(FontWeight.Bold)
                     .width(14).height(14).borderRadius(7)
                     .backgroundColor(this.dotColor(ev.type))
                     .textAlign(TextAlign.Center)
@@ -358,7 +359,7 @@ export struct DiaryPage {
     Column() {
       Text(num)
         .fontSize(18).fontWeight(FontWeight.Bold)
-        .fontColor(tone === 'up' ? '#2FBFA8' : (tone === 'warn' ? '#E6A800' : this.theme.textPrimary))
+        .fontColor(tone === 'up' ? BrandColors.green : (tone === 'warn' ? this.theme.semantic.warning : this.theme.textPrimary))
       Text(label)
         .fontSize(9).fontColor(this.theme.textTertiary).margin({ top: 3 })
     }

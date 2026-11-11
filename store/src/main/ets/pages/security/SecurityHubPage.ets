@@ -2,6 +2,7 @@
  * SecurityHubPage — 家庭网络安全中心
  * R1 安全评分（0-100 三档）+ R2 一键体检（5 项）+ R4 一键处置（隔离/信任）+ R6 历史
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -108,7 +109,7 @@ export struct SecurityHubPage {
 
   /** 评分颜色 */
   scoreColor(s: number): string {
-    if (s >= 85) return '#00C853'
+    if (s >= 85) return BrandColors.greenDeep
     if (s >= 60) return '#E6A800'
     return this.theme.semantic.danger
   }
@@ -120,7 +121,7 @@ export struct SecurityHubPage {
       message: `将踢出设备 ${mac}，如误报可标记为信任设备`,
       buttons: [
         { text: '取消', color: '#888780' },
-        { text: '踢出', color: '#FF5252' }
+        { text: '踢出', color: BrandColors.red }
       ]
     }).then((res) => {
       if (res.index === 1) {
@@ -134,7 +135,7 @@ export struct SecurityHubPage {
       // 标题栏
       Row() {
         Row() {
-          AppIcon({ name: 'security_shield', iconSize: 20, colors: ['#10B981'] })
+          AppIcon({ name: 'security_shield', iconSize: 20, colors: [BrandColors.green] })
           Text(' 安全中心')
             .fontSize(20)
             .fontColor(this.theme.textPrimary)
@@ -178,7 +179,7 @@ export struct SecurityHubPage {
               Row() {
                 Text(this.scanning ? '体检中…' : '重新体检')
                   .fontSize(13)
-                  .fontColor('#FFFFFF')
+                  .fontColor(Color.White)
                   .fontWeight(FontWeight.Medium)
                   .padding({ left: 20, right: 20, top: 8, bottom: 8 })
                   .borderRadius(18)
@@ -296,10 +297,10 @@ export struct SecurityHubPage {
 
   /** 等级配色 */
   itemColor(level: string): string {
-    if (level === 'safe') return '#10B981'
-    if (level === 'risk') return '#EF4444'
-    if (level === 'checking') return '#F59E0B'
-    return '#64748B'
+    if (level === 'safe') return BrandColors.green
+    if (level === 'risk') return BrandColors.redAlt
+    if (level === 'checking') return BrandColors.amber
+    return BrandColors.slate
   }
 
   historyTime(t: number): string {

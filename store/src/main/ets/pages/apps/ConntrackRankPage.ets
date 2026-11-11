@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -48,8 +49,8 @@ export struct ConntrackRankPage {
 
   /** 前三名配色 */
   private rankColor(idx: number): string {
-    if (idx === 0) return '#F59E0B'
-    if (idx === 1) return '#94A3B8'
+    if (idx === 0) return BrandColors.amber
+    if (idx === 1) return BrandColors.slateLight
     return '#B45309'
   }
 
@@ -133,7 +134,7 @@ this.theme = AppState.getInstance().getTheme()
   barColor(count: number): string {
     if (count >= 100) return this.theme.semantic.danger
     if (count >= 30) return '#FF9800'
-    if (count >= 10) return '#448AFF'
+    if (count >= 10) return BrandColors.blueSoft
     return this.theme.semantic.success
   }
 
@@ -180,7 +181,7 @@ this.theme = AppState.getInstance().getTheme()
           Scroll() {
             Column() {
               Row() {
-                AppIcon({ name: 'link', iconSize: 13, colors: ['#EC4899'] })
+                AppIcon({ name: 'link', iconSize: 13, colors: [BrandColors.pink] })
                 Text(' 按 NAT 连接数降序，发现连接大户')
                   .fontSize(11).fontColor(this.theme.textTertiary)
                   .layoutWeight(1)

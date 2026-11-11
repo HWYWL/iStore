@@ -2,6 +2,7 @@
  * DNS 速度擂台
  * 对多个公共 DNS 依次 ping 测延迟，出排行榜 + 推荐
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -115,10 +116,10 @@ export struct DnsBattlePage {
   }
 
   private rankColor(r: number): string {
-    if (r === 1) return '#F59E0B'
-    if (r === 2) return '#94A3B8'
+    if (r === 1) return BrandColors.amber
+    if (r === 2) return BrandColors.slateLight
     if (r === 3) return '#B45309'
-    return '#64748B'
+    return BrandColors.slate
   }
 
   build() {
@@ -167,7 +168,7 @@ export struct DnsBattlePage {
               .margin({ left: 8 })
               if (row.ok) {
                 Text(`${row.avg.toFixed(1)} ms`)
-                  .fontSize(13).fontColor(row.rank === 1 ? '#00C853' : this.theme.textPrimary)
+                  .fontSize(13).fontColor(row.rank === 1 ? BrandColors.greenDeep : this.theme.textPrimary)
                   .fontFamily('monospace').fontWeight(row.rank === 1 ? FontWeight.Bold : FontWeight.Normal)
               } else {
                 Text('不可达')
@@ -200,10 +201,10 @@ export struct DnsBattlePage {
 
           Row() {
             Text(this.testing ? '比拼中...' : '开始比拼')
-              .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+              .fontSize(15).fontColor(Color.White).fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
-          .backgroundColor(this.testing ? '#C9A98A' : this.theme.primary)
+          .backgroundColor(this.testing ? BrandColors.sand : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 16 })
           .onClick(() => { this.runBattle() })

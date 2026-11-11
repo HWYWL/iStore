@@ -2,6 +2,7 @@
  * 网络心电图
  * 每秒 ping 一次公网目标，Canvas 实时绘制延迟波形（正常绿波/卡顿红尖峰）
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -131,9 +132,9 @@ export struct NetEcgPage {
       }
       const last: number = this.points[this.points.length - 1]
       if (last > 150) {
-        ctx.strokeStyle = '#FF5252'   // 卡顿红色
+        ctx.strokeStyle = BrandColors.red   // 卡顿红色
       } else {
-        ctx.strokeStyle = '#00C853'   // 正常绿色
+        ctx.strokeStyle = BrandColors.greenDeep   // 正常绿色
       }
       ctx.lineWidth = 2
       ctx.lineJoin = 'round'
@@ -143,7 +144,7 @@ export struct NetEcgPage {
       if (this.points.length >= 2) {
         const lx: number = (this.points.length - 1) * step
         const ly: number = h - 6 - (Math.min(300, last) / 300) * (h - 12)
-        ctx.fillStyle = last > 150 ? this.theme.semantic.danger : '#00C853'
+        ctx.fillStyle = last > 150 ? this.theme.semantic.danger : BrandColors.greenDeep
         ctx.beginPath()
         ctx.arc(lx, ly, 4, 0, Math.PI * 2)
         ctx.fill()
@@ -218,12 +219,12 @@ export struct NetEcgPage {
 
           Row() {
             if (this.running) {
-              AppIcon({ name: 'pause_fill', iconSize: 18, colors: ['#FFFFFF'] })
+              AppIcon({ name: 'pause_fill', iconSize: 18, colors: [Color.White] })
             } else {
-              AppIcon({ name: 'media_center', iconSize: 18, colors: ['#FFFFFF'] })
+              AppIcon({ name: 'media_center', iconSize: 18, colors: [Color.White] })
             }
             Text(this.running ? '  停止监测' : '  开始检测')
-              .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+              .fontSize(14).fontColor(Color.White).fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
           .backgroundColor(this.running ? this.theme.semantic.danger : this.theme.primary)

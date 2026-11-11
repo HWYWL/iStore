@@ -1,10 +1,13 @@
-﻿import { AppState } from '../../common/store/AppState'
+﻿
+import { BrandColors } from '../../common/theme/BrandColors'
+import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
   ThemePalette,
   cardBorder,
   cardTint,
-  pageBgColors
+  pageBgColors,
+  withAlpha
 } from '../../common/theme/ThemeColors'
 import { NetworkInterface, ConnectedDevice } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
@@ -21,8 +24,8 @@ function getTypeIcon(t: string): string {
 }
 /** 接口类型颜色 */
 function getTypeColor(t: string): string {
-  if (t === 'wan') return '#FF9800'; if (t === 'lan') return '#448AFF'
-  if (t === 'wifi') return '#00E676'; if (t === 'vpn') return '#AB47BC'
+  if (t === 'wan') return '#FF9800'; if (t === 'lan') return BrandColors.blueSoft
+  if (t === 'wifi') return BrandColors.greenBright; if (t === 'vpn') return '#AB47BC'
   return '#999'
 }
 
@@ -173,7 +176,7 @@ this.theme = AppState.getInstance().getTheme()
                   Column() {
                     Text('⇧ 总上传').fontSize(10).fontColor(this.theme.textTertiary)
                     Text(this.fmtTotalTx())
-                      .fontSize(20).fontColor('#448AFF').fontWeight(FontWeight.Bold)
+                      .fontSize(20).fontColor(BrandColors.blueSoft).fontWeight(FontWeight.Bold)
                       .fontFamily('monospace')
                   }.layoutWeight(1).alignItems(HorizontalAlign.End)
                 }.width('100%')
@@ -244,9 +247,9 @@ this.theme = AppState.getInstance().getTheme()
 
                     // 上传速率条
                     Row() {
-                      Text('⇧').fontSize(11).fontColor('#448AFF').width(18)
+                      Text('⇧').fontSize(11).fontColor(BrandColors.blueSoft).width(18)
                       Text(FormatUtils.formatSpeed(iface.txRate || 0))
-                        .fontSize(12).fontColor('#448AFF').fontFamily('monospace')
+                        .fontSize(12).fontColor(BrandColors.blueSoft).fontFamily('monospace')
                         .width(82)
                       Stack() {
                         Row().width('100%').height(6).borderRadius(3)
@@ -256,7 +259,7 @@ this.theme = AppState.getInstance().getTheme()
                           .height(6).borderRadius(3)
                           .linearGradient({
                             angle: 90,
-                            colors: [['#448AFF', 0], ['#448AFF44', 1]]
+                            colors: [[BrandColors.blueSoft, 0], [withAlpha(BrandColors.blueSoft, 0.27), 1]]
                           })
                       }
                       .alignContent(Alignment.Start)

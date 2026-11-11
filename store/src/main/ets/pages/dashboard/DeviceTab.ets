@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
@@ -151,15 +152,15 @@ export struct DeviceTab {
   /** 设备类型配色（多彩但统一色板） */
   getDeviceColor(mac: string, hostname: string): string {
     const icon: string = FormatUtils.getDeviceIcon(mac, hostname)
-    if (icon === 'phone') return '#3B82F6'
-    if (icon === 'laptop') return '#8B5CF6'
-    if (icon === 'tv') return '#F59E0B'
+    if (icon === 'phone') return BrandColors.blue
+    if (icon === 'laptop') return BrandColors.violet
+    if (icon === 'tv') return BrandColors.amber
     if (icon === 'server') return '#0891B2'
-    if (icon === 'camera') return '#EC4899'
-    if (icon === 'printer') return '#F97316'
-    if (icon === 'speaker') return '#10B981'
+    if (icon === 'camera') return BrandColors.pink
+    if (icon === 'printer') return BrandColors.orange
+    if (icon === 'speaker') return BrandColors.green
     if (icon === 'watch') return '#14B8A6'
-    return '#64748B'
+    return BrandColors.slate
   }
 
   /** 设备双列分组（每行 2 个） */

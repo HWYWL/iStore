@@ -2,6 +2,7 @@
  * 设备外号生成器
  * 根据设备厂商 / 类型 / 信号 / 速率生成趣味「社交外号」，图标统一为系统符号 + 同色系底座
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -41,18 +42,18 @@ interface AliasRow {
 
 /** 兜底外号池（每个外号一个专属图标，刷新会重新洗牌） */
 const GENERIC_POOL: AliasDef[] = [
-  { alias: '神秘访客', icon: 'person_shield', color: '#64748B' },
-  { alias: '网速刺客', icon: 'bolt', color: '#F97316' },
-  { alias: '隐形设备', icon: 'eye_slash', color: '#8B5CF6' },
-  { alias: '蹭网嫌疑犯', icon: 'link', color: '#EC4899' },
-  { alias: '深夜下载党', icon: 'moon', color: '#6366F1' },
-  { alias: '老实巴交设备', icon: 'checkmark_circle', color: '#10B981' },
+  { alias: '神秘访客', icon: 'person_shield', color: BrandColors.slate },
+  { alias: '网速刺客', icon: 'bolt', color: BrandColors.orange },
+  { alias: '隐形设备', icon: 'eye_slash', color: BrandColors.violet },
+  { alias: '蹭网嫌疑犯', icon: 'link', color: BrandColors.pink },
+  { alias: '深夜下载党', icon: 'moon', color: BrandColors.indigo },
+  { alias: '老实巴交设备', icon: 'checkmark_circle', color: BrandColors.green },
   { alias: '局域网宅', icon: 'house', color: '#0EA5E9' },
-  { alias: '待机之王', icon: 'battery', color: '#94A3B8' },
+  { alias: '待机之王', icon: 'battery', color: BrandColors.slateLight },
   { alias: '摸鱼达人', icon: 'fish', color: '#06B6D4' },
-  { alias: '早起打卡机', icon: 'sun_max', color: '#F59E0B' },
+  { alias: '早起打卡机', icon: 'sun_max', color: BrandColors.amber },
   { alias: '夜间冲浪者', icon: 'waveform', color: '#14B8A6' },
-  { alias: '沉默的网线', icon: 'arrow_left_arrow_right', color: '#3B82F6' }
+  { alias: '沉默的网线', icon: 'arrow_left_arrow_right', color: BrandColors.blue }
 ]
 
 /** Apple 系 */
@@ -171,7 +172,7 @@ struct DeviceAliasPageRoute {
 
 @Component
 struct HarmonyMark {
-  @Prop markColor: string = '#EF4444'
+  @Prop markColor: string = BrandColors.redAlt
   private ctx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
 
   build() {
@@ -263,31 +264,31 @@ export struct DeviceAliasPage {
 
     // Apple
     if (vendor.includes('apple') || host.includes('iphone') || host.includes('ipad') || host.includes('mac')) {
-      return this.pick(APPLE_POOL, '#3B82F6', idx)
+      return this.pick(APPLE_POOL, BrandColors.blue, idx)
     }
     // 小米
     if (vendor.includes('xiaomi') || host.includes('mi ') || host.includes('redmi') || host.includes('poco')) {
-      return this.pick(XIAOMI_POOL, '#F97316', idx)
+      return this.pick(XIAOMI_POOL, BrandColors.orange, idx)
     }
     // 华为 / 荣耀
     if (vendor.includes('huawei') || host.includes('huawei') || host.includes('honor')) {
-      return this.pick(HUAWEI_POOL, '#EF4444', idx)
+      return this.pick(HUAWEI_POOL, BrandColors.redAlt, idx)
     }
     // NAS / 存储
     if (host.includes('nas') || host.includes('synology') || host.includes('qnap') || host.includes('omv')) {
-      return this.pick(NAS_POOL, '#6366F1', idx)
+      return this.pick(NAS_POOL, BrandColors.indigo, idx)
     }
     // 电视 / 盒子
     if (host.includes('tv') || host.includes('box') || host.includes('miot') || host.includes('dangbei')) {
-      return this.pick(TV_POOL, '#F59E0B', idx)
+      return this.pick(TV_POOL, BrandColors.amber, idx)
     }
     // 打印机
     if (host.includes('printer') || host.includes('print') || host.includes('hp-')) {
-      return this.pick(PRINTER_POOL, '#8B5CF6', idx)
+      return this.pick(PRINTER_POOL, BrandColors.violet, idx)
     }
     // 摄像头
     if (host.includes('camera') || host.includes('ipc') || host.includes('doorbell') || host.includes('cam')) {
-      return this.pick(CAMERA_POOL, '#EC4899', idx)
+      return this.pick(CAMERA_POOL, BrandColors.pink, idx)
     }
     // 音箱 / 语音助手
     if (host.includes('xiaodu') || host.includes('tianmao') || host.includes('genie') ||
@@ -304,7 +305,7 @@ export struct DeviceAliasPage {
     }
     // 中继 / AP
     if (host.includes('repeater') || host.includes('ap-') || host.includes('mesh')) {
-      return this.pick(AP_POOL, '#10B981', idx)
+      return this.pick(AP_POOL, BrandColors.green, idx)
     }
     // 速率大户
     if (rx >= 500000) {
@@ -312,11 +313,11 @@ export struct DeviceAliasPage {
     }
     // 弱信号
     if (sig < -75 && sig !== 0) {
-      return this.pick(WEAK_POOL, '#94A3B8', idx)
+      return this.pick(WEAK_POOL, BrandColors.slateLight, idx)
     }
     // 贴脸蹭网
     if (sig > -45) {
-      return this.pick(NEAR_POOL, '#10B981', idx)
+      return this.pick(NEAR_POOL, BrandColors.green, idx)
     }
     return this.pickGeneric(idx + this.seed * 3)
   }
@@ -381,9 +382,9 @@ export struct DeviceAliasPage {
 
               Row() {
                 Circle({ width: 5, height: 5 })
-                  .fill(row.isOnline ? '#10B981' : this.theme.semantic.neutral)
+                  .fill(row.isOnline ? BrandColors.green : this.theme.semantic.neutral)
                 Text(row.isOnline ? ' 在线' : ' 离线')
-                  .fontSize(9).fontColor(row.isOnline ? '#10B981' : this.theme.semantic.neutral)
+                  .fontSize(9).fontColor(row.isOnline ? BrandColors.green : this.theme.semantic.neutral)
               }
               .padding({ left: 8, right: 8, top: 4, bottom: 4 })
               .borderRadius(10)
@@ -409,9 +410,9 @@ export struct DeviceAliasPage {
 
           // 重新洗牌
           Row() {
-            AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: ['#FFFFFF'] })
+            AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: [Color.White] })
             Text(' 换一批外号')
-              .fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
+              .fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Medium)
           }
           .width('100%').height(46).borderRadius(23)
           .linearGradient({ angle: 135, colors: [['#FB923C', 0], ['#EA580C', 1]] })

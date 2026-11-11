@@ -158,7 +158,7 @@ struct JellyfinDetailPage {
         // 顶部返回
         Row() {
           Text('‹')
-            .fontSize(26).fontColor('#FFFFFF')
+            .fontSize(26).fontColor(Color.White)
             .width(38).height(38)
             .backgroundColor('rgba(255,255,255,0.16)')
             .borderRadius(19)
@@ -178,10 +178,10 @@ struct JellyfinDetailPage {
               .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
           }
           Text(this.itemName)
-            .fontSize(28).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+            .fontSize(28).fontWeight(FontWeight.Bold).fontColor(Color.White)
             .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.infoLine())
-            .fontSize(13).fontColor('#FFFFFF')
+            .fontSize(13).fontColor(Color.White)
             .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
 
         }

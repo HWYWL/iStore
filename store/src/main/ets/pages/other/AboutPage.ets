@@ -220,7 +220,7 @@ export struct AboutPage {
                   Row() {
                     Text(this.checkDone ? (this.checkText.includes('发现新版本') ? '去更新' : '再查一次') : '检查更新')
                       .fontSize(11)
-                      .fontColor(this.checkDone && this.checkText.includes('发现新版本') ? '#FFFFFF' : this.theme.primary)
+                      .fontColor(this.checkDone && this.checkText.includes('发现新版本') ? Color.White : this.theme.primary)
                       .fontWeight(FontWeight.Bold)
                   }
                   .padding({ left: 12, right: 12, top: 5, bottom: 5 })

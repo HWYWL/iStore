@@ -3,6 +3,7 @@
  * 自动检测包管理器：OpenWrt 24.x 用 opkg，25.x 用 apk
  * 支持已装列表 / 搜索安装 / 卸载
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { window, promptAction } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -230,7 +231,7 @@ export struct PackageManagerPage {
         message: `将卸载「${p.name}」及依赖它的配置，是否继续？`,
         buttons: [
           { text: '取消', color: '#999999' },
-          { text: '卸载', color: '#FF5252' }
+          { text: '卸载', color: BrandColors.red }
         ]
       }).then(async (res: promptAction.ShowDialogSuccessResponse) => {
         if (res.index !== 1) return
@@ -320,7 +321,7 @@ export struct PackageManagerPage {
 
             if (this.sshFailed) {
               Text('重试')
-                .fontSize(12).fontColor('#FFFFFF')
+                .fontSize(12).fontColor(Color.White)
                 .padding({ left: 14, right: 14, top: 6, bottom: 6 })
                 .borderRadius(12)
                 .backgroundColor(this.theme.primary)
@@ -340,17 +341,17 @@ export struct PackageManagerPage {
           Row({ space: 8 }) {
             TextInput({ placeholder: '包名，如 etherwake / tcpdump', text: this.newPkg })
               .fontSize(12).height(40).layoutWeight(1)
-              .backgroundColor('#FFFFFF').borderRadius(12)
+              .backgroundColor(Color.White).borderRadius(12)
               .onChange((v: string) => { this.newPkg = v })
             Row() {
               if (this.busy) {
-                LoadingProgress().width(16).height(16).color('#FFFFFF')
+                LoadingProgress().width(16).height(16).color(Color.White)
               } else {
-                Text('安装').fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                Text('安装').fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Bold)
               }
             }
             .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-            .borderRadius(18).backgroundColor(this.busy ? '#C9A98A' : this.theme.primary)
+            .borderRadius(18).backgroundColor(this.busy ? BrandColors.sand : this.theme.primary)
             .onClick(() => { this.installPkg() })
           }
           .width('100%').margin({ top: 10 })
@@ -359,7 +360,7 @@ export struct PackageManagerPage {
           Row({ space: 8 }) {
             TextInput({ placeholder: '过滤已安装包', text: this.filtered })
               .fontSize(12).height(36).layoutWeight(1)
-              .backgroundColor('#FFFFFF').borderRadius(12)
+              .backgroundColor(Color.White).borderRadius(12)
               .onChange((v: string) => { this.filtered = v })
             Row() {
               Text('刷新').fontSize(12).fontColor(this.theme.primary).fontWeight(FontWeight.Bold)

@@ -2,6 +2,7 @@
  * 运行里程碑页
  * 展示路由器连续运行天数、App 使用天数，里程碑达成撒花庆祝
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -230,7 +231,7 @@ export struct MileStonePage {
             // App 使用卡
             Row() {
               Column() {
-                AppIcon({ name: 'phone', iconSize: 26, colors: ['#3B82F6'] })
+                AppIcon({ name: 'phone', iconSize: 26, colors: [BrandColors.blue] })
                 Text(`${this.appDays}`)
                   .fontSize(24).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold).fontFamily('monospace')
                   .margin({ top: 6 })
@@ -240,7 +241,7 @@ export struct MileStonePage {
               .layoutWeight(1).alignItems(HorizontalAlign.Center)
 
               Column() {
-                AppIcon({ name: 'calendar', iconSize: 26, colors: ['#8B5CF6'] })
+                AppIcon({ name: 'calendar', iconSize: 26, colors: [BrandColors.violet] })
                 Text(this.firstDate)
                   .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium).fontFamily('monospace')
                   .margin({ top: 6 })
@@ -256,9 +257,9 @@ export struct MileStonePage {
             if (this.celebrate) {
               Column() {
                 Row() {
-                  AppIcon({ name: 'star_trophy', iconSize: 15, colors: ['#FFFFFF'] })
+                  AppIcon({ name: 'star_trophy', iconSize: 15, colors: [Color.White] })
                   Text(` 达成里程碑：连续运行 ${this.newMile} 天！`)
-                    .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                    .fontSize(14).fontColor(Color.White).fontWeight(FontWeight.Bold)
                 }
                 Text('路由器辛苦了，给它点个赞')
                   .fontSize(11).fontColor('rgba(255,255,255,0.8)').margin({ top: 4 })

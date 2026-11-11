@@ -2,6 +2,7 @@
  * WiFi 访客卡片
  * SSID 自动获取 + 密码手输 → 生成扫码连接卡片，可截图分享给访客
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -110,17 +111,17 @@ export struct WifiCardPage {
               Column() {
                 QRCode(this.qrContent)
                   .width(160).height(160)
-                  .backgroundColor('#FFFFFF')
+                  .backgroundColor(Color.White)
                   .padding(8)
               }
-              .borderRadius(16).padding(10).backgroundColor('#FFFFFF')
+              .borderRadius(16).padding(10).backgroundColor(Color.White)
               .margin({ top: 12 })
               Text('手机相机扫码即可连接')
                 .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 8 })
             } else {
               Column() {
                 Text('输入密码后生成二维码')
-                  .fontSize(11).fontColor('#B0A99A')
+                  .fontSize(11).fontColor(BrandColors.beige)
               }
               .width(160).height(160).borderRadius(16)
               .border({ width: 1, color: '#E5DFD2', style: BorderStyle.Dashed })
@@ -140,10 +141,10 @@ export struct WifiCardPage {
               ForEach(this.apList, (ap: string) => {
                 Text(ap)
                   .fontSize(11)
-                  .fontColor(this.selAp === ap ? '#FFFFFF' : this.theme.textPrimary)
+                  .fontColor(this.selAp === ap ? Color.White : this.theme.textPrimary)
                   .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                   .borderRadius(10)
-                  .backgroundColor(this.selAp === ap ? '#FF8A3D' : '#F0EBE0')
+                  .backgroundColor(this.selAp === ap ? this.theme.primary : this.theme.progressTrack)
                   .onClick(() => {
                     this.selAp = ap
                     this.ssid = ap

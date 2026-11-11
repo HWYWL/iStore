@@ -3,6 +3,7 @@
  * 开关：总开关 / 断网告警 / 新设备接入提醒
  * 请求系统通知权限，说明检测机制
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { notificationManager } from '@kit.NotificationKit'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
@@ -129,7 +130,7 @@ this.theme = AppState.getInstance().getTheme()
       .layoutWeight(1)
 
       Toggle({ type: ToggleType.Switch, isOn: checked })
-        .selectedColor('#448AFF')
+        .selectedColor(BrandColors.blueSoft)
         .onChange((v: boolean) => {
           // tag 分发：0=总开关 1=断网告警 2=新设备提醒 3=AI健康告警
           if (tag === 0) {
@@ -252,13 +253,13 @@ this.theme = AppState.getInstance().getTheme()
 
   /** 历史记录配色 */
   historyColor(type: string): string {
-    if (type === 'offline') return '#EF4444'
-    if (type === 'recover') return '#10B981'
-    if (type === 'newDevice') return '#3B82F6'
-    if (type === 'temp') return '#F59E0B'
-    if (type === 'memory') return '#8B5CF6'
+    if (type === 'offline') return BrandColors.redAlt
+    if (type === 'recover') return BrandColors.green
+    if (type === 'newDevice') return BrandColors.blue
+    if (type === 'temp') return BrandColors.amber
+    if (type === 'memory') return BrandColors.violet
     if (type === 'cpu') return '#06B6D4'
-    return '#F97316'
+    return BrandColors.orange
   }
 
   /** 历史记录时间文案 */

@@ -1,3 +1,5 @@
+
+import { BrandColors } from '../../common/theme/BrandColors'
 import {
   LIGHT_THEME,
   ThemePalette,
@@ -83,7 +85,7 @@ interface IconGradient {
 class MetricChip {
   label: string = ''
   value: string = ''
-  color: string = '#2E7BFF'
+  color: string = BrandColors.sky
   bg: string = 'rgba(46,123,255,0.12)'
   constructor(label: string, value: string, color: string, bg: string) {
     this.label = label
@@ -618,12 +620,12 @@ export struct AppsPage {
   }
 
   private chipBg(color: string): string {
-    if (color === '#22C55E') return 'rgba(34,197,94,0.12)'
-    if (color === '#FF8A3D') return withAlpha(this.theme.primary, 0.12)
-    if (color === '#FF5C8A') return 'rgba(255,92,138,0.12)'
-    if (color === '#17B8A6') return 'rgba(23,184,166,0.12)'
-    if (color === '#7A5CFF') return 'rgba(122,92,255,0.12)'
-    if (color === '#8A94A6') return 'rgba(120,140,160,0.12)'
+    if (color === BrandColors.chipGreen) return withAlpha(BrandColors.chipGreen, 0.12)
+    if (color === this.theme.primary) return withAlpha(this.theme.primary, 0.12)
+    if (color === BrandColors.chipPink) return withAlpha(BrandColors.chipPink, 0.12)
+    if (color === BrandColors.chipTeal) return withAlpha(BrandColors.chipTeal, 0.12)
+    if (color === BrandColors.chipViolet) return withAlpha(BrandColors.chipViolet, 0.12)
+    if (color === BrandColors.chipSlate) return withAlpha(BrandColors.chipSlate, 0.12)
     return 'rgba(46,123,255,0.12)'
   }
 
@@ -661,13 +663,13 @@ export struct AppsPage {
   /** 每个磁贴的 1~3 个胶囊（直接读 @State，由状态变化驱动刷新） */
   private chipsFor(tool: ToolEntry): MetricChip[] {
     const m: string = tool.metric ? tool.metric : ''
-    const B: string = '#2E7BFF'
-    const G: string = '#22C55E'
-    const O: string = '#FF8A3D'
-    const P: string = '#7A5CFF'
-    const C: string = '#17B8A6'
-    const K: string = '#FF5C8A'
-    const X: string = '#8A94A6'
+    const B: string = BrandColors.sky
+    const G: string = BrandColors.chipGreen
+    const O: string = this.theme.primary as string
+    const P: string = BrandColors.chipViolet
+    const C: string = BrandColors.chipTeal
+    const K: string = BrandColors.chipPink
+    const X: string = BrandColors.chipSlate
     switch (m) {
       case 'pet':
         return [this.mk('饱食', `${this.petFull}`, O), this.mk('能量', `${this.petEnergy}`, G), this.mk('心情', `${this.petMood}`, K)]
@@ -802,7 +804,7 @@ export struct AppsPage {
 
   private chipAt(tool: ToolEntry, idx: number): MetricChip {
     const arr: MetricChip[] = this.chipsFor(tool)
-    return idx < arr.length ? arr[idx] : new MetricChip('', '', '#2E7BFF', 'rgba(46,123,255,0.12)')
+    return idx < arr.length ? arr[idx] : new MetricChip('', '', BrandColors.sky, 'rgba(46,123,255,0.12)')
   }
 
   /** 速率数值 / 单位拆开，方便主卡大号数字排版 */
@@ -888,7 +890,7 @@ export struct AppsPage {
     ['#60A5FA', '#2563EB'],
     ['#A78BFA', '#7C3AED'],
     ['#F472B6', '#DB2777'],
-    ['#FBBF24', '#F59E0B'],
+    ['#FBBF24', BrandColors.amber],
     ['#34D399', '#059669'],
     ['#22D3EE', '#0891B2'],
     ['#FB923C', '#EA580C'],
@@ -898,18 +900,18 @@ export struct AppsPage {
   private tileGradient(tool: ToolEntry): string[] {
     const r: string = tool.route
     if (r.indexOf('PetPage') >= 0) return ['#FF5A6E', '#F03B57']
-    if (r.indexOf('StorePage') >= 0) return ['#2E7BFF', '#1B5FE0']
-    if (r.indexOf('DockerPage') >= 0) return ['#17B8A6', '#0E9A8C']
-    if (r.indexOf('WebViewPage') >= 0) return ['#7A5CFF', '#5B3DE8']
-    if (r.indexOf('SecurityHubPage') >= 0) return ['#2E7BFF', '#1B5FE0']
+    if (r.indexOf('StorePage') >= 0) return [BrandColors.sky, '#1B5FE0']
+    if (r.indexOf('DockerPage') >= 0) return [BrandColors.chipTeal, '#0E9A8C']
+    if (r.indexOf('WebViewPage') >= 0) return [BrandColors.chipViolet, '#5B3DE8']
+    if (r.indexOf('SecurityHubPage') >= 0) return [BrandColors.sky, '#1B5FE0']
     if (r.indexOf('WifiPage') >= 0) return ['#FF8A2B', '#F26B12']
     if (r.indexOf('NetworkPage') >= 0) return ['#FF7A2B', '#E85F14']
-    if (r.indexOf('TrafficRankPage') >= 0) return ['#2E7BFF', '#1B5FE0']
+    if (r.indexOf('TrafficRankPage') >= 0) return [BrandColors.sky, '#1B5FE0']
     if (r.indexOf('ConntrackRankPage') >= 0) return ['#14B87A', '#0A9A63']
     if (r.indexOf('PortTrafficPage') >= 0) return ['#14B87A', '#0A9A63']
     if (r.indexOf('EthPortPage') >= 0) return ['#A855F7', '#8B2FE0']
     if (r.indexOf('TrafficReportPage') >= 0) return ['#14B87A', '#0A9A63']
-    if (r.indexOf('TopologyPage') >= 0) return ['#6366F1', '#4F46E5']
+    if (r.indexOf('TopologyPage') >= 0) return [BrandColors.indigo, '#4F46E5']
     let h: number = 7
     for (let i = 0; i < tool.name.length; i++) {
       h = (h * 31 + tool.name.charCodeAt(i)) % 9973
@@ -1189,7 +1191,7 @@ export struct AppsPage {
     ['#60A5FA', '#2563EB'],
     ['#A78BFA', '#7C3AED'],
     ['#F472B6', '#DB2777'],
-    ['#FBBF24', '#F59E0B'],
+    ['#FBBF24', BrandColors.amber],
     ['#34D399', '#059669'],
     ['#22D3EE', '#0891B2'],
     ['#FB923C', '#EA580C'],
@@ -1246,11 +1248,11 @@ export struct AppsPage {
       .height(34)
       .borderRadius(11)
       .justifyContent(FlexAlign.Center)
-      .backgroundColor('#FFFFFF')
+      .backgroundColor(Color.White)
       .border(cardBorder(this.theme))
     } else {
       Row() {
-        AppIcon({ name: tool.icon, iconSize: 18, colors: ['#FFFFFF'], forcePack: 'line' })
+        AppIcon({ name: tool.icon, iconSize: 18, colors: [Color.White], forcePack: 'line' })
       }
       .width(34)
       .height(34)

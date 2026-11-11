@@ -159,7 +159,7 @@ this.theme = AppState.getInstance().getTheme()
                     Row() {
                       Text(item.enabled ? '已启用' : '已禁用')
                         .fontSize(10)
-                        .fontColor('#FFFFFF')
+                        .fontColor(Color.White)
                     }
                     .padding({ left: 8, right: 8, top: 3, bottom: 3 })
                     .borderRadius(6)
@@ -169,7 +169,7 @@ this.theme = AppState.getInstance().getTheme()
                     Row() {
                       Text(item.running ? '运行中' : '已停止')
                         .fontSize(10)
-                        .fontColor('#FFFFFF')
+                        .fontColor(Color.White)
                     }
                     .padding({ left: 8, right: 8, top: 3, bottom: 3 })
                     .borderRadius(6)

@@ -2,6 +2,7 @@
  * 路由器心情
  * 根据温度/负载/运行天数生成路由器「心情」表情与吐槽
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -41,7 +42,7 @@ export struct RouterMoodPage {
   @State temp: number = 0
   @State load: number = 0
   @State uptimeDays: number = 0
-  @State mood: MoodInfo = { icon: 'face_smiling', title: '思考中', talk: '让我想想今天心情如何...', color: '#FF8A3D' }
+  @State mood: MoodInfo = { icon: 'face_smiling', title: '思考中', talk: '让我想想今天心情如何...', color: LIGHT_THEME.primary }
   @State loaded: boolean = false
 
   private api: ApiService = new ApiService()
@@ -67,7 +68,7 @@ export struct RouterMoodPage {
 
   private judge(temp: number, load: number, days: number): MoodInfo {
     if (temp >= 65) {
-      return { icon: 'thermometer', title: '热到变形', talk: `我这体温都 ${temp.toFixed(0)}°C 了，快中暑了，能不能开空调…（把风扇对着我吹也行）`, color: '#FF5252' }
+      return { icon: 'thermometer', title: '热到变形', talk: `我这体温都 ${temp.toFixed(0)}°C 了，快中暑了，能不能开空调…（把风扇对着我吹也行）`, color: BrandColors.red }
     }
     if (load >= 85) {
       return { icon: 'bolt', title: '压力山大', talk: `CPU 都飙到 ${load.toFixed(0)}% 了！家里是不是有人在开矿？`, color: this.theme.warning }
@@ -82,7 +83,7 @@ export struct RouterMoodPage {
       return { icon: 'clock', title: '小忙一下', talk: `负载 ${load.toFixed(0)}%，还行还行，忙里偷闲。`, color: this.theme.primary }
     }
     if (temp <= 0) {
-      return { icon: 'info_circle', title: '数据缺失', talk: '传感器没传来温度，我就先装个深沉。', color: '#B0A99A' }
+      return { icon: 'info_circle', title: '数据缺失', talk: '传感器没传来温度，我就先装个深沉。', color: BrandColors.beige }
     }
     return { icon: 'sun_max', title: '元气满满', talk: `温度 ${temp.toFixed(0)}°C，负载 ${load.toFixed(0)}%，本路由器今天状态拉满！`, color: this.theme.success }
   }
@@ -157,7 +158,7 @@ export struct RouterMoodPage {
 
           Row() {
             Text('↻ 重新测心情')
-              .fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
+              .fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Medium)
           }
           .width('100%').height(44).borderRadius(22)
           .backgroundColor(this.theme.primary)

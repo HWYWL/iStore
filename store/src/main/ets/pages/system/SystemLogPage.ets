@@ -160,11 +160,11 @@ export struct SystemLogPage {
       Row({ space: 8 }) {
         TextInput({ placeholder: '过滤关键字（如 ppp / error / docker）', text: this.filter })
           .fontSize(12).height(38).layoutWeight(1)
-          .backgroundColor('#FFFFFF').borderRadius(12)
+          .backgroundColor(Color.White).borderRadius(12)
           .onChange((v: string) => { this.filter = v })
 
         Row() {
-          Text('刷新').fontSize(12).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+          Text('刷新').fontSize(12).fontColor(Color.White).fontWeight(FontWeight.Bold)
         }
         .padding({ left: 14, right: 14, top: 9, bottom: 9 })
         .borderRadius(16).backgroundColor(this.theme.primary)

@@ -208,7 +208,7 @@ this.theme = AppState.getInstance().getTheme()
             Button() {
               Text('确认恢复出厂设置')
                 .fontSize(14)
-                .fontColor('#FFFFFF')
+                .fontColor(Color.White)
                 .fontWeight(FontWeight.Medium)
             }
             .width('100%')
@@ -322,7 +322,7 @@ export struct FactoryResetConfirmDialog {
 
         Button('确定恢复')
           .fontSize(14)
-          .fontColor('#FFFFFF')
+          .fontColor(Color.White)
           .backgroundColor(this.theme.danger)
           .borderRadius(10)
           .layoutWeight(1)

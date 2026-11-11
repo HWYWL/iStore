@@ -2,6 +2,7 @@
  * 今日网络运势
  * 每日一次占卜：结合真实数据（温度/负载/时间）生成宜忌与运势等级
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -49,7 +50,7 @@ export struct FortunePage {
 
   /** 运势图标配色 */
   levelColor(): string {
-    if (this.level === '大吉') return '#F59E0B'
+    if (this.level === '大吉') return BrandColors.amber
     if (this.level === '吉') return '#FBBF24'
     if (this.level === '平') return '#60A5FA'
     return this.theme.semantic.neutral

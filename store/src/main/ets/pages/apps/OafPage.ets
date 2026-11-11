@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -226,7 +227,7 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 引擎状态卡片 ========
               Column() {
                 Row() {
-                  AppIcon({ name: 'gearshape', iconSize: 15, colors: ['#3B82F6'] })
+                  AppIcon({ name: 'gearshape', iconSize: 15, colors: [BrandColors.blue] })
                   Text(' OAF 引擎状态')
                     .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                 }
@@ -238,7 +239,7 @@ this.theme = AppState.getInstance().getTheme()
                   Text('引擎状态')
                     .fontSize(12).fontColor(this.theme.textTertiary).layoutWeight(1)
                   Text(this.oafStatus?.engineStatus === 'running' ? '运行中' : '未运行')
-                    .fontSize(12).fontColor(this.oafStatus?.engineStatus === 'running' ? '#00E676' : '#FF5252')
+                    .fontSize(12).fontColor(this.oafStatus?.engineStatus === 'running' ? BrandColors.greenBright : BrandColors.red)
                 }.width('100%').margin({ top: 8 })
               }
               .width('100%').padding(16).borderRadius(14).margin({ top: 8, left: 16, right: 16 })
@@ -248,7 +249,7 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 基础配置卡片 ========
               Column() {
                 Row() {
-                  AppIcon({ name: 'circle_grid_2x2', iconSize: 15, colors: ['#8B5CF6'] })
+                  AppIcon({ name: 'circle_grid_2x2', iconSize: 15, colors: [BrandColors.violet] })
                   Text(' 基础配置')
                     .fontSize(14).fontColor(this.theme.textPrimary)
                     .fontWeight(FontWeight.Medium)
@@ -277,7 +278,7 @@ this.theme = AppState.getInstance().getTheme()
               // ======== 应用分类管控 ========
               Column() {
                 Row() {
-                  AppIcon({ name: 'square_grid_2x2', iconSize: 15, colors: ['#EC4899'] })
+                  AppIcon({ name: 'square_grid_2x2', iconSize: 15, colors: [BrandColors.pink] })
                   Text(' 应用管控')
                     .fontSize(14).fontColor(this.theme.textPrimary)
                     .fontWeight(FontWeight.Medium)

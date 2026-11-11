@@ -3,6 +3,8 @@
  * 设计规范：prototype-smarthub.html / DesignSystemManifest-智能管家.md
  * 动画：曲线 stagger 生长 / 峰值环 sweep / 扫描光 / 状态灯脉冲 / 星空闪烁 / 时间线滑入 / 健康环滚动
  */
+
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
@@ -434,14 +436,14 @@ export struct SmartHubPage {
 
   barColor(p: number): string {
     if (p >= 80) return this.theme.semantic.danger
-    if (p >= 55) return '#E6A800'
+    if (p >= 55) return this.theme.semantic.warning
     return '#2FBFA8'
   }
 
   statusColor(st: string): string {
-    if (st === 'ok') return '#00C853'
-    if (st === 'warn') return '#E6A800'
-    if (st === 'fail') return '#FF5252'
+    if (st === 'ok') return BrandColors.greenDeep
+    if (st === 'warn') return this.theme.semantic.warning
+    if (st === 'fail') return BrandColors.red
     return '#C9C2B4'
   }
 
@@ -475,11 +477,11 @@ export struct SmartHubPage {
       Row() {
         ForEach(TABS, (t: string, idx: number) => {
           Column() {
-            AppIcon({ name: TAB_ICONS[idx], iconSize: 13, colors: [this.tab === idx ? '#FFFFFF' : this.theme.textSecondary] })
+            AppIcon({ name: TAB_ICONS[idx], iconSize: 13, colors: [this.tab === idx ? Color.White : this.theme.textSecondary] })
             Text(t)
               .fontSize(10)
               .fontWeight(this.tab === idx ? FontWeight.Bold : FontWeight.Normal)
-              .fontColor(this.tab === idx ? '#FFFFFF' : this.theme.textSecondary)
+              .fontColor(this.tab === idx ? Color.White : this.theme.textSecondary)
               .margin({ top: 2 })
           }
           .layoutWeight(1)
@@ -655,14 +657,14 @@ export struct SmartHubPage {
     Column() {
       // 说明卡
       Row() {
-        AppIcon({ name: 'magnifyingglass', iconSize: 22, colors: ['#8B5CF6'] })
+        AppIcon({ name: 'magnifyingglass', iconSize: 22, colors: [BrandColors.violet] })
         Column() {
           Text('AI 网络侦探').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
           Text('断网/卡顿时一键排查，自动生成案发报告').fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 2 })
         }
         .alignItems(HorizontalAlign.Start).layoutWeight(1).margin({ left: 10 })
         Text(this.detectRunning ? '排查中…' : '开始排查')
-          .fontSize(12).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+          .fontSize(12).fontWeight(FontWeight.Bold).fontColor(Color.White)
           .padding({ left: 16, right: 16, top: 9, bottom: 9 })
           .borderRadius(14)
           .backgroundColor(this.theme.primary)
@@ -678,7 +680,7 @@ export struct SmartHubPage {
 
       if (this.detectItems.length === 0) {
         Column() {
-          AppIcon({ name: 'security_shield', iconSize: 40, colors: ['#10B981'] })
+          AppIcon({ name: 'security_shield', iconSize: 40, colors: [BrandColors.green] })
           Text('一切正常时也会安静待命').fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
         }
         .width('100%').padding({ top: 40, bottom: 40 }).alignItems(HorizontalAlign.Center)
@@ -718,8 +720,8 @@ export struct SmartHubPage {
 
         if (this.detectDone) {
           Row() {
-            AppIcon({ name: 'checkmark_circle', iconSize: 14, colors: ['#FFFFFF'] })
-            Text('排查完成，可根据结果判断问题').fontSize(12).fontColor('#FFFFFF').margin({ left: 8 })
+            AppIcon({ name: 'checkmark_circle', iconSize: 14, colors: [Color.White] })
+            Text('排查完成，可根据结果判断问题').fontSize(12).fontColor(Color.White).margin({ left: 8 })
           }
           .width('100%')
           .padding(12)
@@ -745,7 +747,7 @@ export struct SmartHubPage {
           Circle()
             .width(i % 3 === 0 ? 4 : 3)
             .height(i % 3 === 0 ? 4 : 3)
-            .fill('#FFFFFF')
+            .fill(Color.White)
             .opacity(this.starPhase ? 0.9 : 0.15)
             .animation({ duration: 2000, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate, delay: i * 250 })
             .position({
@@ -755,9 +757,9 @@ export struct SmartHubPage {
         }, (i: number) => `s${i}`)
 
         Row() {
-          AppIcon({ name: 'moon', iconSize: 22, colors: ['#FFFFFF'] })
+          AppIcon({ name: 'moon', iconSize: 22, colors: [Color.White] })
           Column() {
-            Text('深夜值班员').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+            Text('深夜值班员').fontSize(14).fontWeight(FontWeight.Bold).fontColor(Color.White)
             Text('你在睡觉，路由器在守夜').fontSize(10).fontColor('rgba(255,255,255,0.7)').margin({ top: 2 })
           }
           .alignItems(HorizontalAlign.Start).layoutWeight(1).margin({ left: 10 })
@@ -785,7 +787,7 @@ export struct SmartHubPage {
             Column() {
               AppIcon({ name: ev.type === 'summary' ? 'moon'
                 : (ev.type === 'new_device' ? 'plus_circle'
-                : (ev.type === 'attack' ? 'security_shield' : 'moon')), iconSize: 18, colors: [ev.type === 'attack' ? '#EF4444' : '#6366F1'] })
+                : (ev.type === 'attack' ? 'security_shield' : 'moon')), iconSize: 18, colors: [ev.type === 'attack' ? BrandColors.redAlt : BrandColors.indigo] })
               Text(ev.time).fontSize(9).fontColor(this.theme.textTertiary).margin({ top: 3 })
             }
             .width(44).alignItems(HorizontalAlign.Center)
@@ -827,7 +829,7 @@ export struct SmartHubPage {
             .onChange((v: string) => { this.commandText = v })
             .onSubmit(() => { this.runCommand() })
           Text(this.cmdBusy ? '…' : '执行')
-            .fontSize(13).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+            .fontSize(13).fontWeight(FontWeight.Bold).fontColor(Color.White)
             .padding({ left: 18, right: 18, top: 11, bottom: 11 })
             .borderRadius(12)
             .backgroundColor(this.theme.primary)
@@ -881,7 +883,7 @@ export struct SmartHubPage {
     Column() {
       Column() {
         Row() {
-          AppIcon({ name: 'circle_grid_2x2', iconSize: 22, colors: ['#3B82F6'] })
+          AppIcon({ name: 'circle_grid_2x2', iconSize: 22, colors: [BrandColors.blue] })
           Text('家庭健康周报').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 8 })
           Blank()
           Text('生成今日')

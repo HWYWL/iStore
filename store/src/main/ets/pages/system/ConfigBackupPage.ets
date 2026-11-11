@@ -3,6 +3,7 @@
  * sysupgrade -b 备份配置 → SFTP 下载到手机；本地备份 → 上传 → sysupgrade -r 恢复
  * OpenWrt 24.x / 25.x 的 sysupgrade -b/-r 均为标准命令，通用
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 import { systemShare } from '@kit.ShareKit'
@@ -220,7 +221,7 @@ export struct ConfigBackupPage {
           // 备份卡
           Column() {
             Row() {
-              AppIcon({ name: 'download', iconSize: 16, colors: ['#3B82F6'] })
+              AppIcon({ name: 'download', iconSize: 16, colors: [BrandColors.blue] })
               Text(' 备份当前配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
             }
             .width('100%')
@@ -239,7 +240,7 @@ export struct ConfigBackupPage {
                 }
                 .alignItems(HorizontalAlign.Start).layoutWeight(1)
                 Row() {
-                  Text('分享').fontSize(12).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                  Text('分享').fontSize(12).fontColor(Color.White).fontWeight(FontWeight.Bold)
                 }
                 .padding({ left: 14, right: 14, top: 8, bottom: 8 })
                 .borderRadius(16).backgroundColor(this.theme.primary)
@@ -251,15 +252,15 @@ export struct ConfigBackupPage {
 
             Row() {
               if (this.busy === 'backup' || this.busy === 'download') {
-                LoadingProgress().width(18).height(18).color('#FFFFFF')
+                LoadingProgress().width(18).height(18).color(Color.White)
                 Text(`  ${this.busy === 'backup' ? '打包中' : '下载中'}...`)
-                  .fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                  .fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Bold)
               } else {
-                Text('开始备份').fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                Text('开始备份').fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Bold)
               }
             }
             .width('100%').height(44).borderRadius(22).margin({ top: 12 })
-            .backgroundColor(this.busy === 'backup' || this.busy === 'download' ? '#C9A98A' : '#FF8A3D')
+            .backgroundColor(this.busy === 'backup' || this.busy === 'download' ? BrandColors.sand : '#FF8A3D')
             .justifyContent(FlexAlign.Center)
             .onClick(() => { this.doBackup() })
           }
@@ -269,7 +270,7 @@ export struct ConfigBackupPage {
           // 恢复卡
           Column() {
             Row() {
-              AppIcon({ name: 'share', iconSize: 16, colors: ['#F97316'] })
+              AppIcon({ name: 'share', iconSize: 16, colors: [BrandColors.orange] })
               Text(' 恢复配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
             }
             .width('100%')
@@ -278,14 +279,14 @@ export struct ConfigBackupPage {
 
             Row() {
               if (this.busy === 'restore') {
-                LoadingProgress().width(18).height(18).color('#FFFFFF')
-                Text('  恢复中...').fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                LoadingProgress().width(18).height(18).color(Color.White)
+                Text('  恢复中...').fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Bold)
               } else {
-                Text('选择备份文件恢复').fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                Text('选择备份文件恢复').fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Bold)
               }
             }
             .width('100%').height(44).borderRadius(22).margin({ top: 12 })
-            .backgroundColor(this.busy === 'restore' ? '#C9A98A' : '#FF5252')
+            .backgroundColor(this.busy === 'restore' ? BrandColors.sand : BrandColors.red)
             .justifyContent(FlexAlign.Center)
             .onClick(() => { this.doRestore() })
           }

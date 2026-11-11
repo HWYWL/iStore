@@ -2,6 +2,7 @@
  * 设备作息热力图
  * 打开本页即采样在线设备，记录 24h 活跃，色块深浅展示
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -162,7 +163,7 @@ export struct DeviceActivityPage {
                   .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
                   .margin({ left: 6 }).layoutWeight(1)
                 Text(row.isOnline ? '在线' : '离线')
-                  .fontSize(9).fontColor(row.isOnline ? this.theme.success : '#B0A99A')
+                  .fontSize(9).fontColor(row.isOnline ? this.theme.success : BrandColors.beige)
               }
               .width('100%')
 
@@ -177,7 +178,7 @@ export struct DeviceActivityPage {
                   .layoutWeight(1)
                   .margin({ right: h < 23 ? 2 : 0 })
                   .borderRadius(3)
-                  .backgroundColor(active ? '#FF8A3D' : (h === this.nowHour ? '#FFD9BC' : '#F0EBE0'))
+                  .backgroundColor(active ? this.theme.primary : (h === this.nowHour ? this.theme.accentSoft : this.theme.progressTrack))
                 }, (active: boolean, h: number): string => `${row.mac}_${h}_${active}`)
               }
               .width('100%')
@@ -212,7 +213,7 @@ export struct DeviceActivityPage {
 
           Row() {
             Text('↻ 刷新采样')
-              .fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
+              .fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Medium)
           }
           .width('100%').height(44).borderRadius(22)
           .backgroundColor(this.theme.primary)

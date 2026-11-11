@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import {
   LIGHT_THEME,
   ThemePalette,
@@ -316,13 +317,13 @@ this.theme = AppState.getInstance().getTheme()
 
   /** 设备图标配色 */
   getDeviceIconColor(): string {
-    if (!this.hostname) return '#64748B'
+    if (!this.hostname) return BrandColors.slate
     const name = this.hostname.toLowerCase()
-    if (name.includes('phone') || name.includes('iphone')) return '#3B82F6'
-    if (name.includes('laptop') || name.includes('macbook') || name.includes('notebook')) return '#8B5CF6'
+    if (name.includes('phone') || name.includes('iphone')) return BrandColors.blue
+    if (name.includes('laptop') || name.includes('macbook') || name.includes('notebook')) return BrandColors.violet
     if (name.includes('tv') || name.includes('smart tv')) return this.theme.semantic.warning
     if (name.includes('pi') || name.includes('raspberry')) return '#0891B2'
-    return '#64748B'
+    return BrandColors.slate
   }
 
   formatDuration(seconds: number): string {
@@ -526,7 +527,7 @@ this.theme = AppState.getInstance().getTheme()
   DhcpInfoSection() {
     Column() {
       Row() {
-        AppIcon({ name: 'doc_plaintext', iconSize: 14, colors: ['#3B82F6'] })
+        AppIcon({ name: 'doc_plaintext', iconSize: 14, colors: [BrandColors.blue] })
         Text(' DHCP 租约信息')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
@@ -561,7 +562,7 @@ this.theme = AppState.getInstance().getTheme()
   DeviceManageSection() {
     Column() {
       Row() {
-        AppIcon({ name: 'gearshape', iconSize: 14, colors: ['#8B5CF6'] })
+        AppIcon({ name: 'gearshape', iconSize: 14, colors: [BrandColors.violet] })
         Text(' 设备管理')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
@@ -600,7 +601,7 @@ this.theme = AppState.getInstance().getTheme()
               .onClick(() => { this.editingNote = false; this.noteInput = this.note })
             Text('保存')
               .fontSize(11)
-              .fontColor('#FFFFFF')
+              .fontColor(Color.White)
               .padding({ left: 12, right: 12, top: 6, bottom: 6 })
               .borderRadius(10)
               .backgroundColor(this.theme.primary)
@@ -671,7 +672,7 @@ this.theme = AppState.getInstance().getTheme()
             .onClick(() => { this.showIpInput = false })
           Text('确定')
             .fontSize(11)
-            .fontColor('#FFFFFF')
+            .fontColor(Color.White)
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .borderRadius(10)
             .backgroundColor(this.theme.primary)
@@ -740,7 +741,7 @@ this.theme = AppState.getInstance().getTheme()
   WifiInfoSection() {
     Column() {
       Row() {
-        AppIcon({ name: 'wifi', iconSize: 14, colors: ['#10B981'] })
+        AppIcon({ name: 'wifi', iconSize: 14, colors: [BrandColors.green] })
         Text(' 无线连接信息')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
@@ -928,7 +929,7 @@ this.theme = AppState.getInstance().getTheme()
       } else {
         Column() {
           Row() {
-            AppIcon({ name: 'list_bullet', iconSize: 14, colors: ['#EC4899'] })
+            AppIcon({ name: 'list_bullet', iconSize: 14, colors: [BrandColors.pink] })
             Text(' 应用记录')
               .fontSize(14)
               .fontColor(this.theme.textPrimary)

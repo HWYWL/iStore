@@ -1,3 +1,5 @@
+
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -267,7 +269,7 @@ this.theme = AppState.getInstance().getTheme()
 
   signalColor(sig: number): string {
     if (sig >= -50) return this.theme.semantic.success
-    if (sig >= -60) return '#448AFF'
+    if (sig >= -60) return BrandColors.blueSoft
     if (sig >= -70) return '#FF9800'
     return this.theme.semantic.danger
   }
@@ -300,7 +302,7 @@ this.theme = AppState.getInstance().getTheme()
           .layoutWeight(1)
         if (this.bandLabel(ap.frequency)) {
           Text(this.bandLabel(ap.frequency))
-            .fontSize(10).fontColor('#448AFF')
+            .fontSize(10).fontColor(BrandColors.blueSoft)
             .padding({ left: 8, right: 8, top: 2, bottom: 2 }).borderRadius(8)
             .backgroundColor(withAlpha(this.theme.info, 0.12))
             .margin({ left: 6 })
@@ -330,7 +332,7 @@ this.theme = AppState.getInstance().getTheme()
         }
         .padding({ left: 12, right: 12, top: 6, bottom: 6 }).borderRadius(12)
         .backgroundColor(withAlpha(this.theme.info, 0.08))
-        .border({ width: 0.5, color: '#448AFF33' })
+        .border({ width: 0.5, color: withAlpha(BrandColors.blueSoft, 0.2) })
         .onClick(() => this.openEdit(ap))
 
         Text(this.expandedAp === ap.device ? '▾ 收起客户端' : `▸ 查看客户端 (${ap.clientCount})`)
@@ -420,7 +422,7 @@ this.theme = AppState.getInstance().getTheme()
   guestCard(): void {
     Column() {
       Row() {
-        AppIcon({ name: 'wifi', iconSize: 14, colors: ['#10B981'] })
+        AppIcon({ name: 'wifi', iconSize: 14, colors: [BrandColors.green] })
         Text(' 访客网络')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
@@ -492,7 +494,7 @@ this.theme = AppState.getInstance().getTheme()
               .onClick(() => { this.guestShowForm = false; this.guestErr = '' })
             Blank()
             Text(this.guestBusy ? '开启中…' : '开启访客网络')
-              .fontSize(12).fontColor('#FFFFFF')
+              .fontSize(12).fontColor(Color.White)
               .padding({ left: 16, right: 16, top: 8, bottom: 8 })
               .borderRadius(14)
               .backgroundColor(this.theme.primary)
@@ -692,7 +694,7 @@ this.theme = AppState.getInstance().getTheme()
                 .backgroundColor(this.theme.bgGlassLight)
                 .onClick(() => { this.showEdit = false })
               Text(this.isSaving ? '保存中…' : '保存')
-                .fontSize(14).fontColor('#FFFFFF').textAlign(TextAlign.Center)
+                .fontSize(14).fontColor(Color.White).textAlign(TextAlign.Center)
                 .layoutWeight(1)
                 .padding({ top: 10, bottom: 10 })
                 .borderRadius(10)
@@ -727,7 +729,7 @@ this.theme = AppState.getInstance().getTheme()
                 .backgroundColor(this.theme.bgGlassLight)
                 .onClick(() => { this.kickTarget = '' })
               Text('踢下线')
-                .fontSize(14).fontColor('#FFFFFF').textAlign(TextAlign.Center)
+                .fontSize(14).fontColor(Color.White).textAlign(TextAlign.Center)
                 .layoutWeight(1).padding({ top: 10, bottom: 10 }).borderRadius(10)
                 .backgroundColor(this.theme.semantic.danger).margin({ left: 10 })
                 .onClick(() => this.confirmKick())

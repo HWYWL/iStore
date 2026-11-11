@@ -1,3 +1,5 @@
+
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -173,7 +175,7 @@ this.theme = AppState.getInstance().getTheme()
         // 顶栏
         Row() {
           Row() {
-            AppIcon({ name: 'square_grid_3x1_below_line_grid_1x2', iconSize: 15, colors: ['#3B82F6'] })
+            AppIcon({ name: 'square_grid_3x1_below_line_grid_1x2', iconSize: 15, colors: [BrandColors.blue] })
             Text(' 物理网口').fontSize(16).fontColor(this.theme.textPrimary)
               .fontWeight(FontWeight.Medium)
           }
@@ -253,13 +255,13 @@ this.theme = AppState.getInstance().getTheme()
                       if (port.speedLabel) {
                         Column() {
                           Text('速率').fontSize(10).fontColor(this.theme.textTertiary)
-                          Text(port.speedLabel).fontSize(14).fontColor('#448AFF')
+                          Text(port.speedLabel).fontSize(14).fontColor(BrandColors.blueSoft)
                             .fontWeight(FontWeight.Bold)
                         }.alignItems(HorizontalAlign.Center)
                         .padding({ left: 14, right: 14, top: 8, bottom: 8 })
                         .borderRadius(10)
                         .backgroundColor(port.up ? withAlpha(this.theme.info, 0.08) : 'rgba(117,117,117,0.06)')
-                        .border({ width: 0.5, color: port.up ? '#448AFF33' : '#75757533' })
+                        .border({ width: 0.5, color: withAlpha(port.up ? BrandColors.blueSoft : BrandColors.gray, 0.2) })
                       }
 
                       if (port.duplex) {

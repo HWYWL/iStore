@@ -2,6 +2,7 @@
  * 网速全国排位赛
  * wget 下载已知大小测试文件计时测速，按档位给出「击败全国 xx%」排位
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -275,15 +276,15 @@ export struct SpeedTestPage {
               Column() {
                 Text('⚡ 网速排位赛')
                   .fontSize(12).fontColor('rgba(255,255,255,0.85)')
-                AppIcon({ name: this.rankSymbol(), iconSize: 44, colors: ['#FFFFFF'] })
+                AppIcon({ name: this.rankSymbol(), iconSize: 44, colors: [Color.White] })
                   .margin({ top: 10 })
                 Text(this.mbps.toFixed(1))
-                  .fontSize(58).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
+                  .fontSize(58).fontColor(Color.White).fontWeight(FontWeight.Bold).fontFamily('monospace')
                   .margin({ top: 4 })
                 Text('Mbps 下载速度')
                   .fontSize(13).fontColor('rgba(255,255,255,0.9)')
                 Text(this.rankText)
-                  .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
+                  .fontSize(14).fontColor(Color.White).fontWeight(FontWeight.Medium)
                   .margin({ top: 12 }).textAlign(TextAlign.Center)
                 Text(this.note)
                   .fontSize(10).fontColor('rgba(255,255,255,0.7)').margin({ top: 8 })
@@ -346,9 +347,9 @@ export struct SpeedTestPage {
             // 完成：左「再测一次」+ 右「分享测速」（同色系橙色，风格一致）
             Row({ space: 12 }) {
               Row() {
-                AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: ['#FFFFFF'] })
+                AppIcon({ name: 'arrow_clockwise', iconSize: 15, colors: [Color.White] })
                 Text('  再测一次')
-                  .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                  .fontSize(14).fontColor(Color.White).fontWeight(FontWeight.Bold)
               }
               .layoutWeight(1).height(46).borderRadius(23)
               .backgroundColor(this.theme.primary)
@@ -356,9 +357,9 @@ export struct SpeedTestPage {
               .onClick(() => { this.runTest() })
 
               Row() {
-                AppIcon({ name: 'share', iconSize: 15, colors: ['#FFFFFF'] })
+                AppIcon({ name: 'share', iconSize: 15, colors: [Color.White] })
                 Text('  分享测速')
-                  .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                  .fontSize(14).fontColor(Color.White).fontWeight(FontWeight.Bold)
               }
               .layoutWeight(1).height(46).borderRadius(23)
               .backgroundColor(this.theme.primary)
@@ -369,10 +370,10 @@ export struct SpeedTestPage {
           } else {
             Row() {
               Text(this.testing ? '测速中...' : '开始测速')
-                .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                .fontSize(15).fontColor(Color.White).fontWeight(FontWeight.Bold)
             }
             .width('100%').height(48).borderRadius(24)
-            .backgroundColor(this.testing ? '#C9A98A' : this.theme.primary)
+            .backgroundColor(this.testing ? BrandColors.sand : this.theme.primary)
             .justifyContent(FlexAlign.Center)
             .margin({ top: 16 })
             .onClick(() => { this.runTest() })

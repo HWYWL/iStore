@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
@@ -699,7 +700,7 @@ this.theme = AppState.getInstance().getTheme()
                 .layoutWeight(1)
                 .padding({ top: 8, bottom: 8 })
                 .borderRadius(11)
-                .backgroundColor(this.mainTab === 0 ? '#FFFFFF' : Color.Transparent)
+                .backgroundColor(this.mainTab === 0 ? Color.White : Color.Transparent)
                 .shadow(this.mainTab === 0 ? { radius: 8, color: 'rgba(180,160,120,0.12)', offsetY: 3 } : { radius: 0, color: 'transparent', offsetY: 0 })
                 .animation({ duration: 220, curve: Curve.EaseOut })
                 .onClick(() => { this.mainTab = 0 })
@@ -710,7 +711,7 @@ this.theme = AppState.getInstance().getTheme()
                 .layoutWeight(1)
                 .padding({ top: 8, bottom: 8 })
                 .borderRadius(11)
-                .backgroundColor(this.mainTab === 1 ? '#FFFFFF' : Color.Transparent)
+                .backgroundColor(this.mainTab === 1 ? Color.White : Color.Transparent)
                 .shadow(this.mainTab === 1 ? { radius: 8, color: 'rgba(180,160,120,0.12)', offsetY: 3 } : { radius: 0, color: 'transparent', offsetY: 0 })
                 .animation({ duration: 220, curve: Curve.EaseOut })
                 .onClick(() => { this.mainTab = 1 })
@@ -766,7 +767,7 @@ this.theme = AppState.getInstance().getTheme()
       // 背景
       Column()
         .width('100%').height('100%')
-        .backgroundColor('#000000')
+        .backgroundColor(Color.Black)
 
       // 左右滑动切换照片
       Swiper() {
@@ -819,9 +820,9 @@ this.theme = AppState.getInstance().getTheme()
                     Column() {
                       LoadingProgress()
                         .width(48).height(48)
-                        .color('#FFFFFF')
+                        .color(Color.White)
                       Text('视频加载中…')
-                        .fontSize(12).fontColor('#FFFFFF')
+                        .fontSize(12).fontColor(Color.White)
                         .margin({ top: 10 })
                     }
                     .width('100%').height('100%')
@@ -846,7 +847,7 @@ this.theme = AppState.getInstance().getTheme()
                         }
                         // 当前时间
                         Text(this.fmtVideoTime(this.videoProgress))
-                          .fontSize(11).fontColor('#FFFFFF')
+                          .fontSize(11).fontColor(Color.White)
                           .margin({ left: 6 })
                         // 进度条
                         Slider({
@@ -856,9 +857,9 @@ this.theme = AppState.getInstance().getTheme()
                         })
                           .layoutWeight(1)
                           .height(28)
-                          .selectedColor('#FFFFFF')
+                          .selectedColor(Color.White)
                           .trackColor('rgba(255,255,255,0.3)')
-                          .blockColor('#FFFFFF')
+                          .blockColor(Color.White)
                           .onChange((v: number) => {
                             this.videoProgress = v
                             try {
@@ -867,7 +868,7 @@ this.theme = AppState.getInstance().getTheme()
                           })
                         // 总时长
                         Text(this.fmtVideoTime(this.videoDuration))
-                          .fontSize(11).fontColor('#FFFFFF')
+                          .fontSize(11).fontColor(Color.White)
                           .margin({ right: 6 })
                         // 全屏按钮（点按自动横屏）
                         if (this.videoFullscreen) {
@@ -996,7 +997,7 @@ this.theme = AppState.getInstance().getTheme()
 
       // 顶部关闭（全屏时隐藏）
       if (!this.videoFullscreen) {
-        AppIcon({ name: 'xmark', iconSize: 20, colors: ['#FFFFFF'] })
+        AppIcon({ name: 'xmark', iconSize: 20, colors: [Color.White] })
           .padding(12)
           .position({ x: 16, y: 16 })
           .onClick(() => { this.closeViewer() })
@@ -1006,9 +1007,9 @@ this.theme = AppState.getInstance().getTheme()
           if (this.sharing) {
             Text('下载中…')
               .fontSize(13)
-              .fontColor('#FFFFFF')
+              .fontColor(Color.White)
           } else {
-            AppIcon({ name: 'share', iconSize: 18, colors: ['#FFFFFF'] })
+            AppIcon({ name: 'share', iconSize: 18, colors: [Color.White] })
           }
         }
         .padding(10)
@@ -1019,7 +1020,7 @@ this.theme = AppState.getInstance().getTheme()
 
         // 顶部索引指示
         Text(`${this.viewerIndex + 1} / ${this.viewerList.length}`)
-          .fontSize(13).fontColor('#FFFFFF')
+          .fontSize(13).fontColor(Color.White)
           .position({ x: '45%', y: 24 })
       }
 
@@ -1031,7 +1032,7 @@ this.theme = AppState.getInstance().getTheme()
       }
     }
     .width('100%').height('100%')
-    .backgroundColor('#000000')
+    .backgroundColor(Color.Black)
     .transition(TransitionEffect.OPACITY
       .combine(TransitionEffect.scale({ x: 0.95, y: 0.95 }))
       .animation({ duration: 200, curve: Curve.EaseOut }))
@@ -1042,7 +1043,7 @@ this.theme = AppState.getInstance().getTheme()
   viewerInfoBar(): void {
     Column() {
       Text(this.currentViewerAsset() ? this.currentViewerAsset()!.originalFileName : '')
-        .fontSize(12).fontColor('#FFFFFF')
+        .fontSize(12).fontColor(Color.White)
         .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
       if (this.currentViewerAsset() && this.currentViewerAsset()!.createdAt) {
         Text(this.formatDate(this.currentViewerAsset()!.createdAt))
@@ -1058,8 +1059,8 @@ this.theme = AppState.getInstance().getTheme()
         .margin({ top: 10 })
       } else if (!this.isOriginalLoaded(this.viewerIndex)) {
         Row() {
-          AppIcon({ name: 'bolt', iconSize: 13, colors: ['#FFFFFF'] })
-          Text(' 加载原图').fontSize(12).fontColor('#FFFFFF')
+          AppIcon({ name: 'bolt', iconSize: 13, colors: [Color.White] })
+          Text(' 加载原图').fontSize(12).fontColor(Color.White)
         }
           .padding({ left: 16, right: 16, top: 8, bottom: 8 })
           .borderRadius(16)
@@ -1074,7 +1075,7 @@ this.theme = AppState.getInstance().getTheme()
       // 分享状态提示
       if (this.shareMsg) {
         Text(this.shareMsg)
-          .fontSize(11).fontColor('#FFFFFF')
+          .fontSize(11).fontColor(Color.White)
           .margin({ top: 8 })
       }
     }
@@ -1305,7 +1306,7 @@ this.theme = AppState.getInstance().getTheme()
     Scroll() {
       Column() {
         Row() {
-          AppIcon({ name: 'ohos_photo', iconSize: 22, colors: ['#EC4899'] })
+          AppIcon({ name: 'ohos_photo', iconSize: 22, colors: [BrandColors.pink] })
           Text(' Immich 相册')
             .fontSize(22)
             .fontColor(this.theme.textPrimary)
@@ -1408,7 +1409,7 @@ this.theme = AppState.getInstance().getTheme()
         Button() {
           Text(this.isTesting ? '连接中…' : '测试并保存')
             .fontSize(15)
-            .fontColor('#FFFFFF')
+            .fontColor(Color.White)
             .fontWeight(FontWeight.Medium)
         }
         .width('100%').height(50).borderRadius(25)
@@ -1487,7 +1488,7 @@ this.theme = AppState.getInstance().getTheme()
                   .linearGradient({ angle: 180, colors: [['rgba(30,27,20,0)', 0.4], ['rgba(30,27,20,0.75)', 1]] })
                 // 张数胶囊（右上）
                 Text(`${album.assetCount} 张`)
-                  .fontSize(10).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                  .fontSize(10).fontWeight(FontWeight.Bold).fontColor(Color.White)
                   .padding({ left: 9, right: 9, top: 4, bottom: 4 })
                   .borderRadius(9)
                   .backgroundColor('rgba(0,0,0,0.45)')
@@ -1495,7 +1496,7 @@ this.theme = AppState.getInstance().getTheme()
                 // 底部信息（白字）
                 Column() {
                   Text(album.albumName)
-                    .fontSize(15).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                    .fontSize(15).fontWeight(FontWeight.Bold).fontColor(Color.White)
                     .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
                   Text(this.albumDate(album.createdAt) + ' · ' + album.assetCount + ' 张')
                     .fontSize(10).fontColor('rgba(255,255,255,0.85)')
@@ -1669,7 +1670,7 @@ this.theme = AppState.getInstance().getTheme()
                       if (asset.type === 'VIDEO') {
                         Text('▶')
                           .fontSize(9)
-                          .fontColor('#FFFFFF')
+                          .fontColor(Color.White)
                           .padding({ left: 6, right: 6, top: 3, bottom: 3 })
                           .borderRadius(7)
                           .backgroundColor('rgba(0,0,0,0.5)')

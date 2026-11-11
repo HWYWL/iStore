@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
@@ -445,7 +446,7 @@ export struct DockerTab {
                       .padding({ top: 6, bottom: 6, left: 12, right: 12 })
                       .onClick(() => { this.showApiConfirm = false })
                     Text('确认开启')
-                      .fontSize(12).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
+                      .fontSize(12).fontColor(Color.White).fontWeight(FontWeight.Medium)
                       .padding({ top: 6, bottom: 6, left: 12, right: 12 }).borderRadius(8)
                       .backgroundColor(this.theme.primary).margin({ left: 8 })
                       .onClick(() => { this.enableApi() })
@@ -471,7 +472,7 @@ export struct DockerTab {
             // ========== 容器 / 镜像 / 网络 切换 ==========
             Row() {
               Row() {
-                AppIcon({ name: 'rectangle_stack', iconSize: 13, colors: [this.viewIndex === 0 ? '#3B82F6' : this.theme.textTertiary] })
+                AppIcon({ name: 'rectangle_stack', iconSize: 13, colors: [this.viewIndex === 0 ? BrandColors.blue : this.theme.textTertiary] })
                 Text(' 容器')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 0 ? this.theme.textPrimary : this.theme.textTertiary)
@@ -484,7 +485,7 @@ export struct DockerTab {
               .onClick(() => { this.switchView(0) })
 
               Row() {
-                AppIcon({ name: 'archivebox', iconSize: 13, colors: [this.viewIndex === 1 ? '#8B5CF6' : this.theme.textTertiary] })
+                AppIcon({ name: 'archivebox', iconSize: 13, colors: [this.viewIndex === 1 ? BrandColors.violet : this.theme.textTertiary] })
                 Text(' 镜像')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 1 ? this.theme.textPrimary : this.theme.textTertiary)
@@ -498,7 +499,7 @@ export struct DockerTab {
               .onClick(() => { this.switchView(1) })
 
               Row() {
-                AppIcon({ name: 'globe_badge_message', iconSize: 13, colors: [this.viewIndex === 2 ? '#10B981' : this.theme.textTertiary] })
+                AppIcon({ name: 'globe_badge_message', iconSize: 13, colors: [this.viewIndex === 2 ? BrandColors.green : this.theme.textTertiary] })
                 Text(' 网络')
                   .fontSize(12)
                   .fontColor(this.viewIndex === 2 ? this.theme.textPrimary : this.theme.textTertiary)
@@ -687,7 +688,7 @@ export struct DockerTab {
                   Column() {
                     Row() {
                       Column() {
-                        AppIcon({ name: 'globe_badge_message', iconSize: 20, colors: ['#10B981'] })
+                        AppIcon({ name: 'globe_badge_message', iconSize: 20, colors: [BrandColors.green] })
                       }
                       .width(40).height(40)
                       .justifyContent(FlexAlign.Center)

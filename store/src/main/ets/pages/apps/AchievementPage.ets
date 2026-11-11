@@ -2,6 +2,7 @@
  * 网络成就系统
  * 徽章收集：运行稳定 / 夜猫子 / 流量之王 / 设备云集 / 七日全勤 / 体检卫士
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -27,16 +28,16 @@ interface AchDef {
 }
 
 const ACHS: AchDef[] = [
-  { id: 'health', icon: 'staroflife', color: '#10B981', name: '体检卫士', desc: '完成一次智能网络体检', hint: '去应用中心跑一次体检' },
-  { id: 'stable', icon: 'medal', color: '#F59E0B', name: '稳如泰山', desc: '路由器连续运行 7 天以上', hint: '别重启，继续跑' },
-  { id: 'owl', icon: 'clock', color: '#6366F1', name: '夜猫子', desc: '凌晨 0~4 点还在用 App', hint: '今晚熬个夜试试' },
-  { id: 'giant', icon: 'arrow_up_right', color: '#3B82F6', name: '流量之王', desc: '某天流量超过 100GB', hint: '下一个大文件冲一冲' },
-  { id: 'crowd', icon: 'person_3', color: '#EC4899', name: '门庭若市', desc: '同时在线设备 15 台以上', hint: '家里人多时解锁' },
-  { id: 'week', icon: 'flame', color: '#F97316', name: '七日全勤', desc: '最近 7 天使用 App 5 天以上', hint: '每天打开一次' },
-  { id: 'refresh_master', icon: 'arrow_clockwise', color: '#8B5CF6', name: '数据狂人', desc: '累计下拉刷新 50 次', hint: '首页多下拉几次' },
+  { id: 'health', icon: 'staroflife', color: BrandColors.green, name: '体检卫士', desc: '完成一次智能网络体检', hint: '去应用中心跑一次体检' },
+  { id: 'stable', icon: 'medal', color: BrandColors.amber, name: '稳如泰山', desc: '路由器连续运行 7 天以上', hint: '别重启，继续跑' },
+  { id: 'owl', icon: 'clock', color: BrandColors.indigo, name: '夜猫子', desc: '凌晨 0~4 点还在用 App', hint: '今晚熬个夜试试' },
+  { id: 'giant', icon: 'arrow_up_right', color: BrandColors.blue, name: '流量之王', desc: '某天流量超过 100GB', hint: '下一个大文件冲一冲' },
+  { id: 'crowd', icon: 'person_3', color: BrandColors.pink, name: '门庭若市', desc: '同时在线设备 15 台以上', hint: '家里人多时解锁' },
+  { id: 'week', icon: 'flame', color: BrandColors.orange, name: '七日全勤', desc: '最近 7 天使用 App 5 天以上', hint: '每天打开一次' },
+  { id: 'refresh_master', icon: 'arrow_clockwise', color: BrandColors.violet, name: '数据狂人', desc: '累计下拉刷新 50 次', hint: '首页多下拉几次' },
   { id: 'archaeologist', icon: 'magnifyingglass', color: '#0891B2', name: '数据考古学家', desc: '翻看 3 天前的历史数据', hint: '查看历史流量/排名页' },
   { id: 'midnight_flow', icon: 'waveform', color: '#14B8A6', name: '午夜洪流', desc: '凌晨 0~5 点单小时流量超 1GB', hint: '深夜下个大文件' },
-  { id: 'peak_master', icon: 'calendar', color: '#EF4444', name: '准点下班', desc: '18~20 点单小时流量超 2GB', hint: '下班回家刷剧试试' }
+  { id: 'peak_master', icon: 'calendar', color: BrandColors.redAlt, name: '准点下班', desc: '18~20 点单小时流量超 2GB', hint: '下班回家刷剧试试' }
 ]
 
 @Entry
@@ -177,7 +178,7 @@ export struct AchievementPage {
       if (this.newAch) {
         Column() {
           Text(`🎉 成就达成：${this.newAch}！`)
-            .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+            .fontSize(14).fontColor(Color.White).fontWeight(FontWeight.Bold)
         }
         .width('100%').padding(14).borderRadius(16).margin({ left: 16, right: 16, top: 6 })
         .backgroundColor(this.theme.primary)

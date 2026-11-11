@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import {
   LIGHT_THEME,
   ThemePalette,
@@ -86,7 +87,7 @@ this.theme = AppState.getInstance().getTheme()
       Column() {
         Row() {
           Row() {
-            AppIcon({ name: 'gearshape', iconSize: 15, colors: ['#8B5CF6'] })
+            AppIcon({ name: 'gearshape', iconSize: 15, colors: [BrandColors.violet] })
             Text(' 系统进程')
               .fontSize(16)
               .fontColor(this.theme.textPrimary)

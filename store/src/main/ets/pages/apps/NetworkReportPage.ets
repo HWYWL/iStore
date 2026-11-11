@@ -2,6 +2,7 @@
  * AI 网络周报
  * 汇总近 7 天流量 + 设备活跃，生成趣味周报（本地规则引擎拼装）
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -194,7 +195,7 @@ export struct NetworkReportPage {
           if (this.generated) {
             Column() {
               Row() {
-                AppIcon({ name: 'circle_grid_2x2', iconSize: 16, colors: ['#3B82F6'] })
+                AppIcon({ name: 'circle_grid_2x2', iconSize: 16, colors: [BrandColors.blue] })
                 Text(' 本周网络周报')
                   .fontSize(16).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
               }
@@ -283,10 +284,10 @@ export struct NetworkReportPage {
 
           Row() {
             Text(this.generating ? '生成中...' : (this.generated ? '重新生成' : '生成周报'))
-              .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+              .fontSize(15).fontColor(Color.White).fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
-          .backgroundColor(this.generating ? '#C9A98A' : this.theme.primary)
+          .backgroundColor(this.generating ? BrandColors.sand : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 20 })
           .onClick(() => { this.generate() })

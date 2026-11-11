@@ -310,7 +310,7 @@ this.theme = AppState.getInstance().getTheme()
               .lineHeight(18)
             Row() {
               Text('重新连接')
-                .fontSize(12).fontColor('#FFFFFF')
+                .fontSize(12).fontColor(Color.White)
                 .padding({ left: 16, right: 16, top: 8, bottom: 8 })
                 .borderRadius(12)
                 .backgroundColor(this.theme.semantic.success)
@@ -410,7 +410,7 @@ this.theme = AppState.getInstance().getTheme()
         Row() {
           Text(this.running ? '…' : '执行')
             .fontSize(12)
-            .fontColor('#FFFFFF')
+            .fontColor(Color.White)
             .fontWeight(FontWeight.Medium)
         }
         .width(60)

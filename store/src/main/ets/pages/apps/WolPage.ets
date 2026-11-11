@@ -2,6 +2,7 @@
  * WolPage - WOL 远程开机（局域网唤醒）
  * SSH 通道执行 etherwake / wakeonlan 发送魔法包，设备列表本地存储
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppNav } from '../../common/utils/AppNav'
 import { window } from '@kit.ArkUI'
 import { promptAction } from '@kit.ArkUI'
@@ -183,7 +184,7 @@ export struct WolPage {
       // 标题栏
       Row() {
         Row() {
-          AppIcon({ name: 'bolt', iconSize: 18, colors: ['#F97316'] })
+          AppIcon({ name: 'bolt', iconSize: 18, colors: [BrandColors.orange] })
         }
         .width(34).height(34).borderRadius(17)
         .backgroundColor(withAlpha(this.theme.primary, 0.14))
@@ -239,7 +240,7 @@ export struct WolPage {
               .onChange((v: string) => { this.newMac = v })
             Row({ space: 10 }) {
               Row() {
-                Text('＋ 添加').fontSize(13).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                Text('＋ 添加').fontSize(13).fontColor(Color.White).fontWeight(FontWeight.Bold)
               }
               .layoutWeight(1).height(42).borderRadius(21)
               .backgroundColor(this.theme.primary)
@@ -298,12 +299,12 @@ export struct WolPage {
 
                 Row() {
                   if (this.busy === d.name) {
-                    LoadingProgress().width(14).height(14).color('#FFFFFF')
+                    LoadingProgress().width(14).height(14).color(Color.White)
                   } else {
-                    AppIcon({ name: 'bolt', iconSize: 13, colors: ['#FFFFFF'] })
+                    AppIcon({ name: 'bolt', iconSize: 13, colors: [Color.White] })
                   }
                   Text(this.busy === d.name ? '  发送中' : '  开机')
-                    .fontSize(12).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                    .fontSize(12).fontColor(Color.White).fontWeight(FontWeight.Bold)
                 }
                 .padding({ left: 12, right: 12, top: 8, bottom: 8 })
                 .borderRadius(16)

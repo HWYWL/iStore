@@ -3,6 +3,7 @@
  * 结构：玻璃宠物场景 → 实时网速（下载/上传） → 分段互动条 → 成长里程碑 XP → 双列任务卡
  * 动画：bob 浮动 / 喂食跳跃+粒子 / 摸头倾斜 / 换装扮
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -675,7 +676,7 @@ export struct PetView {
       // 面板脸（fc 奶油渐变）
       Column()
         .width(84).height(56).borderRadius(24)
-        .linearGradient({ angle: 90, colors: [['#FFFFFF', 0], ['#FFF0E1', 1]] })
+        .linearGradient({ angle: 90, colors: [[Color.White, 0], ['#FFF0E1', 1]] })
         .border({ width: 1, color: 'rgba(233,201,168,0.55)' })
         .position({ x: 58, y: 90 })
 
@@ -683,8 +684,8 @@ export struct PetView {
       Stack() {
         Ellipse().width(16.8).height(20.8).fill('#3A2E22').position({ x: 8.4, y: 1.4 })
         Ellipse().width(16.8).height(20.8).fill('#3A2E22').position({ x: 40.4, y: 1.4 })
-        Circle({ width: 5.6, height: 5.6 }).fill('#FFFFFF').position({ x: 13.9, y: 5.9 })
-        Circle({ width: 5.6, height: 5.6 }).fill('#FFFFFF').position({ x: 45.9, y: 5.9 })
+        Circle({ width: 5.6, height: 5.6 }).fill(Color.White).position({ x: 13.9, y: 5.9 })
+        Circle({ width: 5.6, height: 5.6 }).fill(Color.White).position({ x: 45.9, y: 5.9 })
         Circle({ width: 2.4, height: 2.4 }).fill('rgba(255,255,255,0.7)').position({ x: 9, y: 14 })
         Circle({ width: 2.4, height: 2.4 }).fill('rgba(255,255,255,0.7)').position({ x: 41, y: 14 })
       }
@@ -788,12 +789,12 @@ export struct PetView {
         Blank()
         Row() {
           Circle({ width: 7, height: 7 }).fill('#38BDF8')
-          Text('下载').fontSize(9).fontColor('#6B7889').margin({ left: 4 })
+          Text('下载').fontSize(9).fontColor(BrandColors.gray).margin({ left: 4 })
         }
         .margin({ right: 10 })
         Row() {
-          Circle({ width: 7, height: 7 }).fill('#8B5CF6')
-          Text('上传').fontSize(9).fontColor('#6B7889').margin({ left: 4 })
+          Circle({ width: 7, height: 7 }).fill(BrandColors.violet)
+          Text('上传').fontSize(9).fontColor(BrandColors.gray).margin({ left: 4 })
         }
       }
       .width('100%')
@@ -906,7 +907,7 @@ export struct PetView {
     Column() {
       Row() {
         Text('成长里程碑').fontSize(12).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
-        Text(this.xpHint()).fontSize(9).fontColor('#6B7889').margin({ left: 6 })
+        Text(this.xpHint()).fontSize(9).fontColor(BrandColors.gray).margin({ left: 6 })
         Blank()
         Text(`${this.pet.xp} / 100`).fontSize(10).fontWeight(FontWeight.Bold).fontColor('#6351E8')
       }
@@ -933,14 +934,14 @@ export struct PetView {
               Stack({ alignContent: idx === 4 ? Alignment.End : Alignment.Start }) {
                 Row() {
                   if (this.pet.level > idx) {
-                    Text('✓').fontSize(9).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+                    Text('✓').fontSize(9).fontWeight(FontWeight.Bold).fontColor(Color.White)
                   } else {
                     Text(`${idx + 1}`).fontSize(9).fontWeight(FontWeight.Bold).fontColor('#A98C3E')
                   }
                 }
                 .width(17).height(17).borderRadius('50%')
                 .justifyContent(FlexAlign.Center)
-                .backgroundColor('#FFFFFF')
+                .backgroundColor(Color.White)
                 .linearGradient({
                   angle: 135,
                   colors: [[this.pet.level > idx ? '#F9E9B0' : 'rgba(255,255,255,0)', 0],
@@ -987,7 +988,7 @@ export struct PetView {
   questCheck(arg: QuestCheckArg) {
     Row() {
       if (arg.done) {
-        Text('✓').fontSize(9).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+        Text('✓').fontSize(9).fontWeight(FontWeight.Bold).fontColor(Color.White)
       }
     }
     .width(17).height(17).borderRadius('50%')
@@ -1004,7 +1005,7 @@ export struct PetView {
         Text('今日陪伴任务').fontSize(12).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
         Blank()
         Text(`${this.doneCount()} / 5 完成 · 共 ${this.questTotalEnergy()} 能量`)
-          .fontSize(9).fontColor('#6B7889')
+          .fontSize(9).fontColor(BrandColors.gray)
       }
       .width('100%').margin({ bottom: 10 })
 
@@ -1023,7 +1024,7 @@ export struct PetView {
       // 第 5 张通栏宽卡
       Row() {
         Row() {
-          AppIcon({ name: QUESTS[4].icon, iconSize: 15, colors: ['#FFFFFF'] })
+          AppIcon({ name: QUESTS[4].icon, iconSize: 15, colors: [Color.White] })
         }
         .width(27).height(27).borderRadius(9).justifyContent(FlexAlign.Center)
         .linearGradient({ angle: 140, colors: [[QUESTS[4].c1, 0], [QUESTS[4].c2, 1]] })
@@ -1032,9 +1033,9 @@ export struct PetView {
           Text(QUESTS[4].name).fontSize(10.5).fontWeight(FontWeight.Bold)
             .fontColor(this.theme.textPrimary).maxLines(1)
           Row() {
-            Text('奖励 ').fontSize(9).fontColor('#6B7889')
+            Text('奖励 ').fontSize(9).fontColor(BrandColors.gray)
             Text(`+${QUESTS[4].energy}`).fontSize(9).fontWeight(FontWeight.Bold).fontColor('#E1701F')
-            Text(' 能量').fontSize(9).fontColor('#6B7889')
+            Text(' 能量').fontSize(9).fontColor(BrandColors.gray)
           }.margin({ top: 2 })
         }
         .alignItems(HorizontalAlign.Start)
@@ -1071,7 +1072,7 @@ export struct PetView {
     Column() {
       Stack({ alignContent: Alignment.TopStart }) {
         Row() {
-          AppIcon({ name: QUESTS[idx].icon, iconSize: 15, colors: ['#FFFFFF'] })
+          AppIcon({ name: QUESTS[idx].icon, iconSize: 15, colors: [Color.White] })
         }
         .width(27).height(27).borderRadius(9).justifyContent(FlexAlign.Center)
         .linearGradient({ angle: 140, colors: [[QUESTS[idx].c1, 0], [QUESTS[idx].c2, 1]] })
@@ -1088,9 +1089,9 @@ export struct PetView {
         .margin({ top: 7 })
 
       Row() {
-        Text('奖励 ').fontSize(9).fontColor('#6B7889')
+        Text('奖励 ').fontSize(9).fontColor(BrandColors.gray)
         Text(`+${QUESTS[idx].energy}`).fontSize(9).fontWeight(FontWeight.Bold).fontColor('#E1701F')
-        Text(' 能量').fontSize(9).fontColor('#6B7889')
+        Text(' 能量').fontSize(9).fontColor(BrandColors.gray)
       }.margin({ top: 3 })
     }
     .alignItems(HorizontalAlign.Start)

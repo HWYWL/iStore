@@ -1,3 +1,4 @@
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -37,8 +38,8 @@ export struct TrafficRankPage {
 
   /** 前三名配色 */
   private rankColor(idx: number): string {
-    if (idx === 0) return '#F59E0B'
-    if (idx === 1) return '#94A3B8'
+    if (idx === 0) return BrandColors.amber
+    if (idx === 1) return BrandColors.slateLight
     return '#B45309'
   }
 
@@ -161,7 +162,7 @@ this.theme = AppState.getInstance().getTheme()
             Column() {
               // 说明
               Row() {
-                AppIcon({ name: 'wifi', iconSize: 13, colors: ['#10B981'] })
+                AppIcon({ name: 'wifi', iconSize: 13, colors: [BrandColors.green] })
                 Text(' 按实时下载+上传速率降序排列')
                   .fontSize(11).fontColor(this.theme.textTertiary)
                   .layoutWeight(1)
@@ -224,9 +225,9 @@ this.theme = AppState.getInstance().getTheme()
                       Text('⇩').fontSize(10).fontColor(this.theme.semantic.success).width(14)
                       Text(FormatUtils.formatSpeed(dev.rxRate || 0))
                         .fontSize(10).fontColor(this.theme.semantic.success).fontFamily('monospace').width(68)
-                      Text('⇧').fontSize(10).fontColor('#448AFF').width(14).margin({ left: 6 })
+                      Text('⇧').fontSize(10).fontColor(BrandColors.blueSoft).width(14).margin({ left: 6 })
                       Text(FormatUtils.formatSpeed(dev.txRate || 0))
-                        .fontSize(10).fontColor('#448AFF').fontFamily('monospace').width(68)
+                        .fontSize(10).fontColor(BrandColors.blueSoft).fontFamily('monospace').width(68)
 
                       Stack() {
                         Row().width('100%').height(4).borderRadius(2)
@@ -235,7 +236,7 @@ this.theme = AppState.getInstance().getTheme()
                           .width(this.ratePct((dev.rxRate || 0) + (dev.txRate || 0))).height(4).borderRadius(2)
                           .linearGradient({
                             angle: 90,
-                            colors: [['#448AFF', 0], [this.theme.semantic.success, 1]]
+                            colors: [[BrandColors.blueSoft, 0], [this.theme.semantic.success, 1]]
                           })
                       }.alignContent(Alignment.Start)
                       .layoutWeight(1).height(4).margin({ left: 8 })

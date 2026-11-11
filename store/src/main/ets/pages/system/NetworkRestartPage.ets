@@ -3,6 +3,7 @@
  * /etc/init.d/network restart 只重启网络服务不动整机（OpenWrt 24.x/25.x 通用）
  * 重启后自动 ping 网关验证恢复
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { window, promptAction } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -160,7 +161,7 @@ export struct NetworkRestartPage {
           // 状态大卡
           Column() {
             AppIcon({ name: this.resultOk === -1 ? 'globe_badge_message'
-              : (this.resultOk === 1 ? 'checkmark_circle' : 'warning'), iconSize: 52, colors: [this.resultOk === 1 ? '#10B981' : (this.resultOk === -1 ? this.theme.primary : '#F59E0B')] })
+              : (this.resultOk === 1 ? 'checkmark_circle' : 'warning'), iconSize: 52, colors: [this.resultOk === 1 ? BrandColors.green : (this.resultOk === -1 ? this.theme.primary : BrandColors.amber)] })
             Text(this.busy ? '重启中...' : (this.resultOk === -1 ? '网络服务待命' : (this.resultOk === 1 ? '网络已恢复' : '验证未通过')))
               .fontSize(16).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold).margin({ top: 10 })
             Text('断网、拨号失败、DNS 异常时，先试试只重启网络服务')
@@ -187,20 +188,20 @@ export struct NetworkRestartPage {
           // 执行按钮
           Row() {
             if (this.busy) {
-              LoadingProgress().width(20).height(20).color('#FFFFFF')
-              Text('  重启中...').fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+              LoadingProgress().width(20).height(20).color(Color.White)
+              Text('  重启中...').fontSize(15).fontColor(Color.White).fontWeight(FontWeight.Bold)
             } else {
-              Text('重启网络服务').fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+              Text('重启网络服务').fontSize(15).fontColor(Color.White).fontWeight(FontWeight.Bold)
             }
           }
           .width('100%').height(48).borderRadius(24).margin({ top: 16 })
-          .backgroundColor(this.busy ? '#C9A98A' : this.theme.primary)
+          .backgroundColor(this.busy ? BrandColors.sand : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .onClick(() => { this.confirmRestart() })
 
           if (this.statusMsg) {
             Text(this.statusMsg)
-              .fontSize(11).fontColor(this.resultOk === 1 ? '#00C853' : this.theme.primary)
+              .fontSize(11).fontColor(this.resultOk === 1 ? BrandColors.greenDeep : this.theme.primary)
               .margin({ top: 12 }).textAlign(TextAlign.Center).width('100%')
           }
         }

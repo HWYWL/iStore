@@ -2,6 +2,7 @@
  * TrafficBillPage - 流量月账单（运营商账单风）
  * 本月流量总览 + 近 7 天趋势 + 设备流量排行（实时快照推测）
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppNav } from '../../common/utils/AppNav'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -254,7 +255,7 @@ export struct TrafficBillPage {
               Text('本月已用流量').fontSize(12).fontColor('rgba(255,255,255,0.85)')
               Row() {
                 Text(this.val(this.monthTotal))
-                  .fontSize(62).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
+                  .fontSize(62).fontColor(Color.White).fontWeight(FontWeight.Bold).fontFamily('monospace')
                 Text(` ${this.unit(this.monthTotal)}`).fontSize(18).fontColor('rgba(255,255,255,0.85)').margin({ bottom: 14 })
               }
               .alignItems(VerticalAlign.Bottom)
@@ -298,7 +299,7 @@ export struct TrafficBillPage {
               Column() {
                 Row() {
                   Row() {
-            AppIcon({ name: 'arrow_up_right', iconSize: 13, colors: ['#3B82F6'] })
+            AppIcon({ name: 'arrow_up_right', iconSize: 13, colors: [BrandColors.blue] })
             Text(' 本月峰值日').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
           }
                   Text(this.peakDay).fontSize(12).fontColor(this.theme.textTertiary).margin({ left: 8 })
@@ -397,8 +398,8 @@ export struct TrafficBillPage {
 
   /** 前三名奖牌配色 */
   private rankColor(idx: number): string {
-    if (idx === 0) return '#F59E0B'
-    if (idx === 1) return '#94A3B8'
+    if (idx === 0) return BrandColors.amber
+    if (idx === 1) return BrandColors.slateLight
     return '#B45309'
   }
 

@@ -104,7 +104,7 @@ export struct NetworkHelperPage {
         Column() {
           Text(msg.text)
             .fontSize(14)
-            .fontColor('#FFFFFF')
+            .fontColor(Color.White)
             .lineHeight(20)
             .padding({ left: 14, right: 14, top: 10, bottom: 10 })
             .borderRadius(16)
@@ -230,7 +230,7 @@ export struct NetworkHelperPage {
         Row() {
           Text('发送')
             .fontSize(13)
-            .fontColor('#FFFFFF')
+            .fontColor(Color.White)
             .fontWeight(FontWeight.Medium)
         }
         .width(64)

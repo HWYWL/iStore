@@ -2,6 +2,7 @@
  * FileManagerPage - OpenWrt 文件管理器
  * SSH 连接，浏览/查看/编辑/新建/重命名/删除/复制/移动/上传/下载
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   ThemePalette,
@@ -505,12 +506,12 @@ export struct FileManagerPage {
   entryColor(entry: FsEntry): string {
     if (entry.isDir) return this.theme.semantic.warning
     const lower: string = entry.name.toLowerCase()
-    if (FileManagerService.isTextFile(entry.name)) return '#3B82F6'
-    if (lower.endsWith('.gz') || lower.endsWith('.tar') || lower.endsWith('.zip') || lower.endsWith('.xz')) return '#8B5CF6'
-    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return '#EC4899'
+    if (FileManagerService.isTextFile(entry.name)) return BrandColors.blue
+    if (lower.endsWith('.gz') || lower.endsWith('.tar') || lower.endsWith('.zip') || lower.endsWith('.xz')) return BrandColors.violet
+    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp')) return BrandColors.pink
     if (lower.endsWith('.mp3') || lower.endsWith('.wav')) return '#06B6D4'
-    if (lower.endsWith('.mp4') || lower.endsWith('.mkv')) return '#F97316'
-    return '#64748B'
+    if (lower.endsWith('.mp4') || lower.endsWith('.mkv')) return BrandColors.orange
+    return BrandColors.slate
   }
 
   /** 主色 → 同色系浅底 */
@@ -549,7 +550,7 @@ export struct FileManagerPage {
         Blank()
         if (this.clipboard.length > 0) {
           Text(`粘贴(${this.clipMode === 'copy' ? '复制' : '移动'} ${this.clipboard.length}项)`)
-            .fontSize(12).fontColor('#FFFFFF')
+            .fontSize(12).fontColor(Color.White)
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .borderRadius(14)
             .backgroundColor(this.theme.primary)
@@ -593,7 +594,7 @@ export struct FileManagerPage {
           Text('⚠ SSH 未连接').fontSize(14).fontColor(this.theme.semantic.danger)
           Text(this.connError).fontSize(12).fontColor(this.theme.textTertiary)
             .margin({ top: 8 }).padding({ left: 30, right: 30 })
-          Text('重新连接').fontSize(13).fontColor('#FFFFFF')
+          Text('重新连接').fontSize(13).fontColor(Color.White)
             .padding({ left: 20, right: 20, top: 8, bottom: 8 })
             .borderRadius(12).backgroundColor(this.theme.primary)
             .margin({ top: 16 })
@@ -615,7 +616,7 @@ export struct FileManagerPage {
                 Blank()
                 // 一键安装按钮
                 Text('🔧 一键安装')
-                  .fontSize(11).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
+                  .fontSize(11).fontColor(Color.White).fontWeight(FontWeight.Medium)
                   .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                   .borderRadius(12)
                   .backgroundColor(this.theme.primary)
@@ -780,7 +781,7 @@ export struct FileManagerPage {
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
             .borderRadius(14).backgroundColor(cardTint(this.theme))
             .onClick(() => { this.showSheet = false })
-          Text('确定').fontSize(14).fontColor('#FFFFFF')
+          Text('确定').fontSize(14).fontColor(Color.White)
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
             .borderRadius(14).backgroundColor(this.theme.primary)
             .onClick(() => { this.onSheetOk() })
@@ -810,7 +811,7 @@ export struct FileManagerPage {
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
             .borderRadius(14).backgroundColor(cardTint(this.theme))
             .onClick(() => { this.showDeleteConfirm = false })
-          Text('确认删除').fontSize(14).fontColor('#FFFFFF')
+          Text('确认删除').fontSize(14).fontColor(Color.White)
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
             .borderRadius(14).backgroundColor(this.theme.semantic.danger)
             .onClick(() => { this.doDelete() })

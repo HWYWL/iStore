@@ -2,6 +2,7 @@
  * ShareCardPage - 装 B 分享卡
  * 网络状态（系统信息/网速/在线设备）生成小红书风卡片 → 截图 → 系统分享
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppNav } from '../../common/utils/AppNav'
 import { window } from '@kit.ArkUI'
 import { componentSnapshot } from '@kit.ArkUI'
@@ -211,7 +212,7 @@ export struct ShareCardPage {
             .width('100%').padding(50).alignItems(HorizontalAlign.Center)
           } else if (this.errText) {
             Column() {
-              AppIcon({ name: 'warning', iconSize: 36, colors: ['#EF4444'] })
+              AppIcon({ name: 'warning', iconSize: 36, colors: [BrandColors.redAlt] })
               Text(this.errText).fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
             }
             .width('100%').padding(40).alignItems(HorizontalAlign.Center)
@@ -223,13 +224,13 @@ export struct ShareCardPage {
                 Row() {
                   Column() {
                     Text(this.sys.hostname ? this.sys.hostname : 'iStore 路由器')
-                      .fontSize(16).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+                      .fontSize(16).fontColor(Color.White).fontWeight(FontWeight.Bold)
                     Text('连续运行 ' + (this.upDays() > 0 ? `${this.upDays()} 天` : '稳定运行中'))
                       .fontSize(10).fontColor('rgba(255,255,255,0.7)').margin({ top: 3 })
                   }
                   .alignItems(HorizontalAlign.Start).layoutWeight(1)
                   Text('iStore')
-                    .fontSize(12).fontColor('#FFFFFF')
+                    .fontSize(12).fontColor(Color.White)
                     .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                     .borderRadius(12)
                     .backgroundColor('rgba(255,255,255,0.18)')
@@ -240,14 +241,14 @@ export struct ShareCardPage {
                 Row() {
                   Column() {
                     Text(this.rxMbps.toFixed(1))
-                      .fontSize(40).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
+                      .fontSize(40).fontColor(Color.White).fontWeight(FontWeight.Bold).fontFamily('monospace')
                     Text('下载 Mbps').fontSize(10).fontColor('rgba(255,255,255,0.7)')
                   }
                   .layoutWeight(1).alignItems(HorizontalAlign.Center)
 
                   Column() {
                     Text(this.txMbps.toFixed(1))
-                      .fontSize(40).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
+                      .fontSize(40).fontColor(Color.White).fontWeight(FontWeight.Bold).fontFamily('monospace')
                     Text('上传 Mbps').fontSize(10).fontColor('rgba(255,255,255,0.7)')
                   }
                   .layoutWeight(1).alignItems(HorizontalAlign.Center)
@@ -270,7 +271,7 @@ export struct ShareCardPage {
 
                 // 状态文案
                 Text(this.cardTag())
-                  .fontSize(15).fontColor('#FFFFFF').fontWeight(FontWeight.Medium)
+                  .fontSize(15).fontColor(Color.White).fontWeight(FontWeight.Medium)
                   .margin({ top: 18 })
                 Text('# 我家路由器 # 网络稳如老狗 # iStore')
                   .fontSize(10).fontColor('rgba(255,255,255,0.75)').margin({ top: 10 })
@@ -288,8 +289,8 @@ export struct ShareCardPage {
 
             // 分享按钮
             Row() {
-              AppIcon({ name: 'share', iconSize: 16, colors: ['#FFFFFF'] })
-              Text('  分享这张卡').fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
+              AppIcon({ name: 'share', iconSize: 16, colors: [Color.White] })
+              Text('  分享这张卡').fontSize(14).fontColor(Color.White).fontWeight(FontWeight.Bold)
             }
             .width('100%').height(46).borderRadius(23).margin({ top: 16 })
             .backgroundColor(this.theme.primary)
@@ -320,7 +321,7 @@ export struct ShareCardPage {
   @Builder
   statCell(label: string, value: string) {
     Column() {
-      Text(value).fontSize(17).fontColor('#FFFFFF').fontWeight(FontWeight.Bold).fontFamily('monospace')
+      Text(value).fontSize(17).fontColor(Color.White).fontWeight(FontWeight.Bold).fontFamily('monospace')
       Text(label).fontSize(9).fontColor('rgba(255,255,255,0.65)').margin({ top: 3 })
     }
     .layoutWeight(1)

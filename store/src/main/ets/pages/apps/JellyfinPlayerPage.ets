@@ -64,7 +64,7 @@ struct JellyfinPlayerPage {
       // 视频背景（全屏黑）
       Column()
         .width('100%').height('100%')
-        .backgroundColor('#000000')
+        .backgroundColor(Color.Black)
 
       if (this.loading) {
         Column() {
@@ -104,7 +104,7 @@ struct JellyfinPlayerPage {
       // 返回按钮（顶部悬浮）
       Row() {
         Text('‹')
-          .fontSize(28).fontColor('#FFFFFF')
+          .fontSize(28).fontColor(Color.White)
           .width(40).height(40)
           .backgroundColor('rgba(0,0,0,0.45)')
           .borderRadius(20)

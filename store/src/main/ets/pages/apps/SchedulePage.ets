@@ -4,6 +4,7 @@
  * 配置保存到 ScheduleStore，由 NotificationWatcher 在 App 运行时到点执行
  * 注意：@Builder 参数不能为函数类型，用 tag 分发处理各行的回调
  */
+import { BrandColors } from '../../common/theme/BrandColors'
 import { AppState } from '../../common/store/AppState'
 import {
   LIGHT_THEME,
@@ -312,7 +313,7 @@ this.theme = AppState.getInstance().getTheme()
       .margin({ left: 12 })
       .layoutWeight(1)
       Toggle({ type: ToggleType.Switch, isOn: enabled })
-        .selectedColor('#448AFF')
+        .selectedColor(BrandColors.blueSoft)
         .onChange((v: boolean) => {
           if (tag === 0) {
             this.rebootEnabled = v
@@ -440,7 +441,7 @@ this.theme = AppState.getInstance().getTheme()
               Divider().color(this.theme.borderGlass)
 
               Row() {
-                AppIcon({ name: 'moon', iconSize: 16, colors: ['#6366F1'] })
+                AppIcon({ name: 'moon', iconSize: 16, colors: [BrandColors.indigo] })
                 Column() {
                   Text('为什么用 App 执行？')
                     .fontSize(13)

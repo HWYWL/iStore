@@ -188,7 +188,7 @@ this.theme = AppState.getInstance().getTheme()
             Button() {
               Text('确认重启')
                 .fontSize(14)
-                .fontColor('#FFFFFF')
+                .fontColor(Color.White)
                 .fontWeight(FontWeight.Medium)
             }
             .width('100%')
