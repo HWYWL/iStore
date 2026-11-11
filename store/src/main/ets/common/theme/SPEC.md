@@ -40,6 +40,15 @@ parent: istore-architecture
 `common/components/GlassCard.ets` 实现：外层 `Stack` 铺渐变底色 → 内层卡片 `margin` 1vp 并用玻璃 tint
 盖住中间，只留一圈 1vp 渐变环；再叠 `backdropBlur` + 内高光 + 浮起投影。`GlassChip` 是同材质的胶囊控件。
 
+## 语义色
+
+`ThemePalette.semantic` 是"状态"用的那一层：`danger / warning / success / info / neutral`。每套色板携带
+自己的语义色（info 跟随该色板的主色倾向），玻璃材质直接沿用。页面里**不得再写**
+`'#FF5252'`（危险）、`'#F59E0B'`（警告）、`'#00E676'`（成功）、`'#94A3B8'`（中性）。
+
+刻意**不**进主题的是品牌/装饰色：Docker 蓝 `#3B82F6`、iStore 绿 `#10B981`、紫 `#8B5CF6`、
+粉 `#EC4899`、成就徽章与设备别名池的配色、盖在有色底上的 `#FFFFFF`。
+
 ## 动效
 
 动效是材质的一部分，只在液态玻璃下明显（实色材质只保留最小反馈）：
@@ -60,12 +69,12 @@ parent: istore-architecture
 
 ## Invariants
 
-- **颜色只从色板取**（`this.theme.<field>`），**形态只从材质取**（`theme.material.*` 或四个派生函数）。
-  调色板缺字段先扩 `ThemePalette`，不要就地硬编码。
+- **颜色只从主题取**（`this.theme.<field>` / `theme.semantic.<状态>`），**形态只从材质取**（`theme.material.*`
+  或五个派生函数）。调色板缺字段先扩 `ThemePalette`，不要就地硬编码。
 - **半透明强调底用 `withAlpha(theme.<field>, a)`**，不要写 `rgba(255,138,61,…)`——那是米色主色的硬拷贝，
   换到薄荷青/暮紫后会残留橙色。
 - **字面色只允许三种用途**：`#FFFFFF` 之类的中性白（盖在有色底上的文字）、服务/插画品牌色
-  （如 Docker 蓝、iStore 绿）、插画细节（小管家形象）。其余一律走调色板。
+  （如 Docker 蓝、iStore 绿）、插画细节（小管家形象）。其余一律走 `theme.semantic` 或色板字段。
 - **`SKINS[0]` 必须是 `LIGHT_THEME`**（默认皮肤），`AppState` 的新装默认值 `skinId='beige'`、
   `uiStyle='solid'`；旧的 `classic`/`glass` 持久值在 init 时迁移为 `solid`/`liquid`。
 - **图标只经 `AppIcon`**：`hos` 是默认且唯一可直接选的口径，`line` 只能由 `forcePack` 指定；`name` 是跨包
@@ -82,10 +91,10 @@ parent: istore-architecture
 - **主色/警示色硬拷贝也已收敛**（2026-11 实测）：`'#FF8A3D'`/`'#E6A800'`/`'#F0EBE0'`/`'#00C853'` 共 78 处
   改为 `theme.primary/warning/progressTrack/success`（值与默认调色板一致，默认外观不变）；67 处
   `rgba(255,138,61,…)` 强调底改为 `withAlpha(theme.<field>, a)`。
-- **剩下的字面色是刻意保留的**：654 处 `#RRGGBB` / 207 处 `rgba(`，头部为 `#FFFFFF` 133（盖在有色底上的
-  文字）、`#FF5252` 37、`#F59E0B` 30、`#00E676` 28、`#94A3B8` 20，以及各服务品牌蓝/紫。它们是**固定的
-  语义/品牌色**，不随色板：映射到主题语义色会改变默认主题外观，属产品决策而非清理——如需“主题也有
-  语义色家族”，要单独引入一层语义色映射并重新验收默认外观。
+- **剩下的字面色是刻意的**：约 570 处 `#RRGGBB` / 207 处 `rgba(`，头部为 `#FFFFFF` 133（盖在有色底上的
+  文字）、各服务品牌蓝/紫/绿、成就徽章与别名池的装饰配色、插画细节。它们是**品牌与装饰色**，
+  不随主题——改它们会改变默认主题外观，属产品决策。
+  语义状态色已全部收敛（84 处 → `theme.semantic.*`）。
 - **密集列表的模糊降级是白名单式**：只有 8 个明确的长列表页（设备详情/Docker/路由表/启动项/进程/
   WiFi/流量报表/仪表盘设备列表）改用 `listCardBlur()`（降到控件级）；其余含 `ForEach` 的页面仍用页级
   blur 28，若后续出现大量行列表需继续归类。
