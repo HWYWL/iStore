@@ -17,8 +17,9 @@ parent: istore-architecture
   "什么颜色"——模糊半径、玻璃 tint、镜面高光描边、内高光、圆角、浮起阴影、长列表是否降级。
 - **派生值**：`cardTint` / `cardBorder` / `cardElevation` / `cardRadius` 四个函数，是页面画卡片的唯一入口；
   页面不得自己拼 `rgba` 或阴影常量。
-- **图标**（`IconPack.ets` + `components/AppIcon.ets`）：5 套图标包资源，但**用户已不能选择**，应用固定
-  `hos`（鸿蒙超椭圆）包；其余 4 套分支保留供调试（`forcePack`）。
+- **图标**（`IconPack.ets` + `components/AppIcon.ets`）：只剩两套渲染——`hos`（鸿蒙超椭圆素材，按皮肤亮度自动切浅/暗，默认）与
+  `line`（自绘几何线稿，单色可着色，仅通过 `forcePack: 'line'` 在快捷入口/工具行使用）。用户已无图标切换入口；
+  `color` / `harmony` / `ios` 三套分支与 96 个 `ic_color_*` 素材已删除。
 
 ## Boundary
 
@@ -49,7 +50,8 @@ parent: istore-architecture
   （如 Docker 蓝、iStore 绿）、插画细节（小管家形象）。其余一律走调色板。
 - **`SKINS[0]` 必须是 `LIGHT_THEME`**（默认皮肤），`AppState` 的新装默认值 `skinId='beige'`、
   `uiStyle='solid'`；旧的 `classic`/`glass` 持久值在 init 时迁移为 `solid`/`liquid`。
-- **图标只经 `AppIcon`**，包固定 `hos`；`name` 是跨包契约，五种包必须覆盖同名资源并有回退。
+- **图标只经 `AppIcon`**：`hos` 是默认且唯一可直接选的口径，`line` 只能由 `forcePack` 指定；`name` 是跨包
+  契约，两套包都要覆盖同名资源，缺资源回退 `SymbolGlyph`，不能渲染成空白。
 - **长列表页不叠实时模糊**：`material.listBlurDisabled` 为真时，密集列表（设备列表/流量排行/进程/包管理）
   只用 tint + 描边 + 圆角，靠 `GlassCard({ noBlur: true })` 或材质派生值实现。
 - **新增材质 = 往 `MATERIALS` 加一条 + 在 `applyMaterial` 分支**，不改页面。
@@ -70,4 +72,3 @@ parent: istore-architecture
   WiFi/流量报表/仪表盘设备列表）改用 `listCardBlur()`（降到控件级）；其余含 `ForEach` 的页面仍用页级
   blur 28，若后续出现大量行列表需继续归类。
 - 8 套色板 × 2 材质 = 16 种组合，没有视觉回归测试；新增色板靠人眼过主要页面。
-- `IconPack` 的另外 4 套渲染分支与 ~380 个图标资源仍随包发布，属待清理死重量（只删了选择入口）。
