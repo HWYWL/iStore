@@ -274,6 +274,8 @@ export struct ConfigBackupPage {
               Text(' 恢复配置').fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
             }
             .width('100%')
+            .constraintSize({ minHeight: '100%' })
+            .justifyContent(FlexAlign.Start)
             Text('选择备份文件上传并恢复（⚠️ 会重启设备）')
               .fontSize(11).fontColor(this.theme.semantic.danger).margin({ top: 4 }).width('100%')
 

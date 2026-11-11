@@ -206,6 +206,8 @@ export struct NetworkRestartPage {
           }
         }
         .width('100%').padding({ left: 16, right: 16, bottom: 30 })
+        .constraintSize({ minHeight: '100%' })
+        .justifyContent(FlexAlign.Start)
       }
       .layoutWeight(1).scrollBar(BarState.Off)
     }

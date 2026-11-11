@@ -620,6 +620,8 @@ this.theme = AppState.getInstance().getTheme()
               this.guestCard()
             }
             .width('100%')
+            .constraintSize({ minHeight: '100%' })
+            .justifyContent(FlexAlign.Start)
             .padding({ bottom: 24 })
           }
           .layoutWeight(1)

@@ -48,6 +48,10 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
   `cardTint/cardBorder/cardElevation/cardRadius`，新代码的卡片优先用 `GlassCard`。
 - **切主题靠 AppStorage 驱动**：页面声明 `@StorageLink('skinId')` / `@StorageLink('uiStyle')` + `@Watch`
   重算 `theme`，不依赖手工注册 `onThemeChange`（现有监听器逐步淘汰）。
+- **嵌入页面的滚动内容要显式撑满并顶部对齐**：`Scroll` 里那层内容 `Column` 必须写
+  `.constraintSize({ minHeight: '100%' })` + `.justifyContent(FlexAlign.Start)`。只写 padding 时，内容比视口短
+  就会**整体垂直居中**（表现为"页面从中间开始显示"），在窄侧栏里尤其明显。用 `constraintSize` 而不是
+  `height('100%')`，是为了不破坏长内容的滚动。
 - **分栏内嵌页面不画自己的背景**：可嵌栏页面（`AppNav.EMBEDDABLE` 白名单）的根背景用
   `pageBgColors(theme, AppNav.getInstance().isWide())`——平板分栏时返回透明，让 `MainPage` 那一块
   背景直接透出。两个渐变各自从自己的左上角起算，不透明就会在分栏边界形成一道色差接缝。

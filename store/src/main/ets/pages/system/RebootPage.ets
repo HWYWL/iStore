@@ -202,6 +202,8 @@ this.theme = AppState.getInstance().getTheme()
             })
           }
           .width('100%')
+          .constraintSize({ minHeight: '100%' })
+          .justifyContent(FlexAlign.Start)
           .padding({ left: 16, right: 16, top: 4, bottom: 40 })
         }
         .width('100%')

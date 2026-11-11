@@ -520,6 +520,8 @@ export struct SmartHubPage {
         .width('100%')
         .alignItems(HorizontalAlign.Start)
         .padding({ left: 16, right: 16, top: 12, bottom: 24 })
+        .constraintSize({ minHeight: '100%' })
+        .justifyContent(FlexAlign.Start)
       }
       .layoutWeight(1)
       .scrollBar(BarState.Off)

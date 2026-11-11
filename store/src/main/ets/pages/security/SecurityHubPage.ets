@@ -278,6 +278,8 @@ export struct SecurityHubPage {
           Blank().height(AppState.getInstance().getBottomNavInset())
         }
         .width('100%')
+        .constraintSize({ minHeight: '100%' })
+        .justifyContent(FlexAlign.Start)
         .padding({ left: 14, right: 14, bottom: 20 })
       }
       .layoutWeight(1)
