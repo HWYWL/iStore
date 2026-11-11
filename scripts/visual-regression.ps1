@@ -161,7 +161,7 @@ function Tap-Label([string]$Label, [int]$Scrolls = 6) {
     $b = Get-Bounds $Label
     if ($b) {
       Hdc @('shell', "uitest uiInput click $($b.X) $($b.Y)") | Out-Null
-      Start-Sleep -Milliseconds 1500
+      Start-Sleep -Milliseconds 2200
       return $true
     }
     Scroll-Apps 1
@@ -171,7 +171,7 @@ function Tap-Label([string]$Label, [int]$Scrolls = 6) {
 
 function Tap-Back {
   Hdc @('shell', 'uitest uiInput keyEvent Back') | Out-Null
-  Start-Sleep -Milliseconds 1200
+  Start-Sleep -Milliseconds 1500
 }
 
 function Set-Material([string]$Kind) {
@@ -181,7 +181,7 @@ function Set-Material([string]$Kind) {
   if (-not (Tap-Label $L_THEME)) { Write-Warning 'theme page not reachable; keeping current material'; return $false }
   if (-not (Tap-Label $label 2)) { Write-Warning "material option not found: $Kind"; return $false }
   Tap-Back
-  Start-Sleep -Milliseconds 1200
+  Start-Sleep -Milliseconds 2500
   return $true
 }
 
@@ -277,6 +277,10 @@ function Compare-Images([string]$Baseline, [string]$Current, [string]$DiffOut, [
 if (-not (Set-Material $Material)) {
   Write-Host "==> material could not be switched; capturing current state" -ForegroundColor Yellow
 }
+# going through the theme page scrolls the app center; rewind so the home shot
+# does not depend on how far the switch navigation scrolled
+Scroll-Apps 6 'up'
+Start-Sleep -Milliseconds 800
 
 $rootDir = Join-Path $root $OutDir
 if ($Mode -eq 'capture') {
