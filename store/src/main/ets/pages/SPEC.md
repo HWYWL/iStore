@@ -43,7 +43,11 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
 
 ## Invariants
 
-- **主题从 `AppState.getTheme()` 取**，订阅 `onThemeChange` 刷新，不写死颜色（现状见 `mod-theme` 的限制）。
+- **主题从 `AppState.getTheme()` 取**（色板 × 材质）：颜色用 `this.theme.*`，形态用 `theme.material.*` 或
+  `cardTint/cardBorder/cardElevation/cardRadius`，新代码的卡片优先用 `GlassCard`。
+- **切主题靠 AppStorage 驱动**：页面声明 `@StorageLink('skinId')` / `@StorageLink('uiStyle')` + `@Watch`
+  重算 `theme`，不依赖手工注册 `onThemeChange`（现有监听器逐步淘汰）。
+- **长列表不叠实时模糊**：密集列表页传 `noBlur` 或直接用 tint + 描边（见 `mod-theme` 的性能保底约定）。
 - **轮询用 `common/utils/Poller`**（可见性门控 + in-flight 锁 + `dispose`），速率只用 `LiveRateStore`；
   大页面自己写 `setInterval` 是已知的偏差来源。
 - **离开页面释放资源**：定时器、监听器、`AppNav` 面板监听、`LiveRateStore` 订阅都要在 `aboutToDisappear`
@@ -55,6 +59,9 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
 
 - 五个超大页面承担了过多逻辑：`DashboardTab`(2595)、`AppsPage`(1819)、`AlbumTab`(1724)、`PetPage`(1282)。
   已知并接受，改动时局部收敛（见 `istore-architecture`）。
+- **材质迁移尚未全量**：核心 5 页（`MainPage`/`DashboardTab`/`AppsPage`/`PetPage`/`LoginPage`）已改用
+  材质派生值，其余页面（`SmartHubPage`/`AlbumTab`/`FileManagerPage`/`TopologyPage`/`WifiPage`/
+  `ClientDetailPage` 等）仍带大量硬编码色，切到液态玻璃时只跟随色板与页面背景。批 2/3 逐页收敛。
 - 部分页面仍自带 `setInterval`（`DashboardTab`/`AppsPage`/`PetPage`/`SmartHubPage`/`NetEcgPage`/
   `NetworkCheckPage`/`SpeedTestPage`/`RebootPage`/`FactoryResetPage`），与 `Poller` 约定不一致。
 - 部分页面直接 import `@kit.NetworkKit`（`SmartHubPage` 探测、`SpeedTestPage` 测速、`AlbumTab` 图片、

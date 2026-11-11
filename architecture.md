@@ -81,7 +81,7 @@ common/ai/AiHelper, common/security/SecurityHubEngine ──> ApiService / SshSe
 | `mod-pet` | 网络小管家 | `common/store/` 内 Pet/Fun/Mood/Diary | 情感化表达层（产品核心差异化） |
 | `mod-insights` | 本地洞察 | `common/ai/`, `common/security/` | 规则式问答与安全评分 |
 | `mod-nav` | 导航与页面注册 | `common/nav/`, `utils/AppNav`, `components/PageHost` | 手机全屏 / 平板内嵌双形态路由 |
-| `mod-theme` | 主题与图标 | `common/theme/`, `components/AppIcon` | 调色板、皮肤、图标包 |
+| `mod-theme` | 主题与图标 | `common/theme/`, `components/AppIcon`, `components/GlassCard` | 色板（8）× 材质（2）与它们的派生值 |
 | `mod-ui` | 页面与布局 | `pages/` | 仪表盘、应用中心、各功能页 |
 | `mod-shell` | 应用壳与系统集成 | `storeability/`, `storebackupability/`, `entryformability/`, `widget/` | 生命周期、沉浸式窗口、卡片、备份 |
 
@@ -130,8 +130,9 @@ common/ai/AiHelper, common/security/SecurityHubEngine ──> ApiService / SshSe
    （应用中心磁贴/搜索/拼音首字母） → `common/utils/AppNav.PAGE_TITLES`（+ `EMBEDDABLE` 白名单） →
    `common/components/PageHost`（URL→组件分支）。漏掉任一处的表现分别是「路由不存在 / 搜不到 /
    标题为空 / 平板侧栏打不开」，且不会编译报错——所以 `mod-nav` 是唯一权威清单。
-7. **配色与图标只来自 `common/theme`**：页面持 `ThemePalette`（`AppState.getTheme()`），图标用
-   `AppIcon`（读 `AppStorage('iconPackId')`）。现状未完全落实，见「Known limitations」。
+7. **颜色与形态只来自 `common/theme`**：颜色用 `this.theme.*`，卡片形态用 `theme.material.*` 或
+   `cardTint/cardBorder/cardElevation/cardRadius`（新代码优先 `GlassCard`），图标用 `AppIcon`（固定
+   `hos` 包，已无用户切换）。现状未完全落实，见 `mod-theme` 的 Known limitations。
 8. **C++ NAPI 只经 `SshService` / `FileManagerService` 暴露**：页面不得直接 import `libentry.so`。
 9. **能力探测而非版本判断**：ubus 缺失、ACL 权限不足、Docker API 未开等按探测结果降级（`ubusMissing`、
    `qwrtAutoFix`、`enableDockerApi`），不按固件版本号分支——这是兼容全系 OpenWrt 的根本手段。
@@ -144,6 +145,8 @@ common/ai/AiHelper, common/security/SecurityHubEngine ──> ApiService / SshSe
 - **不引入云端**：没有账号体系、没有自建服务端，所有数据在设备本地与路由器之间流动。异地访问交给
   用户自己的域名/组网地址（登录框接受域名与端口）。
 - **单模块而非多 HSP/HAR**：全部代码在一个 entry 模块内，靠目录分层而不是模块边界隔离。
+- **主题 = 色板 × 材质**：色板决定颜色，材质（默认实色 / 液态玻璃）决定形态。两者正交、可任意组合，
+  所以"换主题"真的改变 UI 而不只是底色。图标包选择已下线（用户可感知的选择只剩色板与材质）。
 - **状态用 Preferences + 单例**，不引入第三方状态管理；需要响应式的地方把值镜像进 `AppStorage`
   供 `@StorageLink` 使用（`mod-state` 记录哪些键是镜像）。
 

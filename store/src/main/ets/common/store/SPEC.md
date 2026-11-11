@@ -18,7 +18,7 @@ parent: istore-architecture
 
 | 分组 | 成员 | 职责 / 存储名 |
 |---|---|---|
-| 会话与偏好 | `AppState` | 主题/皮肤/图标包/UI 风格、设备列表代理、当前设备与连接态、当前标签、宽屏与导航态；`iStore_app_settings`；向 `AppStorage` 镜像 `skinId`/`iconPackId`/`uiStyle`；11 对 `on*/off*` 监听器 |
+| 会话与偏好 | `AppState` | 色板 + 材质（主题）、设备列表代理、当前设备与连接态、当前标签、宽屏与导航态；`iStore_app_settings`；向 `AppStorage` 镜像 `skinId`/`uiStyle`（页面靠 `@StorageLink` 即时重绘）；11 对 `on*/off*` 监听器（逐步淘汰） |
 | | `DeviceStore` | 设备表 CRUD、最近连接排序、收藏/分组；`iStore_devices`；`token`/`password` 经 `SecureStorage` 加密；每次保存递增 `version` 以驱动 `@ObjectLink`/`@Prop` 刷新 |
 | 实时与统计 | `LiveRateStore` | 全应用唯一的上下行速率心跳（`LIVE_REFRESH_MS`），`subscribe/unsubscribe/push` |
 | | `TrafficStatStore` | 按天累计 rx/tx（由页面轮询差值累加），保留 60 天；`iStore_traffic` |
@@ -48,6 +48,9 @@ parent: istore-architecture
 - **按设备隔离的数据必须以 `deviceId` 为 key**：设备备注、媒体凭据、`SmartGuardStore` 采样都遵守；
   否则切设备会串数据。
 - **落盘只经 Preferences**，每个域一个存储名；不允许一域多库或多域共库（迁移会互相牵连）。
+- **主题选择用两个键**：`skinId`（色板 id，默认 `beige`）与 `uiStyle`（`solid`/`liquid`，旧值
+  `classic`/`glass` 在 init 时迁移）；两者都镜像进 `AppStorage` 供页面订阅。图标包选择已下线，
+  不再有 `iconPackId` 写入。
 - **速率只订阅 `LiveRateStore`**，不要另建定时器（见 `istore-architecture` 不变量 5）。
 
 ## Known limitations
