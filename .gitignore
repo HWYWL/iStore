@@ -27,3 +27,7 @@
 /llm_live_log.txt
 /log.txt
 /store/probe_test.txt
+
+# 视觉回归：本次运行产物，只提交 baseline
+/visual/current/
+/visual/diff/

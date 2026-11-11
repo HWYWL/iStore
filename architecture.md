@@ -36,6 +36,10 @@ DEVECO_SDK_HOME='F:\OpenHarmony\command-line-tools\sdk' \
 最简单的入口是 `./scripts/ci.ps1`（`-Lint` 加代码检查、`-Pack` 打包）；它已会在 `DEVECO_SDK_HOME`
 未设置时自动指到 `<command-line-tools>/sdk`。
 
+视觉回归（真机、非 CI）：`scripts/visual-regression.ps1 -Mode compare -Material solid|liquid` 用
+`visual/baseline/` 里的 8 张截图做**结构级**比对（灰度 + 缩到 200px + 均值归一化，容差 8%），
+标定与用法见 `visual/README.md`。
+
 每次构建还会先跑 `scripts/check-pages.ps1`：校验「新增页面四处登记」是否齐全（`main_pages.json` /
 `PageRegistry` / `AppNav.PAGE_TITLES` / `PageHost`），漏登记直接中断构建。首次运行就查出两个死页面
 （`RouteTablePage`、`HelpPage`），现已登记为磁贴。
