@@ -397,6 +397,9 @@ struct MainPage {
       .hideTitleBar(true)
       .mode(NavigationMode.Stack)
       .navDestination(this.PageMap)
+      .customNavContentTransition((from: NavContentInfo, to: NavContentInfo, operation: NavigationOperation) => {
+        return this.panelTransition()
+      })
       .backgroundColor(Color.Transparent)
       .width('100%')
       .height('100%')
@@ -412,6 +415,9 @@ struct MainPage {
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)
     .navDestination(this.PageMap)
+    .customNavContentTransition((from: NavContentInfo, to: NavContentInfo, operation: NavigationOperation) => {
+      return this.panelTransition()
+    })
     .backgroundColor(Color.Transparent)
     .width('100%')
     .height('100%')
@@ -454,6 +460,24 @@ struct MainPage {
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .linearGradient({ angle: 135, colors: this.paneBgColors() })
+  }
+
+  /**
+   * 面板内导航不做系统转场。
+   *
+   * 系统默认会给新推入的 NavDestination 做「淡入」，而分栏里的功能页背景是透明的
+   * （为了让三栏共用 MainPage 那一块背景，见 mod-ui），淡入期间下层内容——小管家、
+   * 上一个功能页——会从新页面里透出来，看上去就是一层灰色蒙层迟迟不消失。
+   * 直接结束转场：页面立刻以最终状态出现，既没有蒙层也没有"卡一下"的感觉。
+   */
+  private panelTransition(): NavigationAnimatedTransition {
+    const anim: NavigationAnimatedTransition = {
+      timeout: 0,
+      transition: (proxy: NavigationTransitionProxy) => {
+        proxy.finishTransition()
+      }
+    }
+    return anim
   }
 
   /** 应用面板内的 NavDestination 分发：按路径渲染对应功能页组件 */

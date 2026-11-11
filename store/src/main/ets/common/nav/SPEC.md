@@ -41,6 +41,12 @@ parent: istore-architecture
   必须逐字一致；`PetStore.TASK_ROUTES`（见 `mod-pet`）也按页面字符串匹配，改名要全库搜。
 - 宽度判断只在 `AppNav.isWide()` 一处（600 vp 断点），页面不要自己判断"能不能嵌栏"。
 
+- **面板内导航不做系统转场**：两处 `Navigation` 都挂了 `customNavContentTransition` 并在回调里
+  直接 `finishTransition()`。原因：系统默认给新推入的 `NavDestination` 做淡入，而分栏里的功能页背景
+  是透明的（三栏共用 MainPage 的一块背景），淡入过程中下层内容（小管家、上一个功能页）会从新页面里
+  透出来，表现为"一层灰色蒙层迟迟不消失 / 像卡了一下"。若以后想要滑入动画，必须同时让页面在过渡期
+  画不透明背景（否则同样的透底问题会回来）。
+
 ## Known limitations
 
 - 四处登记 + 字符串匹配仍是最容易出错的地方；`check-pages.ps1` 只能发现"漏登记"，发现不了
