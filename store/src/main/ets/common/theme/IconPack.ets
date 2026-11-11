@@ -4,23 +4,13 @@
  * 全应用图标统一通过 AppIcon({ name: 'xxx' }) 渲染，name 为下方资源表的键。
  * 说明：$r() 是编译期资源，无法用字符串动态拼接，因此这里维护「图标名 -> 资源」静态表。
  *
- * 当前提供五套图标包，默认「鸿蒙质感」：
- * - hos：鸿蒙超椭圆素材（浅色 / 暗色两套）
- * - color：彩色实心渐变素材
- * - line：自绘几何线稿
- * - harmony：系统符号多色渲染
- * - ios：圆角底 + 白色图形
+ * 应用已固定使用「鸿蒙质感」hos 包，用户没有切换入口；另保留 line（自绘几何线稿，
+ * 单色可着色）供线性场景通过 forcePack 指定。color / harmony / ios 三套及其
+ * 96 个 ic_color_* 素材已随图标包选择下线一并删除。
  */
 
-/**
- * 图标包渲染类型
- * - hos：Image 渲染鸿蒙超椭圆素材（默认）
- * - image：Image 渲染彩色实心素材
- * - line：Image 渲染自绘几何线稿（单色可着色）
- * - harmony：SymbolGlyph 原生多色渲染（HarmonyOS 设计语言）
- * - ios：彩色圆角方块底 + 白色图形（iOS 主屏图标观感）
- */
-export type IconPackKind = 'hos' | 'image' | 'line' | 'harmony' | 'ios'
+/** 图标包渲染类型：hos 超椭圆素材 / line 单色线稿 */
+export type IconPackKind = 'hos' | 'line'
 
 /** 图标包定义 */
 export interface IconPackDef {
@@ -41,143 +31,16 @@ export const ICON_PACKS: IconPackDef[] = [
     preview: ['gearshape', 'wifi', 'house']
   },
   {
-    id: 'color',
-    name: '彩色实心',
-    desc: '渐变实色 · 饱满鲜明',
-    kind: 'image',
-    preview: ['gearshape', 'wifi', 'house']
-  },
-  {
     id: 'line',
     name: '几何线稿',
-    desc: '自绘线稿 · 规整几何',
+    desc: '自绘线稿 · 单色着色',
     kind: 'line',
-    preview: ['gearshape', 'wifi', 'house']
-  },
-  {
-    id: 'harmony',
-    name: '鸿蒙多彩',
-    desc: '系统符号 · 原生多色',
-    kind: 'harmony',
-    preview: ['gearshape', 'wifi', 'house']
-  },
-  {
-    id: 'ios',
-    name: 'iOS 方块',
-    desc: '圆角底 · 白色图形',
-    kind: 'ios',
     preview: ['gearshape', 'wifi', 'house']
   }
 ]
 
 /** 默认图标包：鸿蒙质感 */
 export const DEFAULT_ICON_PACK: string = 'hos'
-
-/**
- * 鸿蒙多彩图标的分层调色板（主色 / 次色 / 高光）
- * MULTIPLE_COLOR 渲染依赖 fontColor 提供多色，只给一个颜色会退化为单色
- */
-export const HARMONY_COLORS: string[] = ['#0A59F7', '#3FB1FF', '#8FD6FF']
-
-/** 图标名 -> 彩色实心素材 */
-const COLOR_MEDIA: Record<string, Resource> = {
-  'AI_help_write': $r('app.media.ic_color_ai_help_write'),
-  'archivebox': $r('app.media.ic_color_archivebox'),
-  'arrow_clockwise': $r('app.media.ic_color_arrow_clockwise'),
-  'arrow_counterclockwise': $r('app.media.ic_color_arrow_counterclockwise'),
-  'arrow_down': $r('app.media.ic_color_arrow_down'),
-  'arrow_left_arrow_right': $r('app.media.ic_color_arrow_left_arrow_right'),
-  'arrow_up_and_down_square_portrait': $r('app.media.ic_color_arrow_up_and_down_square_portrait'),
-  'arrow_up_right': $r('app.media.ic_color_arrow_up_right'),
-  'bag': $r('app.media.ic_color_bag'),
-  'battery': $r('app.media.ic_color_battery'),
-  'bell': $r('app.media.ic_color_bell'),
-  'bolt': $r('app.media.ic_color_bolt'),
-  'book': $r('app.media.ic_color_book'),
-  'calendar': $r('app.media.ic_color_calendar'),
-  'camera': $r('app.media.ic_color_camera'),
-  'card_package': $r('app.media.ic_color_card_package'),
-  'checkmark_circle': $r('app.media.ic_color_checkmark_circle'),
-  'circle_grid_2x2': $r('app.media.ic_color_circle_grid_2x2'),
-  'clock': $r('app.media.ic_color_clock'),
-  'cloud': $r('app.media.ic_color_cloud'),
-  'code_square': $r('app.media.ic_color_code_square'),
-  'crown': $r('app.media.ic_color_crown'),
-  'display': $r('app.media.ic_color_display'),
-  'doc_plaintext': $r('app.media.ic_color_doc_plaintext'),
-  'doc_text': $r('app.media.ic_color_doc_text'),
-  'doc_zipper': $r('app.media.ic_color_doc_zipper'),
-  'dot_radiowaves_left_and_right': $r('app.media.ic_color_dot_radiowaves_left_and_right'),
-  'download': $r('app.media.ic_color_download'),
-  'externaldrive': $r('app.media.ic_color_externaldrive'),
-  'eye_slash': $r('app.media.ic_color_eye_slash'),
-  'face_smiling': $r('app.media.ic_color_face_smiling'),
-  'film': $r('app.media.ic_color_film'),
-  'fish': $r('app.media.ic_color_fish'),
-  'flag': $r('app.media.ic_color_flag'),
-  'flame': $r('app.media.ic_color_flame'),
-  'folder': $r('app.media.ic_color_folder'),
-  'fork_knife': $r('app.media.ic_color_fork_knife'),
-  'gauge_with_dots_needle_33percent': $r('app.media.ic_color_gauge_with_dots_needle_33percent'),
-  'gearshape': $r('app.media.ic_color_gearshape'),
-  'globe_badge_message': $r('app.media.ic_color_globe_badge_message'),
-  'hand_tap': $r('app.media.ic_color_hand_tap'),
-  'heart': $r('app.media.ic_color_heart'),
-  'house': $r('app.media.ic_color_house'),
-  'info_circle': $r('app.media.ic_color_info_circle'),
-  'label': $r('app.media.ic_color_label'),
-  'lightbulb': $r('app.media.ic_color_lightbulb'),
-  'link': $r('app.media.ic_color_link'),
-  'list_bullet': $r('app.media.ic_color_list_bullet'),
-  'list_square_bill': $r('app.media.ic_color_list_square_bill'),
-  'lock': $r('app.media.ic_color_lock'),
-  'lock_open': $r('app.media.ic_color_lock_open'),
-  'magnifyingglass': $r('app.media.ic_color_magnifyingglass'),
-  'medal': $r('app.media.ic_color_medal'),
-  'media_center': $r('app.media.ic_color_media_center'),
-  'message': $r('app.media.ic_color_message'),
-  'moon': $r('app.media.ic_color_moon'),
-  'movie': $r('app.media.ic_color_movie'),
-  'ohos_photo': $r('app.media.ic_color_ohos_photo'),
-  'paintbrush': $r('app.media.ic_color_paintbrush'),
-  'pause_fill': $r('app.media.ic_color_pause_fill'),
-  'person_2': $r('app.media.ic_color_person_2'),
-  'person_3': $r('app.media.ic_color_person_3'),
-  'person_shield': $r('app.media.ic_color_person_shield'),
-  'phone': $r('app.media.ic_color_phone'),
-  'pin': $r('app.media.ic_color_pin'),
-  'play_circle': $r('app.media.ic_color_play_circle'),
-  'play_circle_fill': $r('app.media.ic_color_play_circle_fill'),
-  'plus_circle': $r('app.media.ic_color_plus_circle'),
-  'power': $r('app.media.ic_color_power'),
-  'printer': $r('app.media.ic_color_printer'),
-  'qrcode': $r('app.media.ic_color_qrcode'),
-  'rectangle_on_rectangle': $r('app.media.ic_color_rectangle_on_rectangle'),
-  'rectangle_stack': $r('app.media.ic_color_rectangle_stack'),
-  'security_shield': $r('app.media.ic_color_security_shield'),
-  'share': $r('app.media.ic_color_share'),
-  'shirt': $r('app.media.ic_color_shirt'),
-  'speaker': $r('app.media.ic_color_speaker'),
-  'speaker_wave_1': $r('app.media.ic_color_speaker_wave_1'),
-  'square_grid_2x2': $r('app.media.ic_color_square_grid_2x2'),
-  'square_grid_3x1_below_line_grid_1x2': $r('app.media.ic_color_square_grid_3x1_below_line_grid_1x2'),
-  'square_stack_3d': $r('app.media.ic_color_square_stack_3d'),
-  'star': $r('app.media.ic_color_star'),
-  'star_trophy': $r('app.media.ic_color_star_trophy'),
-  'staroflife': $r('app.media.ic_color_staroflife'),
-  'sun_max': $r('app.media.ic_color_sun_max'),
-  'template_fill': $r('app.media.ic_color_template_fill'),
-  'thermometer': $r('app.media.ic_color_thermometer'),
-  'wand_and_stars': $r('app.media.ic_color_wand_and_stars'),
-  'warning': $r('app.media.ic_color_warning'),
-  'watch': $r('app.media.ic_color_watch'),
-  'waveform': $r('app.media.ic_color_waveform'),
-  'wifi': $r('app.media.ic_color_wifi'),
-  'wifi_router': $r('app.media.ic_color_wifi_router'),
-  'xmark': $r('app.media.ic_color_xmark'),
-  'xmark_circle': $r('app.media.ic_color_xmark_circle'),
-  'yuansign_moneybag': $r('app.media.ic_color_yuansign_moneybag')
-}
 
 /** 图标名 -> 几何线稿素材（自绘线稿，单色可着色） */
 const LINE_MEDIA: Record<string, Resource> = {
@@ -590,17 +453,6 @@ export function getIconPackById(id: string): IconPackDef {
   return ICON_PACKS[0]
 }
 
-/** 是否已有该图标的彩色实心素材 */
-export function hasColorRes(name: string): boolean {
-  return COLOR_MEDIA[name] !== undefined
-}
-
-/** 取彩色实心素材；调用前先用 hasColorRes 判断 */
-export function getColorRes(name: string): Resource {
-  const res: Resource | undefined = COLOR_MEDIA[name]
-  return res !== undefined ? res : COLOR_MEDIA['info_circle']
-}
-
 /** 是否已有该图标的几何线稿素材 */
 export function hasLineRes(name: string): boolean {
   return LINE_MEDIA[name] !== undefined
@@ -624,30 +476,4 @@ export function getHosRes(name: string, dark: boolean): Resource {
 export function getSymbolRes(name: string): Resource {
   const res: Resource | undefined = SYMBOL_RES[name]
   return res !== undefined ? res : SYMBOL_RES['info_circle']
-}
-
-/** iOS 图标底色板：每项为「上浅下深」的同色系组合 */
-const IOS_PALETTE: string[][] = [
-  ['#0A84FF', '#0060DF'],
-  ['#30D158', '#1FA84A'],
-  ['#FF9F0A', '#E07B00'],
-  ['#FF375F', '#D61B45'],
-  ['#BF5AF2', '#9333D6'],
-  ['#64D2FF', '#2AA9E0'],
-  ['#5E5CE6', '#3B39C9'],
-  ['#FF6482', '#E03B60']
-]
-
-/**
- * 按图标名稳定映射到一组 iOS 底色，保证同一图标每次都是同一个颜色
- * @param name 图标名
- * @returns [浅色端, 深色端]
- */
-export function getIOSGradient(name: string): string[] {
-  let h: number = 0
-  for (let i = 0; i < name.length; i++) {
-    h = (h * 31 + name.charCodeAt(i)) % 100000
-  }
-  const pair: string[] = IOS_PALETTE[h % IOS_PALETTE.length]
-  return [pair[0], pair[1]]
 }

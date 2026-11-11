@@ -1,26 +1,16 @@
 /**
  * AppIcon - 统一图标组件
  *
- * 全应用图标统一走这里渲染。应用已固定使用 hos（鸿蒙超椭圆）包，不再提供用户切换；
- * 其余渲染分支保留供调试（可通过 forcePack 指定）：
- * - hos     包：Image 渲染鸿蒙超椭圆素材（默认，按皮肤自动切浅色 / 暗色）
- * - color   包：Image 渲染彩色实心渐变素材
- * - line    包：Image 渲染自绘几何线稿（单色着色）
- * - harmony 包：SymbolGlyph 原生多色渲染（HarmonyOS 设计语言）
- * - ios     包：圆角底 + 白色图形
- *
- * 用法：AppIcon({ name: 'wifi', iconSize: 16, colors: [this.theme.primary] })
+ * 应用固定使用 hos（鸿蒙超椭圆）包，用户已无切换入口；另保留 line（几何线稿）供
+ * 需要单色着色的线性场景通过 forcePack 指定（如仪表盘快捷入口）。
+ * 图标名 name 是跨包契约，缺资源时回退系统符号，不会渲染成空白。
  */
 import {
   DEFAULT_ICON_PACK,
-  getColorRes,
   getHosRes,
   getIconPackById,
-  getIOSGradient,
   getLineRes,
   getSymbolRes,
-  HARMONY_COLORS,
-  hasColorRes,
   hasLineRes,
   IconPackKind
 } from '../theme/IconPack'
@@ -68,16 +58,6 @@ export struct AppIcon {
     return getIconPackById(this.activePackId()).kind
   }
 
-  /** iOS 图标底色（浅端） */
-  private iosTop(): string {
-    return getIOSGradient(this.name)[0]
-  }
-
-  /** iOS 图标底色（深端） */
-  private iosBottom(): string {
-    return getIOSGradient(this.name)[1]
-  }
-
   /**
    * 着色矩阵：保留素材 alpha，把 RGB 换成 colors[0]
    * 用于单色线稿素材跟随皮肤主色（不能用 Image.fillColor，会填实空心路径）
@@ -106,26 +86,8 @@ export struct AppIcon {
   }
 
   build() {
-    if (this.activeKind() === 'image') {
-      if (hasColorRes(this.name)) {
-        Image(getColorRes(this.name))
-          .width(this.iconSize)
-          .height(this.iconSize)
-          .objectFit(ImageFit.Contain)
-      } else {
-        // 素材缺失时回退系统符号，避免出现空白
-        SymbolGlyph(getSymbolRes(this.name))
-          .fontSize(this.iconSize)
-          .fontColor(this.colors)
-      }
-    } else if (this.activeKind() === 'hos') {
-      // 鸿蒙质感：超椭圆底板 + 渐变 + 玻璃微光（素材内含），不加投影，避免外圈出现淡色光晕
-      Image(this.hosRes())
-        .width(this.iconSize)
-        .height(this.iconSize)
-        .objectFit(ImageFit.Contain)
-    } else if (this.activeKind() === 'line') {
-      // 几何线稿：单色素材跟随皮肤主色着色
+    if (this.activeKind() === 'line') {
+      // 几何线稿：单色素材按调用点传入的颜色着色（线性快捷入口用）
       if (hasLineRes(this.name)) {
         Image(getLineRes(this.name))
           .width(this.iconSize)
@@ -137,33 +99,12 @@ export struct AppIcon {
           .fontSize(this.iconSize)
           .fontColor(this.colors)
       }
-    } else if (this.activeKind() === 'ios') {
-      // 圆角方块底 + 白色图形，尺寸与其它图标包占位一致，不改变既有布局
-      Stack() {
-        Column()
-          .width(this.iconSize)
-          .height(this.iconSize)
-          .borderRadius(this.iconSize * 0.28)
-          .linearGradient({
-            angle: 145,
-            colors: [[this.iosTop(), 0.0], [this.iosBottom(), 1.0]]
-          })
-        SymbolGlyph(getSymbolRes(this.name))
-          .fontSize(this.iconSize * 0.58)
-          .fontColor([Color.White])
-      }
-      .width(this.iconSize)
-      .height(this.iconSize)
-    } else if (this.activeKind() === 'harmony') {
-      // 多色渲染：按分层调色板上色，调用点的单色 colors 不适用
-      SymbolGlyph(getSymbolRes(this.name))
-        .fontSize(this.iconSize)
-        .fontColor(HARMONY_COLORS)
-        .renderingStrategy(SymbolRenderingStrategy.MULTIPLE_COLOR)
     } else {
-      SymbolGlyph(getSymbolRes(this.name))
-        .fontSize(this.iconSize)
-        .fontColor(this.colors)
+      // 默认（也是唯一可直接选的）鸿蒙质感包：超椭圆底板 + 渐变 + 玻璃微光（素材内含）
+      Image(this.hosRes())
+        .width(this.iconSize)
+        .height(this.iconSize)
+        .objectFit(ImageFit.Contain)
     }
   }
 }
