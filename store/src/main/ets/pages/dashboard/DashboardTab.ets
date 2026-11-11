@@ -28,6 +28,18 @@ import { AppIcon } from '../../common/components/AppIcon'
 @Component
 export struct DashboardTab {
   @Prop @Watch('onThemeChanged') theme: ThemePalette
+  /** 液态玻璃下卡片的按压反馈（实色材质不参与） */
+  @State pressedCard: boolean = false
+
+  private setCardPressed(down: boolean): void {
+    if (this.theme.material.kind !== 'liquid') {
+      return
+    }
+    this.getUIContext().animateTo({ duration: 120, curve: Curve.EaseOut }, () => {
+      this.pressedCard = down
+    })
+  }
+
   /** 三栏模式下压矮顶栏（标题与连接状态同行），保证各栏首个模块顶边对齐 */
   @Prop compactHeader: boolean = false
   @State systemInfo: SystemInfo = this.emptySys()
@@ -1599,6 +1611,14 @@ export struct DashboardTab {
     .borderRadius(20)
     .backgroundColor(cardTint(this.theme))
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -1894,6 +1914,14 @@ export struct DashboardTab {
     .backdropBlur(this.theme.material.blur)
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
     .alignItems(HorizontalAlign.Start)
     .margin({ top: 10 })
   }
@@ -2007,6 +2035,14 @@ export struct DashboardTab {
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -2055,6 +2091,14 @@ export struct DashboardTab {
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -2176,6 +2220,14 @@ export struct DashboardTab {
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -2202,6 +2254,14 @@ export struct DashboardTab {
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
     .margin({ top: 10 })
     .alignItems(HorizontalAlign.Start)
   }
@@ -2301,6 +2361,14 @@ export struct DashboardTab {
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
     .alignItems(HorizontalAlign.Start)
   }
 

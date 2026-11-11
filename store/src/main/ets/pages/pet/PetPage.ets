@@ -103,6 +103,18 @@ struct PetPageRoute {
 @Component
 export struct PetView {
   @Prop theme: ThemePalette = LIGHT_THEME
+  /** 液态玻璃下卡片的按压反馈（实色材质不参与） */
+  @State pressedCard: boolean = false
+
+  private setCardPressed(down: boolean): void {
+    if (this.theme.material.kind !== 'liquid') {
+      return
+    }
+    this.getUIContext().animateTo({ duration: 120, curve: Curve.EaseOut }, () => {
+      this.pressedCard = down
+    })
+  }
+
   /** 嵌入分栏时背景透明，与左右两栏共用同一块底（避免叠成两层渐变） */
   @Prop embedded: boolean = false
   @State pet: PetState = PetStore.getInstance().getState()
@@ -821,6 +833,14 @@ export struct PetView {
     .backdropBlur(this.cardBlur(20))
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
   }
 
   /** 互动条单个分段（选中态用毛玻璃高亮，不再用深紫实心块） */
@@ -950,6 +970,14 @@ export struct PetView {
     .backdropBlur(this.cardBlur(20))
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
   }
 
   /** 任务卡（未完成圆圈 → 完成紫色对勾）；对象传参，状态变化能刷新 */
@@ -1025,6 +1053,14 @@ export struct PetView {
     .backdropBlur(this.cardBlur(20))
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
   }
 
   /** 双列任务卡里的单个卡片 */
@@ -1199,6 +1235,14 @@ export struct PetView {
           .backdropBlur(this.cardBlur(22))
           .border(this.cardBorder())
           .shadow(cardElevation(this.theme))
+    .scale({ x: this.pressedCard ? 0.985 : 1, y: this.pressedCard ? 0.985 : 1 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.setCardPressed(true)
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.setCardPressed(false)
+      }
+    })
 
           // 网络流量曲线
           Column() {

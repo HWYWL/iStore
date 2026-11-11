@@ -19,6 +19,7 @@ import { AppNav } from '../../common/utils/AppNav'
 import { LIVE_REFRESH_MS } from '../../common/utils/RefreshRate'
 import { LiveRateStore, RateListener } from '../../common/store/LiveRateStore'
 import { AppIcon } from '../../common/components/AppIcon'
+import { RollingNumber } from '../../common/components/RollingNumber'
 import { findPage, getPageGroups, PageEntry, PageGroupDef, searchPages } from '../../common/nav/PageRegistry'
 import { curves } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
@@ -1343,9 +1344,12 @@ export struct AppsPage {
       Flex({ wrap: FlexWrap.Wrap }) {
         Row() {
           Text('处理器').fontSize(9.5).fontColor(this.theme.textTertiary)
-          Text(this.cpuReady ? `${this.cpuPct}%` : '--')
-            .fontSize(9.5).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
-            .margin({ left: 4 })
+          if (this.cpuReady) {
+            RollingNumber({ value: this.cpuPct, suffix: '%', fontSize: 9.5, color: this.theme.textPrimary })
+              .margin({ left: 4 })
+          } else {
+            Text('--').fontSize(9.5).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 4 })
+          }
         }
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
         .borderRadius(7)
@@ -1354,9 +1358,12 @@ export struct AppsPage {
 
         Row() {
           Text('内存').fontSize(9.5).fontColor(this.theme.textTertiary)
-          Text(this.cpuReady ? `${this.memPct}%` : '--')
-            .fontSize(9.5).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
-            .margin({ left: 4 })
+          if (this.cpuReady) {
+            RollingNumber({ value: this.memPct, suffix: '%', fontSize: 9.5, color: this.theme.textPrimary })
+              .margin({ left: 4 })
+          } else {
+            Text('--').fontSize(9.5).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 4 })
+          }
         }
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
         .borderRadius(7)
@@ -1365,9 +1372,12 @@ export struct AppsPage {
 
         Row() {
           Text('连接').fontSize(9.5).fontColor(this.theme.textTertiary)
-          Text(this.connReady ? `${this.connCount}` : '--')
-            .fontSize(9.5).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary)
-            .margin({ left: 4 })
+          if (this.connReady) {
+            RollingNumber({ value: this.connCount, fontSize: 9.5, color: this.theme.textPrimary })
+              .margin({ left: 4 })
+          } else {
+            Text('--').fontSize(9.5).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 4 })
+          }
         }
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
         .borderRadius(7)

@@ -30,6 +30,23 @@ export struct GlassCard {
   @Prop paddingLeft: number = 16
   /** 卡片内容 */
   @BuilderParam content: () => void = this.emptyContent
+  /** 按下反馈（液态玻璃下卡片轻微收拢） */
+  @State private pressed: boolean = false
+  /** 顶部高光亮度（出现时从暗到亮，模拟玻璃反光渐显） */
+  @State private glowOpacity: number = 0.25
+
+  aboutToAppear(): void {
+    if (this.theme.material.kind === 'liquid') {
+      this.glowOpacity = 0.25
+    }
+  }
+
+  private onPressState(isDown: boolean): void {
+    if (this.theme.material.kind !== 'liquid') {
+      return
+    }
+    this.pressed = isDown
+  }
 
   @Builder
   emptyContent() {
@@ -75,6 +92,14 @@ export struct GlassCard {
       color: this.theme.material.elevationColor,
       offsetY: this.theme.material.elevationY
     })
+    .scale({ x: this.pressed ? 0.985 : 1, y: this.pressed ? 0.985 : 1 })
+    .animation({ duration: 120, curve: Curve.EaseOut })
+    .onTouch((event: TouchEvent) => {
+      this.onPressState(event.type === TouchType.Down)
+      if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.onPressState(false)
+      }
+    })
   }
 
   /** 液态玻璃材质：渐变描边层（作为 Stack 底色）+ 内缩 1vp 的玻璃层 + 顶部内高光 */
@@ -106,9 +131,14 @@ export struct GlassCard {
         .height(1)
         .margin({ top: 2, left: '6%' })
         .backgroundColor(this.theme.material.innerGlow)
+        .opacity(this.glowOpacity)
+        .animation({ duration: 900, curve: Curve.EaseInOut })
     }
     .width('100%')
     .borderRadius(this.radiusValue())
+    .clip(true)
+    .scale({ x: this.pressed ? 0.985 : 1, y: this.pressed ? 0.985 : 1 })
+    .animation({ duration: 120, curve: Curve.EaseOut })
     // 渐变底色只会在内层卡片遮不住的一圈（1vp）里露出，形成镜面高光描边
     .linearGradient({
       angle: GRADIENT_ANGLE,
@@ -118,6 +148,12 @@ export struct GlassCard {
       radius: this.theme.material.elevation,
       color: this.theme.material.elevationColor,
       offsetY: this.theme.material.elevationY
+    })
+    .onTouch((event: TouchEvent) => {
+      this.onPressState(event.type === TouchType.Down)
+      if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.onPressState(false)
+      }
     })
   }
 }

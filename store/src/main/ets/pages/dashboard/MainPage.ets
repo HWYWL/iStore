@@ -34,8 +34,15 @@ struct MainPage {
   @StorageLink('skinId') @Watch('onThemeStorageChange') skinStorageId: string = 'beige'
   @StorageLink('uiStyle') @Watch('onThemeStorageChange') uiStyleStorage: string = 'solid'
 
+  /** 切主题/材质时整屏轻微淡入（用 .animation 声明式过渡，不碰 UIContext） */
+  @State themeFade: number = 1
+
   onThemeStorageChange(): void {
     this.theme = AppState.getInstance().getTheme()
+    this.themeFade = 0.72
+    setTimeout(() => {
+      this.themeFade = 1
+    }, 16)
   }
   // ===== 分栏状态 =====
   @State isTwoColumn: boolean = false
@@ -353,6 +360,8 @@ struct MainPage {
       .alignItems(VerticalAlign.Top)
     }
     .width('100%')
+    .opacity(this.themeFade)
+    .animation({ duration: 220, curve: Curve.EaseOut })
     .height('100%')
     .focusable(true)
     .onKeyEvent((event: KeyEvent) => {
