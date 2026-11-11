@@ -34,6 +34,22 @@ if (-not (Test-Path $hvigorw)) {
   exit 1
 }
 
+# The all-in-one HarmonyOS SDK that ships next to the CLI tools
+# (<command-line-tools>/sdk/default/{openharmony,hms}) is the only SDK root
+# hvigor accepts here. Pointing DEVECO_SDK_HOME at the versioned OpenHarmony
+# SDK root (e.g. F:\OpenHarmony\Sdk) fails with 00303312.
+if (-not $env:DEVECO_SDK_HOME) {
+  $sdkRoot = Join-Path (Split-Path -Parent $CliPath) 'sdk'
+  if (Test-Path (Join-Path $sdkRoot 'default')) {
+    $env:DEVECO_SDK_HOME = $sdkRoot
+  }
+}
+if (-not $env:DEVECO_SDK_HOME) {
+  Write-Host "==> DEVECO_SDK_HOME is not set and no bundled SDK found; build will likely fail with 00303312" -ForegroundColor Yellow
+} else {
+  Write-Host "==> DEVECO_SDK_HOME = $env:DEVECO_SDK_HOME" -ForegroundColor Cyan
+}
+
 Push-Location $root
 try {
   Write-Host "==> Compile ArkTS" -ForegroundColor Cyan
