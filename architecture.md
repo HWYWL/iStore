@@ -80,7 +80,7 @@ common/ai/AiHelper, common/security/SecurityHubEngine ──> ApiService / SshSe
 | `mod-state` | 状态与持久化 | `common/store/` | 设备表、主题、实时速率、各领域单例状态 |
 | `mod-pet` | 网络小管家 | `common/store/` 内 Pet/Fun/Mood/Diary | 情感化表达层（产品核心差异化） |
 | `mod-insights` | 本地洞察 | `common/ai/`, `common/security/` | 规则式问答与安全评分 |
-| `mod-nav` | 导航与页面注册 | `common/nav/`, `utils/AppNav`, `components/PageHost` | 手机全屏 / 平板内嵌双形态路由 |
+| `mod-nav` | 导航与页面注册 | `common/nav/`, `utils/AppNav`, `components/PageHost` | 手机全屏 / 平板内嵌双形态路由，并定义哪一页可以嵌栏 |
 | `mod-theme` | 主题与图标 | `common/theme/`, `components/AppIcon`, `components/GlassCard` | 色板（8）× 材质（2）与它们的派生值 |
 | `mod-ui` | 页面与布局 | `pages/` | 仪表盘、应用中心、各功能页 |
 | `mod-shell` | 应用壳与系统集成 | `storeability/`, `storebackupability/`, `entryformability/`, `widget/` | 生命周期、沉浸式窗口、卡片、备份 |

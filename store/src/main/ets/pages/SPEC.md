@@ -47,6 +47,10 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
   `cardTint/cardBorder/cardElevation/cardRadius`，新代码的卡片优先用 `GlassCard`。
 - **切主题靠 AppStorage 驱动**：页面声明 `@StorageLink('skinId')` / `@StorageLink('uiStyle')` + `@Watch`
   重算 `theme`，不依赖手工注册 `onThemeChange`（现有监听器逐步淘汰）。
+- **分栏内嵌页面不画自己的背景**：可嵌栏页面（`AppNav.EMBEDDABLE` 白名单）的根背景用
+  `pageBgColors(theme, AppNav.getInstance().isWide())`——平板分栏时返回透明，让 `MainPage` 那一块
+  背景直接透出。两个渐变各自从自己的左上角起算，不透明就会在分栏边界形成一道色差接缝。
+  不能嵌栏的页面（登录/应用中心/设备详情/路由表/WebView/播放页/帮助）仍画自己的页面渐变。
 - **长列表不叠实时模糊**：密集列表页传 `noBlur` 或直接用 tint + 描边（见 `mod-theme` 的性能保底约定）。
 - **轮询用 `common/utils/Poller`**（可见性门控 + in-flight 锁 + `dispose`），速率只用 `LiveRateStore`；
   大页面自己写 `setInterval` 是已知的偏差来源。
