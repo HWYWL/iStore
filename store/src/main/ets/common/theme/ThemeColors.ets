@@ -212,8 +212,8 @@ export interface MaterialDef {
 }
 
 export const MATERIALS: MaterialDef[] = [
-  { id: 'solid', name: '默认', desc: '实色卡片 · 柔和投影' },
-  { id: 'liquid', name: '液态玻璃', desc: '实时模糊 · 镜面高光' }
+  { id: 'liquid', name: '液态玻璃', desc: '实时模糊 · 镜面高光（默认）' },
+  { id: 'solid', name: '实色', desc: '实色卡片 · 柔和投影' }
 ]
 
 /**

@@ -48,7 +48,7 @@ parent: istore-architecture
 - **按设备隔离的数据必须以 `deviceId` 为 key**：设备备注、媒体凭据、`SmartGuardStore` 采样都遵守；
   否则切设备会串数据。
 - **落盘只经 Preferences**，每个域一个存储名；不允许一域多库或多域共库（迁移会互相牵连）。
-- **主题选择用两个键**：`skinId`（色板 id，默认 `beige`）与 `uiStyle`（`solid`/`liquid`，旧值
+- **主题选择用两个键**：`skinId`（色板 id，默认 `beige`）与 `uiStyle`（`liquid`/`solid`，默认液态玻璃，旧值
   `classic`/`glass` 在 init 时迁移）；两者都镜像进 `AppStorage` 供页面订阅。图标包选择已下线，
   不再有 `iconPackId` 写入。
 - **速率只订阅 `LiveRateStore`**，不要另建定时器（见 `istore-architecture` 不变量 5）。

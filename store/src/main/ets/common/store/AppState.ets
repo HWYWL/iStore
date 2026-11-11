@@ -41,7 +41,7 @@ export class AppState {
   private connected: boolean = false   // 当前是否已连接
   private lastError: string = ''       // 最后一次错误信息
   // 材质：solid（实色，默认）/ liquid（液态玻璃）
-  private currentUiStyle: MaterialKind = 'solid'
+  private currentUiStyle: MaterialKind = 'liquid'
 
   // ========== 持久化依赖 ==========
   private settingsPrefs: preferences.Preferences | null = null  // 应用设置存储
@@ -81,7 +81,8 @@ export class AppState {
         this.currentSkinId = savedSkin
       }
       // 恢复上次材质；旧版本存的是 classic / glass，一并迁移
-      const savedUiStyle: string = this.settingsPrefs.getSync('uiStyle', 'solid') as string
+      // 新装默认液态玻璃；老用户已保存的选择优先（classic/glass 迁移到 solid/liquid）
+      const savedUiStyle: string = this.settingsPrefs.getSync('uiStyle', 'liquid') as string
       if (savedUiStyle === 'liquid' || savedUiStyle === 'glass') {
         this.currentUiStyle = 'liquid'
       } else if (savedUiStyle === 'solid' || savedUiStyle === 'classic') {

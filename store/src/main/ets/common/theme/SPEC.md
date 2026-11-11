@@ -31,8 +31,8 @@ parent: istore-architecture
 
 `AppState.getTheme()` → `applyMaterial(getSkin().theme, currentUiStyle)`：
 
-- `solid`：原样返回色板，`material = SOLID_MATERIAL`（卡片用 `bgCard` + 细描边 + 克制投影）。
-- `liquid`：`toLiquidGlassTheme()` 保留主色/语义色/文本/图表色，把背景换成半透明白、描边换成镜面白、
+- `solid`（实色，备选）：原样返回色板，`material = SOLID_MATERIAL`（卡片用 `bgCard` + 细描边 + 克制投影）。
+- `liquid`（液态玻璃，**默认**）：`toLiquidGlassTheme()` 保留主色/语义色/文本/图表色，把背景换成半透明白、描边换成镜面白、
   `pageGradient` 换成 5 段多色柔光渐变（**玻璃要有可折射的东西**），并挂上 `LIQUID_MATERIAL`
   （blur 28 / 控件 blur 16 / tint 0.44→0.22 / 圆角 26 / 浮起 48·Y22）。
 
@@ -82,7 +82,8 @@ parent: istore-architecture
 - **字面色只允许三种用途**：`#FFFFFF` 之类的中性白（盖在有色底上的文字）、服务/插画品牌色
   （如 Docker 蓝、iStore 绿）、插画细节（小管家形象）。其余一律走 `theme.semantic` 或色板字段。
 - **`SKINS[0]` 必须是 `LIGHT_THEME`**（默认皮肤），`AppState` 的新装默认值 `skinId='beige'`、
-  `uiStyle='solid'`；旧的 `classic`/`glass` 持久值在 init 时迁移为 `solid`/`liquid`。
+  `uiStyle='liquid'`（液态玻璃为默认材质，实色是备选）；旧的 `classic`/`glass` 持久值在 init 时迁移为
+  `solid`/`liquid`，老用户已保存的选择优先于默认值。
 - **图标只经 `AppIcon`**：`hos` 是默认且唯一可直接选的口径，`line` 只能由 `forcePack` 指定；`name` 是跨包
   契约，两套包都要覆盖同名资源，缺资源回退 `SymbolGlyph`，不能渲染成空白。
 - **长列表页不叠实时模糊**：`material.listBlurDisabled` 为真时，密集列表（设备列表/流量排行/进程/包管理）
