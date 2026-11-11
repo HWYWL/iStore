@@ -169,7 +169,7 @@ export struct WifiCardPage {
           .backgroundColor(cardTint(this.theme))
 
           Row() {
-            AppIcon({ name: 'lightbulb', iconSize: 13, colors: ['#F59E0B'] })
+            AppIcon({ name: 'lightbulb', iconSize: 13, colors: [this.theme.semantic.warning] })
             Text(' 提示：密码只在本地生成二维码，不会上传或显示明文')
               .fontSize(10).fontColor(this.theme.textTertiary)
               .layoutWeight(1)

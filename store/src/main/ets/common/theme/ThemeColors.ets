@@ -41,6 +41,19 @@ export interface ThemeMaterial {
   listBlurDisabled: boolean
 }
 
+/**
+ * 语义色——"状态"用的色：危险/警告/成功/信息/中性。
+ * 与色板同步生成（每个色板继承自己的语义色），页面里不要再写 #FF5252 / #F59E0B 这类字面量。
+ * 品牌色（Docker 蓝 / iStore 绿 / 纪念徽章等）不在这里，它们刻意不随主题。
+ */
+export interface SemanticColors {
+  danger: string
+  warning: string
+  success: string
+  info: string
+  neutral: string
+}
+
 /** 实色材质：无模糊、薄描边、克制投影（＝现有外观） */
 export const SOLID_MATERIAL: ThemeMaterial = {
   kind: 'solid',
@@ -136,6 +149,9 @@ export interface ThemePalette {
   // --- 页面渐变背景（皮肤专属） ---
   pageGradient: Array<[ResourceColor, number]>  // linearGradient colors：[[color, offset], ...]
 
+  // --- 语义状态色（危险/警告/成功/信息/中性） ---
+  semantic: SemanticColors
+
   // --- 材质（形态，与颜色正交） ---
   material: ThemeMaterial
 }
@@ -176,6 +192,13 @@ export const LIGHT_THEME: ThemePalette = {
   chartColors: ['#FF8A3D', '#00A84D', '#E6A800', '#1A73E8', '#5B4CC4'],
   accentSoft: '#FDF0E4',
   pageGradient: [['#F6F2EA', 0], ['#FAF7F0', 0.5], ['#F6F2EA', 1]],
+  semantic: {
+    danger: '#D93025',
+    warning: '#E6A800',
+    success: '#00A84D',
+    info: '#1A73E8',
+    neutral: 'rgba(0, 0, 0, 0.62)'
+  },
   material: SOLID_MATERIAL
 }
 
@@ -252,6 +275,7 @@ export function toLiquidGlassTheme(base: ThemePalette): ThemePalette {
     progressTrack: 'rgba(255, 255, 255, 0.38)',
     chartColors: base.chartColors,
     accentSoft: base.accentSoft,
+    semantic: base.semantic,
     // 玻璃需要有“东西可折射”：多色柔光渐变替代原来的单色背景
     pageGradient: [
       [mixColor(base.primary, '#FFFFFF', 0.58, 1), 0],
@@ -329,7 +353,14 @@ export const SKINS: SkinDef[] = [
       chartColors: ['#3B82F6', '#00A84D', '#E6A800', '#1A73E8', '#8B7CF6'],
       accentSoft: '#EAF1FC',
       pageGradient: [['#F0F4FA', 0], ['#F7FAFD', 0.5], ['#F0F4FA', 1]],
-      material: SOLID_MATERIAL
+      material: SOLID_MATERIAL,
+      semantic: {
+        danger: '#D93025',
+        warning: '#E6A800',
+        success: '#00A84D',
+        info: '#3B82F6',
+        neutral: 'rgba(0, 0, 0, 0.62)'
+      }
     }
   },
   {
@@ -369,7 +400,14 @@ export const SKINS: SkinDef[] = [
       chartColors: ['#C79B9B', '#00A84D', '#E6A800', '#8E9BC4', '#5B4CC4'],
       accentSoft: '#F5EDED',
       pageGradient: [['#EEE1E1', 0], ['#F2EDF0', 0.5], ['#F4F3F8', 1]],
-      material: SOLID_MATERIAL
+      material: SOLID_MATERIAL,
+      semantic: {
+        danger: '#D93025',
+        warning: '#E6A800',
+        success: '#00A84D',
+        info: '#8E9BC4',
+        neutral: 'rgba(0, 0, 0, 0.6)'
+      }
     }
   },
   {
@@ -409,7 +447,14 @@ export const SKINS: SkinDef[] = [
       chartColors: ['#E8936A', '#00A84D', '#E6A800', '#C79B8E', '#8B7CF6'],
       accentSoft: '#FBE9DF',
       pageGradient: [['#F2C3B1', 0], ['#F5DCD3', 0.5], ['#F6EEEB', 1]],
-      material: SOLID_MATERIAL
+      material: SOLID_MATERIAL,
+      semantic: {
+        danger: '#D93025',
+        warning: '#E6A800',
+        success: '#00A84D',
+        info: '#C79B8E',
+        neutral: 'rgba(0, 0, 0, 0.6)'
+      }
     }
   },
   {
@@ -449,7 +494,14 @@ export const SKINS: SkinDef[] = [
       chartColors: ['#2FBFA8', '#00A84D', '#E6A800', '#2FBFA8', '#5B4CC4'],
       accentSoft: '#E0F4EF',
       pageGradient: [['#E4F3EE', 0], ['#F0F9F5', 0.5], ['#EBF6F1', 1]],
-      material: SOLID_MATERIAL
+      material: SOLID_MATERIAL,
+      semantic: {
+        danger: '#D93025',
+        warning: '#E6A800',
+        success: '#00A84D',
+        info: '#2FBFA8',
+        neutral: 'rgba(0, 0, 0, 0.6)'
+      }
     }
   },
   {
@@ -489,7 +541,14 @@ export const SKINS: SkinDef[] = [
       chartColors: ['#8B7CF6', '#00A84D', '#E6A800', '#8B7CF6', '#C79B9B'],
       accentSoft: '#EEEAFB',
       pageGradient: [['#EDE9F8', 0], ['#F6F3FC', 0.5], ['#F0EDFA', 1]],
-      material: SOLID_MATERIAL
+      material: SOLID_MATERIAL,
+      semantic: {
+        danger: '#D93025',
+        warning: '#E6A800',
+        success: '#00A84D',
+        info: '#8B7CF6',
+        neutral: 'rgba(0, 0, 0, 0.6)'
+      }
     }
   },
   {
@@ -529,7 +588,14 @@ export const SKINS: SkinDef[] = [
       chartColors: ['#FF7A6E', '#00A84D', '#E6A800', '#FF7A6E', '#8B7CF6'],
       accentSoft: '#FDEAE7',
       pageGradient: [['#FFD9CE', 0], ['#FFECE6', 0.5], ['#FFE3DC', 1]],
-      material: SOLID_MATERIAL
+      material: SOLID_MATERIAL,
+      semantic: {
+        danger: '#D93025',
+        warning: '#E6A800',
+        success: '#00A84D',
+        info: '#FF7A6E',
+        neutral: 'rgba(0, 0, 0, 0.6)'
+      }
     }
   },
   {
@@ -569,7 +635,14 @@ export const SKINS: SkinDef[] = [
       chartColors: ['#4A7FB5', '#00A84D', '#E6A800', '#4A7FB5', '#8B7CF6'],
       accentSoft: '#E7F0F9',
       pageGradient: [['#DCE8F4', 0], ['#EBF2F9', 0.5], ['#E3EDF6', 1]],
-      material: SOLID_MATERIAL
+      material: SOLID_MATERIAL,
+      semantic: {
+        danger: '#D93025',
+        warning: '#E6A800',
+        success: '#00A84D',
+        info: '#4A7FB5',
+        neutral: 'rgba(0, 0, 0, 0.6)'
+      }
     }
   }
 ]

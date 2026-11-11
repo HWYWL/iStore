@@ -269,7 +269,7 @@ export struct NetworkReportPage {
             .alignItems(HorizontalAlign.Start)
           } else {
             Column() {
-              AppIcon({ name: 'circle_grid_2x2', iconSize: 44, colors: ['#94A3B8'] })
+              AppIcon({ name: 'circle_grid_2x2', iconSize: 44, colors: [this.theme.semantic.neutral] })
               Text('生成你的网络周报')
                 .fontSize(15).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                 .margin({ top: 10 })

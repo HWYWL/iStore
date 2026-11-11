@@ -171,7 +171,7 @@ export struct DnsBattlePage {
                   .fontFamily('monospace').fontWeight(row.rank === 1 ? FontWeight.Bold : FontWeight.Normal)
               } else {
                 Text('不可达')
-                  .fontSize(11).fontColor('#FF5252')
+                  .fontSize(11).fontColor(this.theme.semantic.danger)
               }
             }
             .width('100%')
@@ -184,7 +184,7 @@ export struct DnsBattlePage {
           if (this.recommend) {
             Column() {
               Row() {
-                AppIcon({ name: 'lightbulb', iconSize: 13, colors: ['#F59E0B'] })
+                AppIcon({ name: 'lightbulb', iconSize: 13, colors: [this.theme.semantic.warning] })
                 Text(' ' + this.recommend)
                   .fontSize(12).fontColor(this.theme.textPrimary).lineHeight(19)
                   .layoutWeight(1)

@@ -209,7 +209,7 @@ export struct WolPage {
           // 说明卡
           Column() {
             Row() {
-              AppIcon({ name: 'lightbulb', iconSize: 22, colors: ['#F59E0B'] })
+              AppIcon({ name: 'lightbulb', iconSize: 22, colors: [this.theme.semantic.warning] })
               Column() {
                 Text('支持 NAS / 电脑 / 树莓派等支持 WOL 的设备')
                   .fontSize(12).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
@@ -272,7 +272,7 @@ export struct WolPage {
 
           if (this.devices.length === 0) {
             Column() {
-              AppIcon({ name: 'moon', iconSize: 36, colors: ['#94A3B8'] })
+              AppIcon({ name: 'moon', iconSize: 36, colors: [this.theme.semantic.neutral] })
               Text('还没有设备，添加一台试试').fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
             }
             .width('100%').padding(30).borderRadius(16).margin({ top: 10 })
@@ -288,7 +288,7 @@ export struct WolPage {
                 .alignItems(HorizontalAlign.Start).layoutWeight(1)
 
                 Row() {
-                  Text('删除').fontSize(11).fontColor('#FF5252')
+                  Text('删除').fontSize(11).fontColor(this.theme.semantic.danger)
                 }
                 .padding({ left: 10, right: 10, top: 6, bottom: 6 })
                 .borderRadius(12)

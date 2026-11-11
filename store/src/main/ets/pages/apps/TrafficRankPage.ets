@@ -104,10 +104,10 @@ this.theme = AppState.getInstance().getTheme()
     return '弱'
   }
   sigColor(s: number): string {
-    if (s >= -45) return '#00E676'
+    if (s >= -45) return this.theme.semantic.success
     if (s >= -60) return '#76FF03'
     if (s >= -75) return '#FFC107'
-    return '#FF5252'
+    return this.theme.semantic.danger
   }
 
   /** 速率进度条宽度 */
@@ -204,9 +204,9 @@ this.theme = AppState.getInstance().getTheme()
                       .fontFamily('monospace').margin({ right: 12 })
                     Row() {
                       Circle({ width: 6, height: 6 })
-                        .foregroundColor(dev.isOnline ? '#00E676' : '#9E9E9E')
+                        .foregroundColor(dev.isOnline ? this.theme.semantic.success : '#9E9E9E')
                       Text(dev.isOnline ? ' 在线' : ' 离线')
-                        .fontSize(10).fontColor(dev.isOnline ? '#00E676' : '#9E9E9E')
+                        .fontSize(10).fontColor(dev.isOnline ? this.theme.semantic.success : '#9E9E9E')
                     }
 
                     if (this.hasWirelessStats(dev)) {
@@ -221,9 +221,9 @@ this.theme = AppState.getInstance().getTheme()
                   // 速率条
                   if ((dev.rxRate || 0) + (dev.txRate || 0) > 0) {
                     Row() {
-                      Text('⇩').fontSize(10).fontColor('#00E676').width(14)
+                      Text('⇩').fontSize(10).fontColor(this.theme.semantic.success).width(14)
                       Text(FormatUtils.formatSpeed(dev.rxRate || 0))
-                        .fontSize(10).fontColor('#00E676').fontFamily('monospace').width(68)
+                        .fontSize(10).fontColor(this.theme.semantic.success).fontFamily('monospace').width(68)
                       Text('⇧').fontSize(10).fontColor('#448AFF').width(14).margin({ left: 6 })
                       Text(FormatUtils.formatSpeed(dev.txRate || 0))
                         .fontSize(10).fontColor('#448AFF').fontFamily('monospace').width(68)
@@ -235,7 +235,7 @@ this.theme = AppState.getInstance().getTheme()
                           .width(this.ratePct((dev.rxRate || 0) + (dev.txRate || 0))).height(4).borderRadius(2)
                           .linearGradient({
                             angle: 90,
-                            colors: [['#448AFF', 0], ['#00E676', 1]]
+                            colors: [['#448AFF', 0], [this.theme.semantic.success, 1]]
                           })
                       }.alignContent(Alignment.Start)
                       .layoutWeight(1).height(4).margin({ left: 8 })

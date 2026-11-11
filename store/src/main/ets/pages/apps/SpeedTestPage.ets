@@ -350,7 +350,7 @@ export struct SpeedTestPage {
 
           if (!this.done && this.note) {
             Text(this.note)
-              .fontSize(11).fontColor('#FF5252').margin({ top: 12 }).textAlign(TextAlign.Center)
+              .fontSize(11).fontColor(this.theme.semantic.danger).margin({ top: 12 }).textAlign(TextAlign.Center)
           }
 
           if (this.done) {

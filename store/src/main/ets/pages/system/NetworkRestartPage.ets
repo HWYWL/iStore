@@ -173,7 +173,7 @@ export struct NetworkRestartPage {
           // 说明卡
           Column() {
             Row() {
-            AppIcon({ name: 'lightbulb', iconSize: 14, colors: ['#F59E0B'] })
+            AppIcon({ name: 'lightbulb', iconSize: 14, colors: [this.theme.semantic.warning] })
             Text(' 与「重启路由器」的区别').fontSize(13).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Bold)
           }
               .width('100%')

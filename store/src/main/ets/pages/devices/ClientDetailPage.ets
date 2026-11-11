@@ -320,7 +320,7 @@ this.theme = AppState.getInstance().getTheme()
     const name = this.hostname.toLowerCase()
     if (name.includes('phone') || name.includes('iphone')) return '#3B82F6'
     if (name.includes('laptop') || name.includes('macbook') || name.includes('notebook')) return '#8B5CF6'
-    if (name.includes('tv') || name.includes('smart tv')) return '#F59E0B'
+    if (name.includes('tv') || name.includes('smart tv')) return this.theme.semantic.warning
     if (name.includes('pi') || name.includes('raspberry')) return '#0891B2'
     return '#64748B'
   }
@@ -818,7 +818,7 @@ this.theme = AppState.getInstance().getTheme()
       } else {
         Column() {
           Row() {
-            AppIcon({ name: 'circle_grid_2x2', iconSize: 14, colors: ['#F59E0B'] })
+            AppIcon({ name: 'circle_grid_2x2', iconSize: 14, colors: [this.theme.semantic.warning] })
             Text(' 应用统计')
               .fontSize(14)
               .fontColor(this.theme.textPrimary)

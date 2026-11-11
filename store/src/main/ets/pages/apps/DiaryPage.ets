@@ -328,7 +328,7 @@ export struct DiaryPage {
           } else {
             // 空状态
             Column() {
-              AppIcon({ name: 'archivebox', iconSize: 36, colors: ['#94A3B8'] })
+              AppIcon({ name: 'archivebox', iconSize: 36, colors: [this.theme.semantic.neutral] })
               Text('这一天没有记录到事件')
                 .fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 10 })
               Text('连接路由器后会自动记录设备/流量/异常')

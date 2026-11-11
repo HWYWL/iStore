@@ -143,7 +143,7 @@ export struct NetEcgPage {
       if (this.points.length >= 2) {
         const lx: number = (this.points.length - 1) * step
         const ly: number = h - 6 - (Math.min(300, last) / 300) * (h - 12)
-        ctx.fillStyle = last > 150 ? '#FF5252' : '#00C853'
+        ctx.fillStyle = last > 150 ? this.theme.semantic.danger : '#00C853'
         ctx.beginPath()
         ctx.arc(lx, ly, 4, 0, Math.PI * 2)
         ctx.fill()
@@ -178,7 +178,7 @@ export struct NetEcgPage {
           Column() {
             Row() {
               Text(this.lastStatus)
-                .fontSize(20).fontColor(this.lastLatency > 150 ? '#FF5252' : this.theme.success)
+                .fontSize(20).fontColor(this.lastLatency > 150 ? this.theme.semantic.danger : this.theme.success)
                 .fontWeight(FontWeight.Bold)
               if (this.lastLatency > 0) {
                 Text(`  ${this.lastLatency.toFixed(1)} ms`)
@@ -226,7 +226,7 @@ export struct NetEcgPage {
               .fontSize(14).fontColor('#FFFFFF').fontWeight(FontWeight.Bold)
           }
           .width('100%').height(48).borderRadius(24)
-          .backgroundColor(this.running ? '#FF5252' : this.theme.primary)
+          .backgroundColor(this.running ? this.theme.semantic.danger : this.theme.primary)
           .justifyContent(FlexAlign.Center)
           .margin({ top: 16 })
           .onClick(() => {

@@ -417,7 +417,7 @@ this.theme = AppState.getInstance().getTheme()
       return '#8B5CF6'
     }
     if (kind === 3) {
-      return '#94A3B8'
+      return this.theme.semantic.neutral
     }
     return '#3B82F6'
   }
@@ -726,7 +726,7 @@ this.theme = AppState.getInstance().getTheme()
         .width('100%').padding(40).alignItems(HorizontalAlign.Center).margin({ top: 60 })
       } else if (this.devices.length === 0) {
         Column() {
-          AppIcon({ name: 'moon', iconSize: 34, colors: ['#94A3B8'] })
+          AppIcon({ name: 'moon', iconSize: 34, colors: [this.theme.semantic.neutral] })
           Text('还没看到在线设备，大家可能都在午休')
             .fontSize(13).fontColor(this.theme.textTertiary).margin({ top: 10 })
           if (this.errorText) {
@@ -775,7 +775,7 @@ this.theme = AppState.getInstance().getTheme()
             }
             .margin({ left: 14 })
             Row() {
-              Circle({ width: 8, height: 8 }).fill('#94A3B8')
+              Circle({ width: 8, height: 8 }).fill(this.theme.semantic.neutral)
               Text(' 未识别').fontSize(11).fontColor(this.theme.textSecondary)
             }
             .margin({ left: 14 })

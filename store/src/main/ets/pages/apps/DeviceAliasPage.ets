@@ -381,9 +381,9 @@ export struct DeviceAliasPage {
 
               Row() {
                 Circle({ width: 5, height: 5 })
-                  .fill(row.isOnline ? '#10B981' : '#94A3B8')
+                  .fill(row.isOnline ? '#10B981' : this.theme.semantic.neutral)
                 Text(row.isOnline ? ' 在线' : ' 离线')
-                  .fontSize(9).fontColor(row.isOnline ? '#10B981' : '#94A3B8')
+                  .fontSize(9).fontColor(row.isOnline ? '#10B981' : this.theme.semantic.neutral)
               }
               .padding({ left: 8, right: 8, top: 4, bottom: 4 })
               .borderRadius(10)
@@ -399,7 +399,7 @@ export struct DeviceAliasPage {
 
           if (this.rows.length === 0 && !this.loading) {
             Column() {
-              AppIcon({ name: 'eye_slash', iconSize: 32, colors: ['#94A3B8'] })
+              AppIcon({ name: 'eye_slash', iconSize: 32, colors: [this.theme.semantic.neutral] })
               Text('没有在线设备，外号无处安放')
                 .fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 10 })
             }

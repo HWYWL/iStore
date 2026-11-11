@@ -129,7 +129,7 @@ export struct RouterMoodPage {
           Row() {
             Column() {
               Text(`${this.temp.toFixed(0)}°C`)
-                .fontSize(22).fontColor(this.temp >= 65 ? '#FF5252' : this.theme.textPrimary)
+                .fontSize(22).fontColor(this.temp >= 65 ? this.theme.semantic.danger : this.theme.textPrimary)
                 .fontWeight(FontWeight.Bold).fontFamily('monospace')
               Text('温度')
                 .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 3 })

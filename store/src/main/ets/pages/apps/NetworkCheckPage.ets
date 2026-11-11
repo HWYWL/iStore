@@ -292,7 +292,7 @@ export struct NetworkCheckPage {
 
           if (this.errorText) {
             Text(this.errorText)
-              .fontSize(12).fontColor('#FF5252').margin({ top: 12 })
+              .fontSize(12).fontColor(this.theme.semantic.danger).margin({ top: 12 })
           }
 
           // 检测项列表

@@ -266,10 +266,10 @@ this.theme = AppState.getInstance().getTheme()
   }
 
   signalColor(sig: number): string {
-    if (sig >= -50) return '#00E676'
+    if (sig >= -50) return this.theme.semantic.success
     if (sig >= -60) return '#448AFF'
     if (sig >= -70) return '#FF9800'
-    return '#FF5252'
+    return this.theme.semantic.danger
   }
 
   /** 频段标签：根据频率判断 2.4G/5G/6G */
@@ -306,7 +306,7 @@ this.theme = AppState.getInstance().getTheme()
             .margin({ left: 6 })
         }
         Text(ap.up ? '开启' : '关闭')
-          .fontSize(10).fontColor(ap.up ? '#00E676' : '#FF5252')
+          .fontSize(10).fontColor(ap.up ? this.theme.semantic.success : this.theme.semantic.danger)
           .padding({ left: 8, right: 8, top: 2, bottom: 2 }).borderRadius(8)
           .backgroundColor(ap.up ? 'rgba(0,230,118,0.12)' : withAlpha(this.theme.danger, 0.12))
           .margin({ left: 6 })
@@ -373,7 +373,7 @@ this.theme = AppState.getInstance().getTheme()
                     .margin({ right: 8 })
 
                   Text('踢下线')
-                    .fontSize(11).fontColor('#FF5252')
+                    .fontSize(11).fontColor(this.theme.semantic.danger)
                     .padding({ left: 8, right: 8, top: 4, bottom: 4 }).borderRadius(8)
                     .backgroundColor(withAlpha(this.theme.danger, 0.10))
                     .onClick(() => {
@@ -589,8 +589,8 @@ this.theme = AppState.getInstance().getTheme()
               // 结果提示
               if (this.saveMessage) {
                 Row() {
-                  AppIcon({ name: 'checkmark_circle', iconSize: 13, colors: ['#00E676'] })
-                  Text(' ' + this.saveMessage).fontSize(12).fontColor('#00E676')
+                  AppIcon({ name: 'checkmark_circle', iconSize: 13, colors: [this.theme.semantic.success] })
+                  Text(' ' + this.saveMessage).fontSize(12).fontColor(this.theme.semantic.success)
                 }
                 .width('100%')
                 .padding({ left: 16, right: 16, top: 8 })
@@ -729,7 +729,7 @@ this.theme = AppState.getInstance().getTheme()
               Text('踢下线')
                 .fontSize(14).fontColor('#FFFFFF').textAlign(TextAlign.Center)
                 .layoutWeight(1).padding({ top: 10, bottom: 10 }).borderRadius(10)
-                .backgroundColor('#FF5252').margin({ left: 10 })
+                .backgroundColor(this.theme.semantic.danger).margin({ left: 10 })
                 .onClick(() => this.confirmKick())
             }.width('100%')
           }

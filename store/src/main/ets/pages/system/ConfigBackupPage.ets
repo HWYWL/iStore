@@ -203,7 +203,7 @@ export struct ConfigBackupPage {
           // 说明卡
           Column() {
             Row() {
-              AppIcon({ name: 'lightbulb', iconSize: 20, colors: ['#F59E0B'] })
+              AppIcon({ name: 'lightbulb', iconSize: 20, colors: [this.theme.semantic.warning] })
               Column() {
                 Text('sysupgrade 标准备份格式，OpenWrt 24.x / 25.x 通用')
                   .fontSize(12).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
@@ -231,7 +231,7 @@ export struct ConfigBackupPage {
               Row() {
                 Column() {
                   Row() {
-                    AppIcon({ name: 'archivebox', iconSize: 12, colors: ['#F59E0B'] })
+                    AppIcon({ name: 'archivebox', iconSize: 12, colors: [this.theme.semantic.warning] })
                     Text(' 已保存备份').fontSize(11).fontColor(this.theme.textSecondary)
                   }
                   Text(`${this.backupSize}`).fontSize(13).fontColor(this.theme.primary).fontWeight(FontWeight.Bold)
@@ -274,7 +274,7 @@ export struct ConfigBackupPage {
             }
             .width('100%')
             Text('选择备份文件上传并恢复（⚠️ 会重启设备）')
-              .fontSize(11).fontColor('#FF5252').margin({ top: 4 }).width('100%')
+              .fontSize(11).fontColor(this.theme.semantic.danger).margin({ top: 4 }).width('100%')
 
             Row() {
               if (this.busy === 'restore') {

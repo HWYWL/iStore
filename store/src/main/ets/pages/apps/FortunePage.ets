@@ -52,7 +52,7 @@ export struct FortunePage {
     if (this.level === '大吉') return '#F59E0B'
     if (this.level === '吉') return '#FBBF24'
     if (this.level === '平') return '#60A5FA'
-    return '#94A3B8'
+    return this.theme.semantic.neutral
   }
   @State levelIcon: string = 'star'
   @State yiText: string[] = []
@@ -194,14 +194,14 @@ export struct FortunePage {
           // 忌
           Column() {
             Row() {
-              AppIcon({ name: 'xmark_circle', iconSize: 14, colors: ['#FF5252'] })
-              Text(' 忌').fontSize(13).fontColor('#FF5252').fontWeight(FontWeight.Bold)
+              AppIcon({ name: 'xmark_circle', iconSize: 14, colors: [this.theme.semantic.danger] })
+              Text(' 忌').fontSize(13).fontColor(this.theme.semantic.danger).fontWeight(FontWeight.Bold)
               Blank()
             }
             .width('100%')
             ForEach(this.jiText, (t: string) => {
               Row() {
-                Text('·').fontColor('#FF5252').fontSize(12)
+                Text('·').fontColor(this.theme.semantic.danger).fontSize(12)
                 Text(t).fontSize(12).fontColor(this.theme.textPrimary).margin({ left: 6 })
                 Blank()
               }

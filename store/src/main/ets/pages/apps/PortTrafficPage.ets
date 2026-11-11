@@ -166,7 +166,7 @@ this.theme = AppState.getInstance().getTheme()
                   Column() {
                     Text('⇩ 总下载').fontSize(10).fontColor(this.theme.textTertiary)
                     Text(this.fmtTotalRx())
-                      .fontSize(20).fontColor('#00E676').fontWeight(FontWeight.Bold)
+                      .fontSize(20).fontColor(this.theme.semantic.success).fontWeight(FontWeight.Bold)
                       .fontFamily('monospace')
                   }.layoutWeight(1)
 
@@ -221,9 +221,9 @@ this.theme = AppState.getInstance().getTheme()
 
                     // 下载速率条
                     Row() {
-                      Text('⇩').fontSize(11).fontColor('#00E676').width(18)
+                      Text('⇩').fontSize(11).fontColor(this.theme.semantic.success).width(18)
                       Text(FormatUtils.formatSpeed(iface.rxRate || 0))
-                        .fontSize(12).fontColor('#00E676').fontFamily('monospace')
+                        .fontSize(12).fontColor(this.theme.semantic.success).fontFamily('monospace')
                         .width(82)
                       Stack() {
                         Row().width('100%').height(6).borderRadius(3)
@@ -233,7 +233,7 @@ this.theme = AppState.getInstance().getTheme()
                           .height(6).borderRadius(3)
                           .linearGradient({
                             angle: 90,
-                            colors: [['#00E676', 0], ['#00E67644', 1]]
+                            colors: [[this.theme.semantic.success, 0], ['#00E67644', 1]]
                           })
                       }
                       .alignContent(Alignment.Start)

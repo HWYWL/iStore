@@ -240,10 +240,10 @@ this.theme = AppState.getInstance().getTheme()
 
                     Row() {
                       Circle({ width: 8, height: 8 })
-                        .foregroundColor(port.up ? '#00E676' : '#757575')
+                        .foregroundColor(port.up ? this.theme.semantic.success : '#757575')
                         .margin({ right: 6 })
                       Text(port.up ? '已连接' : '未连接')
-                        .fontSize(12).fontColor(port.up ? '#00E676' : '#757575')
+                        .fontSize(12).fontColor(port.up ? this.theme.semantic.success : '#757575')
                     }
                   }.width('100%').margin({ bottom: 10 })
 

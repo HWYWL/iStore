@@ -418,7 +418,7 @@ this.theme = AppState.getInstance().getTheme()
             this.sectionTitle('说明')
             Column() {
               Row() {
-                AppIcon({ name: 'lightbulb', iconSize: 16, colors: ['#F59E0B'] })
+                AppIcon({ name: 'lightbulb', iconSize: 16, colors: [this.theme.semantic.warning] })
                 Column() {
                   Text('App 运行期间生效')
                     .fontSize(13)

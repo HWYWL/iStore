@@ -124,7 +124,7 @@ export struct SystemLogPage {
 
   /** 日志行颜色 */
   private lineColor(l: string): string {
-    if (l.includes('error') || l.includes('Error') || l.includes('ERR')) return '#FF5252'
+    if (l.includes('error') || l.includes('Error') || l.includes('ERR')) return this.theme.semantic.danger
     if (l.includes('warn') || l.includes('Warn') || l.includes('WARNING')) return '#E6A800'
     if (l.includes('docker') || l.includes('ppp') || l.includes('network')) return this.theme.primary
     return this.theme.textSecondary

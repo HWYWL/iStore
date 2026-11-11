@@ -324,7 +324,7 @@ this.theme = AppState.getInstance().getTheme()
                                 .layoutWeight(1)
                               Text(app.enabled ? '已管控' : '未管控')
                                 .fontSize(10)
-                                .fontColor(app.enabled ? '#00E676' : '#9E9E9E')
+                                .fontColor(app.enabled ? this.theme.semantic.success : '#9E9E9E')
                                 .padding({ left: 8, right: 8, top: 2, bottom: 2 })
                                 .borderRadius(8)
                                 .backgroundColor(app.enabled ? 'rgba(0,230,118,0.12)' : 'rgba(158,158,158,0.12)')
@@ -349,7 +349,7 @@ this.theme = AppState.getInstance().getTheme()
                 // 保存结果提示
                 if (this.saveMessage) {
                   Text('✓ ' + this.saveMessage)
-                    .fontSize(12).fontColor('#00E676').margin({ top: 10 }).width('100%')
+                    .fontSize(12).fontColor(this.theme.semantic.success).margin({ top: 10 }).width('100%')
                 }
                 if (this.saveError) {
                   Text('⚠ ' + this.saveError)
@@ -364,7 +364,7 @@ this.theme = AppState.getInstance().getTheme()
               if (this.appTime) {
                 Column() {
                   Row() {
-                    AppIcon({ name: 'clock', iconSize: 15, colors: ['#F59E0B'] })
+                    AppIcon({ name: 'clock', iconSize: 15, colors: [this.theme.semantic.warning] })
                     Text(' 时间段配置')
                       .fontSize(14).fontColor(this.theme.textPrimary).fontWeight(FontWeight.Medium)
                   }
@@ -463,7 +463,7 @@ this.theme = AppState.getInstance().getTheme()
       if (onText) {
         Text(value ? onText : offText)
           .fontSize(11)
-          .fontColor(value ? '#00E676' : '#9E9E9E')
+          .fontColor(value ? this.theme.semantic.success : '#9E9E9E')
           .margin({ left: 8 })
       }
     }

@@ -181,7 +181,7 @@ export struct MileStonePage {
           Column() {
             // 主卡：连续运行
             Column() {
-              AppIcon({ name: 'star_trophy', iconSize: 40, colors: ['#F59E0B'] })
+              AppIcon({ name: 'star_trophy', iconSize: 40, colors: [this.theme.semantic.warning] })
               Text(`${this.uptimeDays}`)
                 .fontSize(56).fontColor(this.theme.primary).fontWeight(FontWeight.Bold).fontFamily('monospace')
               Text('天连续稳定运行')
@@ -206,7 +206,7 @@ export struct MileStonePage {
               Row() {
                 ForEach(MILESTONES, (m: number) => {
                   Column() {
-                    AppIcon({ name: this.uptimeDays >= m ? 'star_trophy' : 'medal', iconSize: 22, colors: [this.uptimeDays >= m ? '#F59E0B' : '#94A3B8'] })
+                    AppIcon({ name: this.uptimeDays >= m ? 'star_trophy' : 'medal', iconSize: 22, colors: [this.uptimeDays >= m ? this.theme.semantic.warning : this.theme.semantic.neutral] })
                       .opacity(this.uptimeDays >= m ? 1 : 0.45)
                     Text(`${m}天`)
                       .fontSize(10).fontColor(this.uptimeDays >= m ? this.theme.primary : this.theme.textTertiary)

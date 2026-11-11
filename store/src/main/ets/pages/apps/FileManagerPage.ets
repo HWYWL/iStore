@@ -503,7 +503,7 @@ export struct FileManagerPage {
 
   /** 文件类型配色 */
   entryColor(entry: FsEntry): string {
-    if (entry.isDir) return '#F59E0B'
+    if (entry.isDir) return this.theme.semantic.warning
     const lower: string = entry.name.toLowerCase()
     if (FileManagerService.isTextFile(entry.name)) return '#3B82F6'
     if (lower.endsWith('.gz') || lower.endsWith('.tar') || lower.endsWith('.zip') || lower.endsWith('.xz')) return '#8B5CF6'
@@ -590,7 +590,7 @@ export struct FileManagerPage {
         .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
       } else if (this.connError) {
         Column() {
-          Text('⚠ SSH 未连接').fontSize(14).fontColor('#FF5252')
+          Text('⚠ SSH 未连接').fontSize(14).fontColor(this.theme.semantic.danger)
           Text(this.connError).fontSize(12).fontColor(this.theme.textTertiary)
             .margin({ top: 8 }).padding({ left: 30, right: 30 })
           Text('重新连接').fontSize(13).fontColor('#FFFFFF')
@@ -727,7 +727,7 @@ export struct FileManagerPage {
                     this.showSheetDialog('重命名', 2, this.renameTarget.name)
                   }
                 })
-              Text('删除').fontSize(12).fontColor('#FF5252').onClick(() => this.askDelete())
+              Text('删除').fontSize(12).fontColor(this.theme.semantic.danger).onClick(() => this.askDelete())
               Text('取消').fontSize(12).fontColor(this.theme.textTertiary)
                 .onClick(() => { this.selectMode = false; this.selected = [] })
             } else {
@@ -799,7 +799,7 @@ export struct FileManagerPage {
     // ========== 删除确认 ==========
     if (this.showDeleteConfirm) {
       Column() {
-        Text('⚠ 确认删除').fontSize(16).fontColor('#FF5252').fontWeight(FontWeight.Bold)
+        Text('⚠ 确认删除').fontSize(16).fontColor(this.theme.semantic.danger).fontWeight(FontWeight.Bold)
         Text(`将删除 ${this.deleteTargets.length} 项，且不可恢复：`)
           .fontSize(12).fontColor(this.theme.textSecondary).margin({ top: 8 })
         Text(this.deleteTargets.map((p: string): string => this.nameOf(p)).join('、'))
@@ -812,7 +812,7 @@ export struct FileManagerPage {
             .onClick(() => { this.showDeleteConfirm = false })
           Text('确认删除').fontSize(14).fontColor('#FFFFFF')
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
-            .borderRadius(14).backgroundColor('#FF5252')
+            .borderRadius(14).backgroundColor(this.theme.semantic.danger)
             .onClick(() => { this.doDelete() })
         }
         .margin({ top: 16 })

@@ -453,7 +453,7 @@ export struct SmartHubPage {
   }
 
   barColor(p: number): string {
-    if (p >= 80) return '#FF5252'
+    if (p >= 80) return this.theme.semantic.danger
     if (p >= 55) return '#E6A800'
     return '#2FBFA8'
   }
@@ -655,7 +655,7 @@ export struct SmartHubPage {
         })
       } else {
         Column() {
-          AppIcon({ name: 'wifi', iconSize: 36, colors: ['#94A3B8'] })
+          AppIcon({ name: 'wifi', iconSize: 36, colors: [this.theme.semantic.neutral] })
           Text(this.forecast.advice).fontSize(12).fontColor(this.theme.textSecondary).margin({ top: 10 })
         }
         .width('100%')
@@ -833,7 +833,7 @@ export struct SmartHubPage {
     Column() {
       Column() {
         Row() {
-          AppIcon({ name: 'bolt', iconSize: 22, colors: ['#F59E0B'] })
+          AppIcon({ name: 'bolt', iconSize: 22, colors: [this.theme.semantic.warning] })
           Text('一句话搞定网络').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.theme.textPrimary).margin({ left: 8 })
         }
         .width('100%')

@@ -422,7 +422,7 @@ export struct DockerTab {
             if (!this.apiAvailable) {
               Column() {
                 Row() {
-                  AppIcon({ name: 'lightbulb', iconSize: 14, colors: ['#F59E0B'] })
+                  AppIcon({ name: 'lightbulb', iconSize: 14, colors: [this.theme.semantic.warning] })
                   Text('开启 Docker API 后，可显示容器 CPU / 内存实时统计')
                     .fontSize(12).fontColor(this.theme.textSecondary)
                     .layoutWeight(1).margin({ left: 8 })

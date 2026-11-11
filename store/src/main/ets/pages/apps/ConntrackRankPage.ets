@@ -131,10 +131,10 @@ this.theme = AppState.getInstance().getTheme()
   }
 
   barColor(count: number): string {
-    if (count >= 100) return '#FF5252'
+    if (count >= 100) return this.theme.semantic.danger
     if (count >= 30) return '#FF9800'
     if (count >= 10) return '#448AFF'
-    return '#00E676'
+    return this.theme.semantic.success
   }
 
   build() {

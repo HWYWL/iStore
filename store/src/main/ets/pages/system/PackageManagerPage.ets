@@ -399,7 +399,7 @@ export struct PackageManagerPage {
                 .alignItems(HorizontalAlign.Start).layoutWeight(1)
 
                 Row() {
-                  Text('卸载').fontSize(10).fontColor('#FF5252')
+                  Text('卸载').fontSize(10).fontColor(this.theme.semantic.danger)
                 }
                 .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                 .borderRadius(12)

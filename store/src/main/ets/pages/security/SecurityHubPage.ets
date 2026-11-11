@@ -110,7 +110,7 @@ export struct SecurityHubPage {
   scoreColor(s: number): string {
     if (s >= 85) return '#00C853'
     if (s >= 60) return '#E6A800'
-    return '#FF5252'
+    return this.theme.semantic.danger
   }
 
   /** 处置：踢出设备（R4） */
@@ -222,7 +222,7 @@ export struct SecurityHubPage {
                   if (item.level === 'risk') {
                     Text('需处理')
                       .fontSize(10)
-                      .fontColor('#FF5252')
+                      .fontColor(this.theme.semantic.danger)
                       .padding({ left: 10, right: 10, top: 4, bottom: 4 })
                       .borderRadius(8)
                       .backgroundColor(withAlpha(this.theme.danger, 0.1))

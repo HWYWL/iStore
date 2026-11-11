@@ -328,7 +328,7 @@ export struct SkinManagePage {
           .padding({ left: 14, right: 14, top: 4 })
 
           Row() {
-            AppIcon({ name: 'lightbulb', iconSize: 13, colors: ['#F59E0B'] })
+            AppIcon({ name: 'lightbulb', iconSize: 13, colors: [this.theme.semantic.warning] })
             Text(' 材质与色板相互独立，切换后立即生效并自动保存')
               .fontSize(11)
               .fontColor(this.theme.textTertiary)

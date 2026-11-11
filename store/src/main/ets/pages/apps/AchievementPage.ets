@@ -190,7 +190,7 @@ export struct AchievementPage {
           ForEach(ACHS, (a: AchDef) => {
             Row() {
               Row() {
-                AppIcon({ name: a.icon, iconSize: 21, colors: [this.doneMap[a.id] ? a.color : '#94A3B8'] })
+                AppIcon({ name: a.icon, iconSize: 21, colors: [this.doneMap[a.id] ? a.color : this.theme.semantic.neutral] })
               }
               .width(42)
               .height(42)
@@ -216,7 +216,7 @@ export struct AchievementPage {
               if (this.doneMap[a.id]) {
                 AppIcon({ name: 'checkmark_circle', iconSize: 20, colors: [this.theme.success, '#7CE495'] })
               } else {
-                AppIcon({ name: 'lock', iconSize: 16, colors: ['#94A3B8'] })
+                AppIcon({ name: 'lock', iconSize: 16, colors: [this.theme.semantic.neutral] })
                   .opacity(0.7)
               }
             }
