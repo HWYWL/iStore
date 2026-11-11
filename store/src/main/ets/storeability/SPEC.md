@@ -1,7 +1,7 @@
 ---
 id: mod-shell
 type: module-design
-status: draft
+status: active
 title: 模块：应用壳与系统集成（Ability / 卡片 / 备份）
 parent: istore-architecture
 depends-on: [mod-state]

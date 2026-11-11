@@ -1,7 +1,7 @@
 ---
 id: istore-goal
 type: goal-and-requirements
-status: draft
+status: active
 title: iStore 路由管家 — 目标与需求
 ---
 

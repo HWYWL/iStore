@@ -1,7 +1,7 @@
 ---
 id: mod-api
 type: module-design
-status: draft
+status: active
 title: 模块：路由器通信层（api）
 parent: istore-architecture
 ---

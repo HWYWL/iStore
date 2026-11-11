@@ -1,7 +1,7 @@
 ---
 id: mod-theme
 type: module-design
-status: draft
+status: active
 title: 模块：主题、皮肤与图标体系
 parent: istore-architecture
 ---

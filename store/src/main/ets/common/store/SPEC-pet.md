@@ -1,7 +1,7 @@
 ---
 id: mod-pet
 type: submodule-design
-status: draft
+status: active
 title: 子模块：网络小管家（养成 / 心情 / 日记）
 parent: mod-state
 depends-on: [mod-theme]

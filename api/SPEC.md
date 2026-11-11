@@ -1,7 +1,7 @@
 ---
 id: mod-router-assets
 type: module-design
-status: draft
+status: active
 title: 模块：路由器端兼容资产（api/）
 parent: istore-architecture
 ---

@@ -1,7 +1,7 @@
 ---
 id: mod-remote
 type: module-design
-status: draft
+status: active
 title: 模块：远程通道（SSH / SFTP / C++ NAPI）
 parent: istore-architecture
 ---

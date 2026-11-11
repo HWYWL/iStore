@@ -1,7 +1,7 @@
 ---
 id: mod-api-media
 type: submodule-design
-status: draft
+status: active
 title: 子模块：外部媒体客户端（Immich / Jellyfin）
 parent: mod-api
 ---

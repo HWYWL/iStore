@@ -1,7 +1,7 @@
 ---
 id: istore-architecture
 type: architecture-design
-status: draft
+status: active
 title: iStore 路由管家 — 架构
 parent: istore-goal
 ---

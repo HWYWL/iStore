@@ -1,7 +1,7 @@
 ---
 id: mod-insights
 type: module-design
-status: draft
+status: active
 title: 模块：本地洞察（规则问答 / 安全评分）
 parent: istore-architecture
 depends-on: [mod-api, mod-remote]

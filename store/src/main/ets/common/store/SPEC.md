@@ -1,7 +1,7 @@
 ---
 id: mod-state
 type: module-design
-status: draft
+status: active
 title: 模块：应用状态与持久化（common/store）
 parent: istore-architecture
 ---

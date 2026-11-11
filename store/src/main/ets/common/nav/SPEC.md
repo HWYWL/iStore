@@ -1,7 +1,7 @@
 ---
 id: mod-nav
 type: module-design
-status: draft
+status: active
 title: 模块：导航与页面注册
 parent: istore-architecture
 ---

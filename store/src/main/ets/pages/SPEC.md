@@ -1,7 +1,7 @@
 ---
 id: mod-ui
 type: module-design
-status: draft
+status: active
 title: 模块：页面与布局（pages）
 parent: istore-architecture
 depends-on: [mod-api, mod-state, mod-nav, mod-theme]
