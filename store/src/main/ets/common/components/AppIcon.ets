@@ -1,17 +1,18 @@
 /**
  * AppIcon - 统一图标组件
  *
- * 全应用图标统一走这里渲染，从而支持「图标包」随皮肤一起切换：
+ * 全应用图标统一走这里渲染。应用已固定使用 hos（鸿蒙超椭圆）包，不再提供用户切换；
+ * 其余渲染分支保留供调试（可通过 forcePack 指定）：
  * - hos     包：Image 渲染鸿蒙超椭圆素材（默认，按皮肤自动切浅色 / 暗色）
  * - color   包：Image 渲染彩色实心渐变素材
  * - line    包：Image 渲染自绘几何线稿（单色着色）
  * - harmony 包：SymbolGlyph 原生多色渲染（HarmonyOS 设计语言）
  * - ios     包：圆角底 + 白色图形
  *
- * 当前图标包通过 AppStorage('iconPackId') 驱动，切换后所有页面即时刷新。
  * 用法：AppIcon({ name: 'wifi', iconSize: 16, colors: [this.theme.primary] })
  */
 import {
+  DEFAULT_ICON_PACK,
   getColorRes,
   getHosRes,
   getIconPackById,
@@ -33,12 +34,10 @@ export struct AppIcon {
   @Prop iconSize: number = 16
   /** 图标颜色（仅线稿 / 符号类渲染使用；自带底板的素材不使用） */
   @Prop colors: ResourceColor[] = []
-  /** 当前图标包 id，由 AppStorage 全局驱动（默认鸿蒙质感） */
-  @StorageLink('iconPackId') iconPackId: string = 'hos'
-  /** 强制指定图标包（用于图标包预览），为空则跟随全局 */
+  /** 强制指定图标包（保留的调试入口），为空则用应用统一的默认包 */
   @Prop forcePack: string = ''
   /** 当前皮肤 id，用于判断是否需要暗色素材 */
-  @StorageLink('skinId') skinId: string = 'white'
+  @StorageLink('skinId') skinId: string = 'beige'
 
   /** 当前皮肤是否为暗色（按背景亮度判断） */
   private isDarkSkin(): boolean {
@@ -59,9 +58,9 @@ export struct AppIcon {
     return getHosRes(this.name, this.isDarkSkin())
   }
 
-  /** 实际生效的图标包 id */
+  /** 实际生效的图标包 id：应用统一使用默认包，不再提供用户切换 */
   private activePackId(): string {
-    return this.forcePack !== '' ? this.forcePack : this.iconPackId
+    return this.forcePack !== '' ? this.forcePack : DEFAULT_ICON_PACK
   }
 
   /** 实际生效的图标包渲染类型 */

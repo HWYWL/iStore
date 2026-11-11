@@ -1,4 +1,4 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import { LIGHT_THEME, ThemePalette, cardTint, cardBorder, cardElevation, cardRadius } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { getAppVersionText } from '../../common/utils/AppVersion'
@@ -102,6 +102,13 @@ export struct AppsPage {
   /** 顶栏上留白（三栏时由外部收紧，保证各栏首个模块顶边对齐） */
   @Prop topInset: number = 48
   @State theme: ThemePalette = LIGHT_THEME
+  // 统一由 AppStorage 驱动：任一页面切主题/材质，本页立即重绘（不再依赖监听器注册）
+  @StorageLink('skinId') @Watch('onThemeStorageChange') skinStorageId: string = 'beige'
+  @StorageLink('uiStyle') @Watch('onThemeStorageChange') uiStyleStorage: string = 'solid'
+
+  onThemeStorageChange(): void {
+    this.theme = AppState.getInstance().getTheme()
+  }
   @State itemSlides: number[] = []
   @State deviceName: string = '未连接设备'
   @State deviceHost: string = ''
@@ -1204,8 +1211,8 @@ export struct AppsPage {
     .width('48%')
     .padding(10)
     .borderRadius(14)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(this.theme.material.blur)
     .border({ width: 0.5, color: this.theme.borderGlass })
     .alignItems(HorizontalAlign.Center)
     .opacity(this.itemSlides.length > slideIdx && this.itemSlides[slideIdx] === 0 ? 1 : 0)
@@ -1376,8 +1383,8 @@ export struct AppsPage {
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 12 })
     .borderRadius(24)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(this.theme.material.blur)
     .border({ width: 0.5, color: this.theme.borderGlass })
     .onClick(() => {
       this.switchDevice()
@@ -1430,8 +1437,8 @@ export struct AppsPage {
     .padding({ left: len === 1 ? 14 : 12, right: len === 1 ? 14 : 12 })
     .alignItems(VerticalAlign.Center)
     .borderRadius(19)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(this.theme.material.blur)
     .border({ width: 0.5, color: this.theme.borderGlass })
     .opacity(this.itemSlides.length > slideIdx && this.itemSlides[slideIdx] === 0 ? 1 : 0)
     .translate({ x: this.itemSlides.length > slideIdx ? this.itemSlides[slideIdx] : 300 })
@@ -1667,7 +1674,7 @@ export struct AppsPage {
     .height(40)
     .padding({ left: 12, right: 8 })
     .borderRadius(12)
-    .backgroundColor(this.theme.bgCard)
+    .backgroundColor(cardTint(this.theme))
     .border({ width: 0.5, color: this.theme.borderGlass })
   }
 

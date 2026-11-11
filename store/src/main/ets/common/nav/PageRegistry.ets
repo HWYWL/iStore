@@ -127,7 +127,7 @@ export const PAGE_REGISTRY: PageEntry[] = [
     icon: 'bell', group: '管理', py: 'zntz', metric: 'notify' },
   { route: 'pages/apps/SchedulePage', title: '定时任务', desc: '定时重启与定时开关 WiFi',
     icon: 'calendar', group: '管理', py: 'dsrw', metric: 'schedule' },
-  { route: 'pages/apps/SkinManagePage', title: '皮肤管理', desc: '更换应用主题皮肤',
+  { route: 'pages/apps/SkinManagePage', title: '主题', desc: '色板与材质（含液态玻璃）',
     icon: 'paintbrush', group: '管理', py: 'pfgl', metric: 'skin' },
   { route: 'pages/apps/SshTerminalPage', title: 'SSH 终端', desc: '命令行管理路由器',
     icon: 'code_square', group: '管理', py: 'sshzd', metric: 'ssh' },

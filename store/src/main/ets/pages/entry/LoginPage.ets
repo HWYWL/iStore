@@ -11,7 +11,7 @@ import { SavedDevice } from '../../common/store/DeviceStore'
 import { ImmichStore } from '../../common/store/ImmichStore'
 import { ConnectionConfig } from '../../models/Models'
 import { ApiClient, NormalizedAddress } from '../../api/ApiClient'
-import {LIGHT_THEME, ThemePalette} from '../../common/theme/ThemeColors'
+import {LIGHT_THEME, ThemePalette, cardTint, cardBorder, cardElevation, cardRadius} from '../../common/theme/ThemeColors'
 import { common } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { deviceInfo } from '@kit.BasicServicesKit'
@@ -44,6 +44,13 @@ struct LoginPage {
   @State hostHint: string = '只填 IP 或域名，如 192.168.1.1、router.example.com'
   @State hostHintWarn: boolean = false
   @State theme: ThemePalette = LIGHT_THEME
+  // 统一由 AppStorage 驱动：任一页面切主题/材质，本页立即重绘（不再依赖监听器注册）
+  @StorageLink('skinId') @Watch('onThemeStorageChange') skinStorageId: string = 'beige'
+  @StorageLink('uiStyle') @Watch('onThemeStorageChange') uiStyleStorage: string = 'solid'
+
+  onThemeStorageChange(): void {
+    this.theme = AppState.getInstance().getTheme()
+  }
   @State topSafeArea: number = 44  // 状态栏高度（默认 44vp，覆盖大部分设备）
   // ========== 设备列表：搜索 / 分组 / 自动重连 ==========
   @State searchText: string = ''
@@ -531,10 +538,10 @@ struct LoginPage {
               .fontWeight(FontWeight.Medium)
               .alignSelf(ItemAlign.Start)
           }
-          .width('100%').padding(20).borderRadius(20)
-          .backgroundColor(this.theme.bgCard).backdropBlur(20)
+          .width('100%').padding(20).borderRadius(cardRadius(this.theme))
+          .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blur)
           .border({ width: 0.5, color: this.theme.borderGlass })
-          .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+          .shadow(cardElevation(this.theme))
         }
         .width('100%').padding({ left: 16, right: 16 }).margin({ bottom: 12 })
 
@@ -571,7 +578,7 @@ struct LoginPage {
                     .layoutWeight(1).height(40)
                 }
                 .width('100%').height(40).borderRadius(20)
-                .backgroundColor(this.theme.bgCard)
+                .backgroundColor(cardTint(this.theme))
                 .border({ width: 0.5, color: this.theme.borderGlass })
                 .padding({ left: 12, right: 12 }).margin({ bottom: 10 })
               }
@@ -682,10 +689,10 @@ struct LoginPage {
                   .width('100%')
                   .onClick(() => { this.connectAndEnter(device) })
                 }
-                .width('100%').padding(20).borderRadius(20).margin({ top: 16 })
-                .backgroundColor(this.theme.bgCard).backdropBlur(20)
+                .width('100%').padding(20).borderRadius(cardRadius(this.theme)).margin({ top: 16 })
+                .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blur)
                 .border({ width: 0.5, color: this.theme.borderGlass })
-                .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+                .shadow(cardElevation(this.theme))
               }, (item: SavedDevice): string => `${item.id}_v${item.version}`)
             }
 
@@ -757,7 +764,7 @@ struct LoginPage {
           .layoutWeight(1).height(52)
       }
       .width('100%').height(52).borderRadius(24)
-      .backgroundColor(this.theme.bgCard).backdropBlur(10)
+      .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
       .border({ width: 0.5, color: this.theme.borderGlass })
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
@@ -770,7 +777,7 @@ struct LoginPage {
           .layoutWeight(1).height(52)
       }
       .width('100%').height(52).borderRadius(24)
-      .backgroundColor(this.theme.bgCard).backdropBlur(10)
+      .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
       .border({ width: 0.5, color: this.theme.borderGlass })
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
@@ -786,7 +793,7 @@ struct LoginPage {
           .layoutWeight(1).height(52)
       }
       .width('100%').height(52).borderRadius(24)
-      .backgroundColor(this.theme.bgCard).backdropBlur(10)
+      .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
       .border({ width: 0.5, color: this.hostHintWarn ? this.theme.warning : this.theme.borderGlass })
       .padding({ left: 14, right: 14 })
 
@@ -832,7 +839,7 @@ struct LoginPage {
         })
       }
       .width('100%').height(52).borderRadius(24)
-      .backgroundColor(this.theme.bgCard).backdropBlur(10)
+      .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
       .border({ width: 0.5, color: this.theme.borderGlass })
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
@@ -845,7 +852,7 @@ struct LoginPage {
           .layoutWeight(1).height(52)
       }
       .width('100%').height(52).borderRadius(24)
-      .backgroundColor(this.theme.bgCard).backdropBlur(10)
+      .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
       .border({ width: 0.5, color: this.theme.borderGlass })
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
@@ -863,7 +870,7 @@ struct LoginPage {
           .onClick(() => { this.showPassword = !this.showPassword })
       }
       .width('100%').height(52).borderRadius(24)
-      .backgroundColor(this.theme.bgCard).backdropBlur(10)
+      .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
       .border({ width: 0.5, color: this.theme.borderGlass })
       .padding({ left: 14, right: 8 }).margin({ bottom: 14 })
 
@@ -887,7 +894,7 @@ struct LoginPage {
             .fontSize(14).fontColor(this.theme.textPrimary)
         }
         .width('47%').height(52).borderRadius(26)
-        .backgroundColor(this.theme.bgCard)
+        .backgroundColor(cardTint(this.theme))
         .border({ width: 1, color: this.theme.borderGlass })
         .enabled(!this.isSaving)
         .onClick(() => { this.doSave() })

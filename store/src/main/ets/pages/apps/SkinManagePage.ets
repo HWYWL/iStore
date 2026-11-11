@@ -1,14 +1,23 @@
 /**
- * SkinManagePage - 皮肤管理
- * 展示所有可用皮肤（SKINS 注册表），点击切换，全应用即时生效并持久化
+ * SkinManagePage - 主题管理
+ * 主题 = 色板（SKINS，8 套）× 材质（MATERIALS：默认实色 / 液态玻璃）。
+ * 两维独立：换色板不改形态，换材质不改配色。选择即时生效并持久化。
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette, SKINS, SkinDef, UI_STYLES, UiStyleDef } from '../../common/theme/ThemeColors'
-import { ICON_PACKS, IconPackDef } from '../../common/theme/IconPack'
-import { promptAction, window } from '@kit.ArkUI'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  SKINS,
+  SkinDef,
+  MATERIALS,
+  MaterialDef,
+  applyMaterial
+} from '../../common/theme/ThemeColors'
+import { window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
 import { AppNav } from '../../common/utils/AppNav'
 import { AppIcon } from '../../common/components/AppIcon'
+import { GlassCard } from '../../common/components/GlassCard'
 
 @Entry
 @Component
@@ -26,25 +35,23 @@ struct SkinManagePageRoute {
 export struct SkinManagePage {
   @State theme: ThemePalette = LIGHT_THEME
   @State topSafeArea: number = 44
-  @State currentSkinId: string = 'white'
-  @State currentIconPackId: string = 'color'
-  @State currentUiStyle: string = 'classic'
+  @State currentSkinId: string = 'beige'
+  @State currentMaterialId: string = 'solid'
+  // 统一由 AppStorage 驱动：任何页面切主题后这里立即重绘
+  @StorageLink('skinId') @Watch('onThemeStorageChange') skinId: string = 'beige'
+  @StorageLink('uiStyle') @Watch('onThemeStorageChange') uiStyle: string = 'solid'
 
-  private themeListener: () => void = () => {
+  onThemeStorageChange(): void {
     this.theme = AppState.getInstance().getTheme()
+    this.currentSkinId = AppState.getInstance().getSkin().id
+    this.currentMaterialId = AppState.getInstance().getUiStyle()
   }
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
     this.currentSkinId = AppState.getInstance().getSkin().id
-    this.currentIconPackId = AppState.getInstance().getIconPack().id
-    this.currentUiStyle = AppState.getInstance().getUiStyle()
+    this.currentMaterialId = AppState.getInstance().getUiStyle()
     this.loadTopSafeArea()
-    AppState.getInstance().onThemeChange(this.themeListener)
-  }
-
-  aboutToDisappear(): void {
-    AppState.getInstance().offThemeChange(this.themeListener)
   }
 
   loadTopSafeArea(): void {
@@ -62,82 +69,84 @@ export struct SkinManagePage {
     } catch (e) {}
   }
 
-  /** 切换皮肤 */
+  /** 换肤震动反馈：只在真正换了选择时触发 */
+  private haptic(): void {
+    try {
+      vibrator.startVibration({ type: 'time', duration: 25 }, { id: 0, usage: 'alarm' }).catch(() => {})
+    } catch (e) {}
+  }
+
+  private toast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message, duration: 1200 })
+    } catch (e) {}
+  }
+
+  /** 切换色板 */
   applySkin(skin: SkinDef): void {
     if (skin.id === this.currentSkinId) return
     this.currentSkinId = skin.id
     AppState.getInstance().setSkin(skin.id)
-    // 换装仪式感：轻震动 + 反馈
-    try {
-      vibrator.startVibration({ type: 'time', duration: 25 }, { id: 0, usage: 'alarm' }).catch(() => {})
-    } catch (e) {}
-    try {
-      this.getUIContext().getPromptAction().showToast({ message: `已切换为「${skin.name}」皮肤 ✨`, duration: 1200 })
-    } catch (e) {}
-  }
-
-  /** 切换图标包 */
-  applyIconPack(pack: IconPackDef): void {
-    if (pack.id === this.currentIconPackId) return
-    this.currentIconPackId = pack.id
-    AppState.getInstance().setIconPack(pack.id)
     this.theme = AppState.getInstance().getTheme()
-    try {
-      vibrator.startVibration({ type: 'time', duration: 25 }, { id: 0, usage: 'alarm' }).catch(() => {})
-    } catch (e) {}
-    try {
-      this.getUIContext().getPromptAction().showToast({ message: `图标已切换为「${pack.name}」`, duration: 1200 })
-    } catch (e) {}
+    this.haptic()
+    this.toast(`已切换为「${skin.name}」`)
   }
 
-  /** 切换 UI 风格（经典 / 薄玻璃） */
-  applyUiStyle(style: UiStyleDef): void {
-    if (style.id === this.currentUiStyle) return
-    this.currentUiStyle = style.id
-    AppState.getInstance().setUiStyle(style.id)
+  /** 切换材质（默认 / 液态玻璃） */
+  applyMaterialDef(def: MaterialDef): void {
+    if (def.id === this.currentMaterialId) return
+    this.currentMaterialId = def.id
+    AppState.getInstance().setUiStyle(def.id)
     this.theme = AppState.getInstance().getTheme()
-    try {
-      vibrator.startVibration({ type: 'time', duration: 25 }, { id: 0, usage: 'alarm' }).catch(() => {})
-    } catch (e) {}
-    try {
-      this.getUIContext().getPromptAction().showToast({ message: `已切换为「${style.name}」UI 风格`, duration: 1200 })
-    } catch (e) {}
+    this.haptic()
+    this.toast(def.id === 'liquid' ? '已开启液态玻璃' : '已切回默认材质')
   }
 
-  /** UI 风格卡片（材质预览 + 名称） */
+  /** 材质预览用的调色板 */
+  private previewTheme(def: MaterialDef): ThemePalette {
+    return applyMaterial(AppState.getInstance().getSkin().theme, def.id)
+  }
+
+  /** 材质卡片：用真实材质渲染一小块预览，让人一眼看出「形态变了」 */
   @Builder
-  uiStyleCard(style: UiStyleDef, idx: number) {
+  materialCard(def: MaterialDef) {
     Column() {
-      // 材质预览
-      Row({ space: 6 }) {
-        Column()
-          .width(34)
-          .height(30)
-          .borderRadius(8)
-          .backgroundColor(this.theme.primary)
-        Column()
+      GlassCard({ theme: this.previewTheme(def), radius: 16, paddingTop: 10, paddingRight: 12, paddingBottom: 10, paddingLeft: 12 }) {
+        Row({ space: 6 }) {
+          
+          Column()
+            .width(30)
+            .height(26)
+            .borderRadius(8)
+            .backgroundColor(this.previewTheme(def).primary)
+          Column() {
+            Row()
+              .width('70%')
+              .height(6)
+              .borderRadius(3)
+              .backgroundColor(this.theme.textTertiary)
+            Row()
+              .width('45%')
+              .height(5)
+              .borderRadius(3)
+              .margin({ top: 4 })
+              .backgroundColor(this.theme.textTertiary)
+              .opacity(0.6)
+          }
           .layoutWeight(1)
-          .height(30)
-          .borderRadius(8)
-          .backgroundColor(style.id === 'glass' ? 'rgba(255, 255, 255, 0.55)' : this.theme.bgCardSolid)
-          .border({
-            width: style.id === 'glass' ? 0.8 : 0.5,
-            color: style.id === 'glass' ? 'rgba(255, 255, 255, 0.9)' : this.theme.borderGlass
-          })
-          .backgroundBlurStyle(style.id === 'glass' ? BlurStyle.COMPONENT_THIN : BlurStyle.NONE)
+          .alignItems(HorizontalAlign.Start)
+        }
+        .width('100%')
+        .height(34)
       }
-      .width('100%')
-      .padding(10)
-      .borderRadius(12)
-      .backgroundColor(style.id === 'glass' ? 'rgba(255, 255, 255, 0.26)' : this.theme.bgGlassLight)
 
       Row() {
         Column() {
-          Text(style.name)
+          Text(def.name)
             .fontSize(14)
             .fontColor(this.theme.textPrimary)
             .fontWeight(FontWeight.Medium)
-          Text(style.desc)
+          Text(def.desc)
             .fontSize(10)
             .fontColor(this.theme.textTertiary)
             .margin({ top: 2 })
@@ -145,7 +154,7 @@ export struct SkinManagePage {
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
-        if (style.id === this.currentUiStyle) {
+        if (def.id === this.currentMaterialId) {
           Row() {
             AppIcon({ name: 'checkmark_circle', iconSize: 12, colors: [Color.White] })
             Text(' 使用中').fontSize(11).fontColor(Color.White)
@@ -158,107 +167,22 @@ export struct SkinManagePage {
       .width('100%')
       .padding({ top: 10 })
     }
-    .layoutWeight(1)
+    .width('100%')
     .padding(12)
     .borderRadius(20)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(this.currentUiStyle === 'glass' ? 24 : 0)
-    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+    .backgroundColor(this.theme.bgCardSolid)
     .border({
-      width: style.id === this.currentUiStyle ? 1.5 : 0.5,
-      color: style.id === this.currentUiStyle ? this.theme.primary : this.theme.borderGlass
+      width: def.id === this.currentMaterialId ? 1.5 : 0.5,
+      color: def.id === this.currentMaterialId ? this.theme.primary : this.theme.borderGlass
     })
-    .onClick(() => { this.applyUiStyle(style) })
+    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+    .onClick(() => { this.applyMaterialDef(def) })
   }
 
-  /** 图标包预览卡片（与皮肤卡片同版式） */
+  /** 色板卡片 */
   @Builder
-  iconCard(pack: IconPackDef, idx: number) {
+  skinCard(skin: SkinDef) {
     Column() {
-      // 预览区（模拟图标在卡片中的样子）
-      Column() {
-        Row() {
-          Text('图标预览')
-            .fontSize(11)
-            .fontColor(this.theme.textTertiary)
-          Blank()
-          Text('●')
-            .fontSize(10)
-            .fontColor(this.theme.success)
-        }
-        .width('100%')
-        .padding({ left: 12, right: 12, top: 10, bottom: 6 })
-
-        Row({ space: 10 }) {
-          ForEach(pack.preview, (iconName: string) => {
-            Row() {
-              AppIcon({
-                name: iconName,
-                iconSize: 20,
-                colors: [this.theme.textPrimary],
-                forcePack: pack.id
-              })
-            }
-            .width(36)
-            .height(36)
-            .justifyContent(FlexAlign.Center)
-            .borderRadius(10)
-          }, (iconName: string, i: number): string => `${pack.id}_${i}`)
-        }
-        .width('100%')
-        .padding({ left: 12, right: 12, bottom: 12 })
-      }
-      .width('100%')
-      .borderRadius(16)
-      .backgroundColor(this.theme.bgDark)
-      .border({ width: 0.5, color: this.theme.borderGlass })
-
-      // 名称与描述
-      Row() {
-        Column() {
-          Text(pack.name)
-            .fontSize(14)
-            .fontColor(this.theme.textPrimary)
-            .fontWeight(FontWeight.Medium)
-          Text(pack.desc)
-            .fontSize(10)
-            .fontColor(this.theme.textTertiary)
-            .margin({ top: 2 })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        if (pack.id === this.currentIconPackId) {
-          Row() {
-            Text('使用中')
-              .fontSize(11)
-              .fontColor(Color.White)
-          }
-          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-          .borderRadius(12)
-          .backgroundColor(this.theme.primary)
-        }
-      }
-      .width('100%')
-      .padding({ top: 10 })
-    }
-    .layoutWeight(1)
-    .padding(12)
-    .borderRadius(20)
-    .backgroundColor(this.theme.bgCard)
-    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
-    .border({
-      width: pack.id === this.currentIconPackId ? 1.5 : 0.5,
-      color: pack.id === this.currentIconPackId ? this.theme.primary : this.theme.borderGlass
-    })
-    .onClick(() => { this.applyIconPack(pack) })
-  }
-
-  /** 皮肤预览卡片 */
-  @Builder
-  skinCard(skin: SkinDef, idx: number) {
-    Column() {
-      // 预览区（模拟页面配色）
       Column() {
         Row() {
           Text('A')
@@ -276,14 +200,15 @@ export struct SkinManagePage {
         .width('100%')
         .padding({ left: 12, right: 12, top: 10, bottom: 6 })
 
-        // 模拟卡片
         Row({ space: 6 }) {
           Column()
-            .width(36).height(30)
+            .width(36)
+            .height(30)
             .borderRadius(8)
             .backgroundColor(skin.theme.primary)
           Column()
-            .layoutWeight(1).height(30)
+            .layoutWeight(1)
+            .height(30)
             .borderRadius(8)
             .backgroundColor(skin.theme.bgCardSolid)
         }
@@ -295,7 +220,6 @@ export struct SkinManagePage {
       .backgroundColor(skin.theme.bgDark)
       .border({ width: 0.5, color: skin.theme.borderGlass })
 
-      // 名称与描述
       Row() {
         Column() {
           Text(skin.name)
@@ -310,7 +234,6 @@ export struct SkinManagePage {
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
-        // 选中标记
         if (skin.id === this.currentSkinId) {
           Row() {
             AppIcon({ name: 'checkmark_circle', iconSize: 12, colors: [Color.White] })
@@ -327,18 +250,34 @@ export struct SkinManagePage {
     .layoutWeight(1)
     .padding(12)
     .borderRadius(20)
-    .backgroundColor(this.theme.bgCard)
-    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+    .backgroundColor(this.theme.bgCardSolid)
     .border({
       width: skin.id === this.currentSkinId ? 1.5 : 0.5,
       color: skin.id === this.currentSkinId ? this.theme.primary : this.theme.borderGlass
     })
+    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
     .onClick(() => { this.applySkin(skin) })
+  }
+
+  @Builder
+  sectionTitle(title: string, hint: string) {
+    Row() {
+      Text(title)
+        .fontSize(13)
+        .fontColor(this.theme.textSecondary)
+        .fontWeight(FontWeight.Medium)
+      Text(hint)
+        .fontSize(11)
+        .fontColor(this.theme.textTertiary)
+        .margin({ left: 8 })
+      Blank()
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 10, bottom: 6 })
   }
 
   build() {
     Column() {
-      // 标题栏
       Row() {
         Row() {
           Text('‹')
@@ -349,7 +288,7 @@ export struct SkinManagePage {
         .onClick(() => {
           AppNav.getInstance().back()
         })
-        Text('皮肤管理')
+        Text('主题')
           .fontSize(17)
           .fontColor(this.theme.textPrimary)
           .fontWeight(FontWeight.Bold)
@@ -358,46 +297,25 @@ export struct SkinManagePage {
       .width('100%')
       .padding({ left: 12, right: 16, top: this.topSafeArea + 4, bottom: 8 })
 
-      // 皮肤网格
       Scroll() {
         Column() {
-          // UI 风格（与皮肤正交）
-          Row() {
-            Text('UI 风格')
-              .fontSize(13)
-              .fontColor(this.theme.textSecondary)
-              .fontWeight(FontWeight.Medium)
-            Blank()
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 8, bottom: 6 })
-
-          Row({ space: 12 }) {
-            this.uiStyleCard(UI_STYLES[0], 0)
-            this.uiStyleCard(UI_STYLES[1], 1)
+          this.sectionTitle('材质', '决定界面的形态')
+          Column({ space: 12 }) {
+            this.materialCard(MATERIALS[0])
+            this.materialCard(MATERIALS[1])
           }
           .width('100%')
           .padding({ left: 14, right: 14, bottom: 6 })
 
-          Row() {
-            Text('选择皮肤')
-              .fontSize(13)
-              .fontColor(this.theme.textSecondary)
-              .fontWeight(FontWeight.Medium)
-            Blank()
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 8, bottom: 6 })
-
-          // 皮肤网格：每行 2 张卡片，从上往下排列
+          this.sectionTitle('色板', '决定界面的配色')
           Column() {
             ForEach(SKINS, (skin: SkinDef, idx: number) => {
               Row({ space: 12 }) {
                 if (idx * 2 < SKINS.length) {
-                  this.skinCard(SKINS[idx * 2], idx * 2)
+                  this.skinCard(SKINS[idx * 2])
                 }
                 if (idx * 2 + 1 < SKINS.length) {
-                  this.skinCard(SKINS[idx * 2 + 1], idx * 2 + 1)
+                  this.skinCard(SKINS[idx * 2 + 1])
                 }
               }
               .width('100%')
@@ -407,40 +325,9 @@ export struct SkinManagePage {
           .width('100%')
           .padding({ left: 14, right: 14, top: 4 })
 
-          // 图标风格
-          Row() {
-            Text('选择图标')
-              .fontSize(13)
-              .fontColor(this.theme.textSecondary)
-              .fontWeight(FontWeight.Medium)
-            Blank()
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 10, bottom: 6 })
-
-          Column() {
-            ForEach(ICON_PACKS, (pack: IconPackDef, idx: number) => {
-              Row({ space: 12 }) {
-                if (idx * 2 < ICON_PACKS.length) {
-                  this.iconCard(ICON_PACKS[idx * 2], idx * 2)
-                }
-                if (idx * 2 + 1 < ICON_PACKS.length) {
-                  this.iconCard(ICON_PACKS[idx * 2 + 1], idx * 2 + 1)
-                } else {
-                  // 单数时补占位，避免最后一张卡片被拉满整行
-                  Blank().layoutWeight(1)
-                }
-              }
-              .width('100%')
-              .margin({ bottom: 14 })
-            }, (pack: IconPackDef, idx: number): string => `iconrow_${idx}`)
-          }
-          .width('100%')
-          .padding({ left: 14, right: 14 })
-
           Row() {
             AppIcon({ name: 'lightbulb', iconSize: 13, colors: ['#F59E0B'] })
-            Text(' 切换后立即生效，选择会自动保存')
+            Text(' 材质与色板相互独立，切换后立即生效并自动保存')
               .fontSize(11)
               .fontColor(this.theme.textTertiary)
               .layoutWeight(1)

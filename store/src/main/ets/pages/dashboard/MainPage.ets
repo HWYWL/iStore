@@ -1,5 +1,5 @@
 ﻿import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import { LIGHT_THEME, ThemePalette, cardTint, cardBorder, cardElevation, cardRadius } from '../../common/theme/ThemeColors'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { mediaquery, window } from '@kit.ArkUI'
 import { DashboardTab } from './DashboardTab'
@@ -30,6 +30,13 @@ const BORDER_WIDTH: number = 0.5
 @Component
 struct MainPage {
   @State theme: ThemePalette = LIGHT_THEME
+  // 统一由 AppStorage 驱动：任一页面切主题/材质，本页立即重绘（不再依赖监听器注册）
+  @StorageLink('skinId') @Watch('onThemeStorageChange') skinStorageId: string = 'beige'
+  @StorageLink('uiStyle') @Watch('onThemeStorageChange') uiStyleStorage: string = 'solid'
+
+  onThemeStorageChange(): void {
+    this.theme = AppState.getInstance().getTheme()
+  }
   // ===== 分栏状态 =====
   @State isTwoColumn: boolean = false
   @State isThreeColumn: boolean = false
@@ -174,12 +181,8 @@ struct MainPage {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`
   }
 
-  /** 根背景：薄玻璃用皮肤原始不透明底色承载柔光，避免叠在窗口白底上发灰 */
+  /** 根背景：液态玻璃用多色柔光渐变（玻璃要有东西可折射），实色用皮肤的页面渐变 */
   private rootBgColors(): Array<[ResourceColor, number]> {
-    if (AppState.getInstance().isGlass()) {
-      const base: string = AppState.getInstance().getSkin().theme.bgDark
-      return [[base, 0], [base, 1]]
-    }
     return this.theme.pageGradient
   }
 

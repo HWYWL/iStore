@@ -4,8 +4,14 @@
  * 动画：bob 浮动 / 喂食跳跃+粒子 / 摸头倾斜 / 换装扮
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
-import { SKINS, SkinDef } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint,
+  cardBorder,
+  cardElevation,
+  cardRadius
+} from '../../common/theme/ThemeColors'
 import { PetStore, PetState } from '../../common/store/PetStore'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { LIVE_REFRESH_MS } from '../../common/utils/RefreshRate'
@@ -258,53 +264,34 @@ export struct PetView {
     this.moodText = pickMood(this.moodState(), this.moodText)
   }
 
+  /** 小管家配色跟随当前主题（不再有独立装扮色） */
   petColors(): PetSkinColor {
-    const s: SkinDef | undefined = SKINS.find((k: SkinDef) => k.id === this.pet.skinId)
-    if (!s) return { body: '#FFB37A', edge: '#FF8A3D', faceBg: '#FFF6EC' }
-    const p: string = s.theme.primary
-    return { body: p, edge: p, faceBg: '#FFF6EC' }
+    return { body: this.theme.primary, edge: this.theme.primaryDark, faceBg: this.theme.accentSoft }
   }
 
-  skinName(): string {
-    const s: SkinDef | undefined = SKINS.find((k: SkinDef) => k.id === this.pet.skinId)
-    return s ? s.name : '米色经典'
-  }
-
-  // ========== 毛玻璃材质（与首页仪表盘 cardFill/cardBlur/cardBorder 完全一致） ==========
+  // ========== 卡片材质（统一走 theme.material） ==========
   private cardFill(): Array<[ResourceColor, number]> {
-    if (!AppState.getInstance().isGlass()) {
+    if (this.theme.material.kind !== 'liquid') {
       return [[this.theme.bgCard, 0], [this.theme.bgCard, 1]]
     }
-    return [['rgba(255, 255, 255, 0.52)', 0], ['rgba(255, 255, 255, 0.38)', 0.5],
-      ['rgba(255, 255, 255, 0.28)', 1]]
+    return [[this.theme.material.tintTop, 0], [this.theme.material.tintBottom, 1]]
   }
 
-  private cardBlur(base: number): number {
-    return AppState.getInstance().isGlass() ? base + 26 : base
+  private cardBlur(_base: number): number {
+    return this.theme.material.blur
   }
 
   private cardBorder(): BorderOptions {
-    if (!AppState.getInstance().isGlass()) {
-      return { width: 0.5, color: this.theme.borderGlass }
-    }
-    return {
-      width: { top: 1, right: 0.7, bottom: 0.7, left: 0.7 },
-      color: {
-        top: 'rgba(255, 255, 255, 1)',
-        right: 'rgba(255, 255, 255, 0.66)',
-        bottom: 'rgba(255, 255, 255, 0.44)',
-        left: 'rgba(255, 255, 255, 0.66)'
-      }
-    }
+    return cardBorder(this.theme)
   }
 
   private cardShadow(): ShadowOptions {
-    return { radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetX: 0, offsetY: 4 }
+    return cardElevation(this.theme)
   }
 
   /** 任务子卡填充：玻璃模式更透，与父卡形成层次但不突兀 */
   private questInnerFill(done: boolean): ResourceColor {
-    if (AppState.getInstance().isGlass()) {
+    if (this.theme.material.kind === 'liquid') {
       return done ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.60)'
     }
     return done ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.92)'
@@ -589,20 +576,17 @@ export struct PetView {
 
   // ========== 小管家形象（C · 玻璃心电图 SVG 同款 200×210 画布） ==========
   /** 机身渐变三段色：换装扮 = 深海蓝，经典 = --pc1/2/3 橙，其他皮肤跟随主题色 */
+  /** 机身渐变三段色：装装扮 = 深海蓝，否则跟随当前主题强调色 */
   private bodyGrad(): string[] {
     if (this.pet.dress) {
       return ['#A8C8FF', '#5B86F0', '#3B56C8']
     }
-    if (this.skinName() === '米色经典') {
-      return ['#FFC06B', '#FF9138', '#EA6712']
-    }
-    const c: PetSkinColor = this.petColors()
-    return [c.body, c.body, c.edge]
+    return [this.theme.primary, this.theme.primary, this.theme.primaryDark]
   }
 
-  /** 深海蓝装扮或非经典皮肤时戴上原型同款小蓝帽 */
+  /** 深海蓝装扮时戴上原型同款小蓝帽 */
   private hatOn(): boolean {
-    return this.pet.dress || this.skinName() !== '米色经典'
+    return this.pet.dress
   }
 
   @Builder
@@ -832,11 +816,11 @@ export struct PetView {
     .alignItems(HorizontalAlign.Center)
     .width('100%').height(196)
     .padding({ left: 14, right: 12, top: 12, bottom: 10 })
-    .borderRadius(22)
+    .borderRadius(cardRadius(this.theme))
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(this.cardBlur(20))
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
   }
 
   /** 互动条单个分段（选中态用毛玻璃高亮，不再用深紫实心块） */
@@ -961,11 +945,11 @@ export struct PetView {
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 11, bottom: 11 })
-    .borderRadius(20)
+    .borderRadius(cardRadius(this.theme))
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(this.cardBlur(20))
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
   }
 
   /** 任务卡（未完成圆圈 → 完成紫色对勾）；对象传参，状态变化能刷新 */
@@ -1036,11 +1020,11 @@ export struct PetView {
     }
     .width('100%')
     .padding({ left: 12, right: 12, top: 12, bottom: 10 })
-    .borderRadius(22)
+    .borderRadius(cardRadius(this.theme))
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(this.cardBlur(20))
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
   }
 
   /** 双列任务卡里的单个卡片 */
@@ -1214,7 +1198,7 @@ export struct PetView {
           .linearGradient({ angle: 160, colors: this.cardFill() })
           .backdropBlur(this.cardBlur(22))
           .border(this.cardBorder())
-          .shadow(this.cardShadow())
+          .shadow(cardElevation(this.theme))
 
           // 网络流量曲线
           Column() {
@@ -1265,6 +1249,13 @@ export struct PetPage {
   /** 嵌入分栏时透明背景，与其它栏共用同一块底 */
   @Prop embedded: boolean = false
   @State theme: ThemePalette = AppState.getInstance().getTheme()
+  // 统一由 AppStorage 驱动：任一页面切主题/材质，本页立即重绘（不再依赖监听器注册）
+  @StorageLink('skinId') @Watch('onThemeStorageChange') skinStorageId: string = 'beige'
+  @StorageLink('uiStyle') @Watch('onThemeStorageChange') uiStyleStorage: string = 'solid'
+
+  onThemeStorageChange(): void {
+    this.theme = AppState.getInstance().getTheme()
+  }
 
   build() {
     Column() {

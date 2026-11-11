@@ -31,7 +31,6 @@ export interface PetState {
   full: number         // 饱食度 0-100
   energy: number       // 能量 0-100
   mood: number         // 心情 0-100
-  skinId: string       // 当前装扮（对应 ThemeColors SKINS id）
   dress: boolean       // 深海蓝装扮开关（持久化）
   lastDay: string      // 上次更新日期（每日递减用）
 }
@@ -79,7 +78,7 @@ export class PetStore {
   private defaultState(): PetState {
     return {
       level: 1, xp: 0, full: 80, energy: 50, mood: 85,
-      skinId: 'beige', dress: false, lastDay: this.today()
+      dress: false, lastDay: this.today()
     }
   }
 
@@ -142,14 +141,6 @@ export class PetStore {
     const s: PetState = this.getState()
     s.mood = Math.min(100, s.mood + 10)
     this.addXp(s, 3)
-    this.saveState(s)
-    return s
-  }
-
-  /** 换装扮 */
-  setSkin(skinId: string): PetState {
-    const s: PetState = this.getState()
-    s.skinId = skinId
     this.saveState(s)
     return s
   }

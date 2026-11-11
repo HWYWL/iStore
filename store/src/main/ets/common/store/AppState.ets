@@ -17,8 +17,7 @@ import { ApiService } from '../../api/ApiService'
 import { ConnectionConfig } from '../../models/Models'
 import { DeviceStore, SavedDevice } from './DeviceStore'
 import { SshService } from '../ssh/SshService'
-import { LIGHT_THEME, ThemePalette, SKINS, SkinDef, getSkinById, toGlassTheme } from '../theme/ThemeColors'
-import { DEFAULT_ICON_PACK, getIconPackById, IconPackDef } from '../theme/IconPack'
+import { LIGHT_THEME, ThemePalette, SKINS, SkinDef, MaterialKind, getSkinById, applyMaterial } from '../theme/ThemeColors'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 
 const TAG = 'AppState'
@@ -41,8 +40,8 @@ export class AppState {
   // ========== 内部状态 ==========
   private connected: boolean = false   // 当前是否已连接
   private lastError: string = ''       // 最后一次错误信息
-  // UI 风格：classic（经典实色）/ glass（原生薄玻璃），默认薄玻璃
-  private currentUiStyle: string = 'glass'
+  // 材质：solid（实色，默认）/ liquid（液态玻璃）
+  private currentUiStyle: MaterialKind = 'solid'
 
   // ========== 持久化依赖 ==========
   private settingsPrefs: preferences.Preferences | null = null  // 应用设置存储
@@ -77,31 +76,24 @@ export class AppState {
     try {
       this.settingsPrefs = await preferences.getPreferences(context, PREFS_NAME)
       // 恢复上次皮肤
-      const savedSkin: string = this.settingsPrefs.getSync('skinId', 'white') as string
+      const savedSkin: string = this.settingsPrefs.getSync('skinId', 'beige') as string
       if (savedSkin && getSkinById(savedSkin).id === savedSkin) {
         this.currentSkinId = savedSkin
       }
-      // 恢复上次图标包（已下线的拟物 / 玻璃彩绘 / 线性符号统一回落默认包）
-      const savedIconPack: string = this.settingsPrefs.getSync('iconPackId', DEFAULT_ICON_PACK) as string
-      const validPack: boolean = savedIconPack === 'hos' || savedIconPack === 'color' ||
-        savedIconPack === 'line' || savedIconPack === 'harmony' || savedIconPack === 'ios'
-      if (validPack) {
-        this.currentIconPackId = savedIconPack
-      }
-      // 恢复上次 UI 风格（首次安装默认薄玻璃）
-      const savedUiStyle: string = this.settingsPrefs.getSync('uiStyle', 'glass') as string
-      if (savedUiStyle === 'classic' || savedUiStyle === 'glass') {
-        this.currentUiStyle = savedUiStyle
+      // 恢复上次材质；旧版本存的是 classic / glass，一并迁移
+      const savedUiStyle: string = this.settingsPrefs.getSync('uiStyle', 'solid') as string
+      if (savedUiStyle === 'liquid' || savedUiStyle === 'glass') {
+        this.currentUiStyle = 'liquid'
+      } else if (savedUiStyle === 'solid' || savedUiStyle === 'classic') {
+        this.currentUiStyle = 'solid'
       }
     } catch (e) {
       hilog.error(DOMAIN, TAG, `Settings pref init failed: ${JSON.stringify(e)}`)
     }
 
-    // 图标包同步到 AppStorage，AppIcon 组件通过 @StorageLink 订阅
-    AppStorage.setOrCreate('iconPackId', this.currentIconPackId)
-    // 皮肤 id 同步到 AppStorage，AppIcon 据此判断是否使用暗色图标素材
+    // 皮肤 id 同步到 AppStorage，AppIcon 据此判断是否使用暗色图标素材，
+    // 页面用 @StorageLink 订阅它 + uiStyle 即可在切主题时即时重绘
     AppStorage.setOrCreate('skinId', this.currentSkinId)
-    // UI 风格同步到 AppStorage，供组件按需加强模糊
     AppStorage.setOrCreate('uiStyle', this.currentUiStyle)
 
     // 从持久化存储加载设备列表
@@ -283,8 +275,8 @@ export class AppState {
 
   // ========== 主题管理 ==========
 
-  /** 当前皮肤 id（持久化，默认 white 纯净白） */
-  private currentSkinId: string = 'white'
+  /** 当前皮肤 id（持久化，默认米色经典 = LIGHT_THEME） */
+  private currentSkinId: string = 'beige'
 
   /**
    * 获取当前皮肤定义
@@ -294,26 +286,31 @@ export class AppState {
   }
 
   /**
-   * 获取当前主题调色板（跟随当前皮肤）
+   * 获取当前主题（色板 × 材质）
    */
   getTheme(): ThemePalette {
     const base: ThemePalette = this.getSkin().theme
-    return this.currentUiStyle === 'glass' ? toGlassTheme(base) : base
+    return applyMaterial(base, this.currentUiStyle)
   }
 
-  /** 当前 UI 风格 id：classic / glass */
+  /** 当前材质 id：solid / liquid */
   getUiStyle(): string {
     return this.currentUiStyle
   }
 
-  /** 是否为薄玻璃风格 */
-  isGlass(): boolean {
-    return this.currentUiStyle === 'glass'
+  /** 当前材质类型 */
+  getMaterialKind(): MaterialKind {
+    return this.currentUiStyle
   }
 
-  /** 切换 UI 风格（与皮肤独立），持久化并通知全应用刷新 */
+  /** 是否为液态玻璃材质 */
+  isGlass(): boolean {
+    return this.currentUiStyle === 'liquid'
+  }
+
+  /** 切换材质（与色板独立），持久化并通知全应用刷新 */
   setUiStyle(id: string): void {
-    const next: string = id === 'glass' ? 'glass' : 'classic'
+    const next: MaterialKind = id === 'liquid' ? 'liquid' : 'solid'
     if (next === this.currentUiStyle) {
       return
     }
@@ -352,32 +349,6 @@ export class AppState {
     for (const l of this.themeListeners) {
       try { l() } catch (_e) {}
     }
-  }
-
-  // ========== 图标包管理 ==========
-
-  /** 当前图标包 id（持久化，默认彩色实心） */
-  private currentIconPackId: string = DEFAULT_ICON_PACK
-
-  /** 获取当前图标包定义 */
-  getIconPack(): IconPackDef {
-    return getIconPackById(this.currentIconPackId)
-  }
-
-  /** 切换图标包并持久化；通过 AppStorage 驱动所有 AppIcon 即时刷新 */
-  setIconPack(id: string): void {
-    const pack: IconPackDef = getIconPackById(id)
-    if (pack.id === this.currentIconPackId) return
-    this.currentIconPackId = pack.id
-    try {
-      if (this.settingsPrefs) {
-        this.settingsPrefs.putSync('iconPackId', pack.id)
-        this.settingsPrefs.flush()
-      }
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, `save iconPackId err: ${JSON.stringify(e)}`)
-    }
-    AppStorage.setOrCreate('iconPackId', pack.id)
   }
 
   // ========== 主题变更监听 ==========

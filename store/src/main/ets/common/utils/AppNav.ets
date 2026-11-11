@@ -36,7 +36,7 @@ const PAGE_TITLES: Record<string, string> = {
   'pages/apps/SchedulePage': '定时任务',
   'pages/apps/NotifySettingsPage': '通知设置',
   'pages/apps/WidgetSettingsPage': '小组件设置',
-  'pages/apps/SkinManagePage': '皮肤管理',
+  'pages/apps/SkinManagePage': '主题',
   'pages/apps/TrafficBillPage': '流量账单',
   'pages/apps/DeviceActivityPage': '设备活跃',
   'pages/apps/DeviceManagePage': '设备管理',

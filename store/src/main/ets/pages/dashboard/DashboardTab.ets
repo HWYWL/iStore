@@ -1,5 +1,5 @@
 import { AppState } from '../../common/store/AppState'
-import {ThemePalette} from '../../common/theme/ThemeColors'
+import { ThemePalette, cardTint, cardBorder, cardElevation, cardRadius } from '../../common/theme/ThemeColors'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
@@ -656,35 +656,33 @@ export struct DashboardTab {
     return this.theme.pageGradient
   }
 
-  /** 卡片填充：经典=皮肤实色卡；薄玻璃=顶部更亮、底部更透的白色玻璃渐变 */
+  /** 卡片填充：材质决定（实色=bgCard，液态玻璃=材质 tint 渐变） */
   private cardFill(): Array<[ResourceColor, number]> {
-    if (!AppState.getInstance().isGlass()) {
+    if (this.theme.material.kind !== 'liquid') {
       return [[this.theme.bgCard, 0], [this.theme.bgCard, 1]]
     }
-    // 玻璃：上半部偏亮、下半部略透，和背景形成明确层次
-    return [['rgba(255, 255, 255, 0.52)', 0], ['rgba(255, 255, 255, 0.38)', 0.5],
-      ['rgba(255, 255, 255, 0.28)', 1]]
+    return [[this.theme.material.tintTop, 0], [this.theme.material.tintBottom, 1]]
   }
 
-  /** 卡片模糊：玻璃模式加强，背景色块才会融合成材质 */
-  private cardBlur(base: number): number {
-    return AppState.getInstance().isGlass() ? base + 26 : base
+  /** 卡片实时模糊半径（材质决定，实色为 0） */
+  private cardBlur(_base: number): number {
+    return this.theme.material.blur
   }
 
-  /** 卡片描边：薄玻璃时顶部高光、底部渐隐，营造玻璃厚度感 */
+  /** 卡片描边：玻璃时顶部高光、底部渐隐，营造玻璃厚度感 */
   private cardBorder(): BorderOptions {
-    if (!AppState.getInstance().isGlass()) {
-      return { width: 0.5, color: this.theme.borderGlass }
-    }
-    return {
-      width: { top: 1, right: 0.7, bottom: 0.7, left: 0.7 },
-      color: {
-        top: 'rgba(255, 255, 255, 1)',
-        right: 'rgba(255, 255, 255, 0.66)',
-        bottom: 'rgba(255, 255, 255, 0.44)',
-        left: 'rgba(255, 255, 255, 0.66)'
+    if (this.theme.material.kind === 'liquid') {
+      return {
+        width: { top: 1, right: 0.7, bottom: 0.7, left: 0.7 },
+        color: {
+          top: this.theme.material.innerGlow,
+          right: this.theme.material.borderColor,
+          bottom: this.theme.material.bottomGlow,
+          left: this.theme.material.borderColor
+        }
       }
     }
+    return { width: 0.5, color: this.theme.borderGlass }
   }
 
   /** 版本文本：版本号（如有修订号则附带展示），缺省显示 -- */
@@ -1593,8 +1591,8 @@ export struct DashboardTab {
     .width('48%')
     .padding(16)
     .borderRadius(20)
-    .backgroundColor(this.cardBg())
-    .shadow(this.cardShadow())
+    .backgroundColor(cardTint(this.theme))
+    .shadow(cardElevation(this.theme))
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -1889,7 +1887,7 @@ export struct DashboardTab {
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(28)
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
     .alignItems(HorizontalAlign.Start)
     .margin({ top: 10 })
   }
@@ -1998,11 +1996,11 @@ export struct DashboardTab {
     }
     .width('100%')
     .padding(13)
-    .borderRadius(21)
+    .borderRadius(cardRadius(this.theme))
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -2046,11 +2044,11 @@ export struct DashboardTab {
     }
     .width('48%')
     .padding(13)
-    .borderRadius(21)
+    .borderRadius(cardRadius(this.theme))
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -2167,11 +2165,11 @@ export struct DashboardTab {
     }
     .width('48%')
     .padding(13)
-    .borderRadius(21)
+    .borderRadius(cardRadius(this.theme))
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -2193,11 +2191,11 @@ export struct DashboardTab {
     }
     .width('100%')
     .padding(13)
-    .borderRadius(21)
+    .borderRadius(cardRadius(this.theme))
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
     .margin({ top: 10 })
     .alignItems(HorizontalAlign.Start)
   }
@@ -2292,11 +2290,11 @@ export struct DashboardTab {
     }
     .width('100%')
     .padding(10)
-    .borderRadius(21)
+    .borderRadius(cardRadius(this.theme))
     .linearGradient({ angle: 160, colors: this.cardFill() })
     .backdropBlur(this.cardBlur(22))
     .border(this.cardBorder())
-    .shadow(this.cardShadow())
+    .shadow(cardElevation(this.theme))
     .alignItems(HorizontalAlign.Start)
   }
 
