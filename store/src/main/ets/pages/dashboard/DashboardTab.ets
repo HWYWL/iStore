@@ -1,5 +1,11 @@
 import { AppState } from '../../common/store/AppState'
-import { ThemePalette, cardTint, cardBorder, cardElevation, cardRadius } from '../../common/theme/ThemeColors'
+import {
+  ThemePalette,
+  cardTint,
+  cardBorder,
+  cardElevation,
+  cardRadius
+} from '../../common/theme/ThemeColors'
 import { SystemInfo, WanStatus, ConnectedDevice, NetworkInterface, MountPoint, ConntrackInfo, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
@@ -1885,7 +1891,7 @@ export struct DashboardTab {
     .padding({ left: 17, right: 17, top: 15, bottom: 13 })
     .borderRadius(26)
     .linearGradient({ angle: 160, colors: this.cardFill() })
-    .backdropBlur(28)
+    .backdropBlur(this.theme.material.blur)
     .border(this.cardBorder())
     .shadow(cardElevation(this.theme))
     .alignItems(HorizontalAlign.Start)
@@ -1903,7 +1909,7 @@ export struct DashboardTab {
       .height(46)
       .borderRadius(15)
       .justifyContent(FlexAlign.Center)
-      .border({ width: 0.5, color: this.theme.borderGlass })
+      .border(cardBorder(this.theme))
       Text(name)
         .fontSize(10.5)
         .fontColor(this.theme.textSecondary)

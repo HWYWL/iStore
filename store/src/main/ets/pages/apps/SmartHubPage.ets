@@ -4,7 +4,11 @@
  * 动画：曲线 stagger 生长 / 峰值环 sweep / 扫描光 / 状态灯脉冲 / 星空闪烁 / 时间线滑入 / 健康环滚动
  */
 import { AppState } from '../../common/store/AppState'
-import { ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { SmartGuardStore, HourSample, NightEvent, DaySummary } from '../../common/store/SmartGuardStore'
 import { ApiClient } from '../../api/ApiClient'
 import { AiHelper } from '../../common/ai/AiHelper'
@@ -473,8 +477,8 @@ export struct SmartHubPage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .shadow({ radius: 8, color: 'rgba(180,160,120,0.14)', offsetY: 3 })
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
@@ -598,7 +602,7 @@ export struct SmartHubPage {
       .width('100%')
       .padding(16)
       .borderRadius(20)
-      .backgroundColor(this.theme.bgCard)
+      .backgroundColor(cardTint(this.theme))
       .shadow({ radius: 14, color: 'rgba(180,160,120,0.14)', offsetY: 6 })
 
       // 24h 趋势曲线（stagger 生长动画）
@@ -641,7 +645,7 @@ export struct SmartHubPage {
         .width('100%')
         .padding(16)
         .borderRadius(20)
-        .backgroundColor(this.theme.bgCard)
+        .backgroundColor(cardTint(this.theme))
         .shadow({ radius: 14, color: 'rgba(180,160,120,0.14)', offsetY: 6 })
         .margin({ top: 12 })
         .onAppear(() => {
@@ -655,7 +659,7 @@ export struct SmartHubPage {
         .width('100%')
         .padding(30)
         .borderRadius(20)
-        .backgroundColor(this.theme.bgCard)
+        .backgroundColor(cardTint(this.theme))
         .margin({ top: 12 })
         .alignItems(HorizontalAlign.Center)
       }
@@ -687,7 +691,7 @@ export struct SmartHubPage {
       .width('100%')
       .padding(14)
       .borderRadius(18)
-      .backgroundColor(this.theme.bgCard)
+      .backgroundColor(cardTint(this.theme))
       .shadow({ radius: 12, color: 'rgba(180,160,120,0.14)', offsetY: 4 })
 
       if (this.detectItems.length === 0) {
@@ -723,7 +727,7 @@ export struct SmartHubPage {
           .width('100%')
           .padding(14)
           .borderRadius(16)
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .shadow({ radius: 10, color: 'rgba(180,160,120,0.10)', offsetY: 3 })
           .margin({ top: 10 })
           .opacity(1)
@@ -810,7 +814,7 @@ export struct SmartHubPage {
           .width('100%')
           .padding(14)
           .borderRadius(16)
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .shadow({ radius: 10, color: 'rgba(180,160,120,0.10)', offsetY: 3 })
           .margin({ top: 10 })
           .opacity(this.starPhase ? 1 : 0.3)
@@ -869,7 +873,7 @@ export struct SmartHubPage {
       .width('100%')
       .padding(16)
       .borderRadius(20)
-      .backgroundColor(this.theme.bgCard)
+      .backgroundColor(cardTint(this.theme))
       .shadow({ radius: 14, color: 'rgba(180,160,120,0.14)', offsetY: 6 })
 
       if (this.cmdResult) {
@@ -880,7 +884,7 @@ export struct SmartHubPage {
         .width('100%')
         .padding(16)
         .borderRadius(16)
-        .backgroundColor(this.theme.bgCard)
+        .backgroundColor(cardTint(this.theme))
         .shadow({ radius: 10, color: 'rgba(180,160,120,0.10)', offsetY: 3 })
         .margin({ top: 12 })
         .transition(TransitionEffect.opacity(0.1).combine(TransitionEffect.translate({ y: 10 })))
@@ -941,7 +945,7 @@ export struct SmartHubPage {
       .width('100%')
       .padding(16)
       .borderRadius(20)
-      .backgroundColor(this.theme.bgCard)
+      .backgroundColor(cardTint(this.theme))
       .shadow({ radius: 14, color: 'rgba(180,160,120,0.14)', offsetY: 6 })
 
       if (this.days.length > 0) {
@@ -972,7 +976,7 @@ export struct SmartHubPage {
         .width('100%')
         .padding(16)
         .borderRadius(20)
-        .backgroundColor(this.theme.bgCard)
+        .backgroundColor(cardTint(this.theme))
         .shadow({ radius: 14, color: 'rgba(180,160,120,0.14)', offsetY: 6 })
         .margin({ top: 12 })
         .onAppear(() => {

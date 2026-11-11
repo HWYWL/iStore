@@ -3,7 +3,12 @@
  * SSH 连接，浏览/查看/编辑/新建/重命名/删除/复制/移动/上传/下载
  */
 import { AppState } from '../../common/store/AppState'
-import { ThemePalette, LIGHT_THEME } from '../../common/theme/ThemeColors'
+import {
+  ThemePalette,
+  LIGHT_THEME,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { FileManagerService, FsEntry } from '../../common/fs/FileManagerService'
 import { SshService } from '../../common/ssh/SshService'
 import { promptAction } from '@kit.ArkUI'
@@ -687,8 +692,8 @@ export struct FileManagerPage {
                 .width('100%')
                 .padding({ left: 14, right: 14, top: 10, bottom: 10 })
                 .borderRadius(14)
-                .backgroundColor(this.theme.bgCard)
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .backgroundColor(cardTint(this.theme))
+                .border(cardBorder(this.theme))
                 .margin({ top: 6 })
                 .onClick(() => { this.onTapEntry(entry) })
                 .gesture(
@@ -765,13 +770,13 @@ export struct FileManagerPage {
         })
           .placeholderColor(this.theme.textTertiary)
           .fontColor(this.theme.textPrimary)
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .margin({ top: 14 })
           .onChange((v: string) => { this.newName = v })
         Row({ space: 12 }) {
           Text('取消').fontSize(14).fontColor(this.theme.textSecondary)
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
-            .borderRadius(14).backgroundColor(this.theme.bgCard)
+            .borderRadius(14).backgroundColor(cardTint(this.theme))
             .onClick(() => { this.showSheet = false })
           Text('确定').fontSize(14).fontColor('#FFFFFF')
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
@@ -801,7 +806,7 @@ export struct FileManagerPage {
         Row({ space: 12 }) {
           Text('取消').fontSize(14).fontColor(this.theme.textSecondary)
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
-            .borderRadius(14).backgroundColor(this.theme.bgCard)
+            .borderRadius(14).backgroundColor(cardTint(this.theme))
             .onClick(() => { this.showDeleteConfirm = false })
           Text('确认删除').fontSize(14).fontColor('#FFFFFF')
             .padding({ left: 24, right: 24, top: 8, bottom: 8 })
@@ -857,7 +862,7 @@ export struct FileManagerPage {
           TextArea({ text: this.viewerContent })
             .fontSize(13).fontColor(this.theme.textPrimary)
             .fontFamily('monospace')
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
             .layoutWeight(1)
             .margin({ left: 12, right: 12 })
             .onChange((v: string) => {
@@ -922,7 +927,7 @@ export struct FileManagerPage {
         .margin({ top: 10 })
         .padding(10)
         .borderRadius(12)
-        .backgroundColor(this.theme.bgCard)
+        .backgroundColor(cardTint(this.theme))
         .align(Alignment.TopStart)
         .scrollable(ScrollDirection.Vertical)
         if (this.installing) {

@@ -3,7 +3,13 @@
  * 展示近 7 天 / 30 天每日下载/上传流量柱状图与汇总
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint,
+  listCardBlur
+} from '../../common/theme/ThemeColors'
 import { TrafficStatStore, DayTraffic, HourTraffic } from '../../common/store/TrafficStatStore'
 import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
@@ -220,8 +226,8 @@ export struct TrafficReportPage {
         }
         .padding({ left: 12, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => {
           AppNav.getInstance().back()
         })
@@ -371,9 +377,9 @@ export struct TrafficReportPage {
             .padding({ left: 14, right: 14, top: 6, bottom: 12 })
           }
           .width('100%')
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(listCardBlur(this.theme))
+          .border(cardBorder(this.theme))
           .borderRadius(16)
           .clip(true)
 
@@ -416,9 +422,9 @@ export struct TrafficReportPage {
             .padding({ left: 8, right: 8, bottom: 8 })
           }
           .width('100%')
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(listCardBlur(this.theme))
+          .border(cardBorder(this.theme))
           .borderRadius(16)
           .clip(true)
 
@@ -446,9 +452,9 @@ export struct TrafficReportPage {
             }, (day: DayTraffic, idx: number): string => `${this.range}_d_${day.date}_${idx}`)
           }
           .width('100%')
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(listCardBlur(this.theme))
+          .border(cardBorder(this.theme))
           .borderRadius(16)
           .clip(true)
 

@@ -1,5 +1,9 @@
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder
+} from '../../common/theme/ThemeColors'
 import { ConnectedDevice } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
@@ -149,7 +153,7 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
           .onClick(() => AppNav.getInstance().back())
 
           Blank()
@@ -241,7 +245,7 @@ this.theme = AppState.getInstance().getTheme()
                   bottom: idx < this.items.length - 1 ? 0 : 0
                 })
                 .backgroundColor('transparent')
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .border(cardBorder(this.theme))
               })
 
               if (this.items.length === 0) {

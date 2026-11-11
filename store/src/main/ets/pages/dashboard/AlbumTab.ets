@@ -1,5 +1,9 @@
 import { AppState } from '../../common/store/AppState'
-import {ThemePalette} from '../../common/theme/ThemeColors'
+import {
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { ImmichStore, ImmichConfig } from '../../common/store/ImmichStore'
 import { ImmichClient, ImmichAlbum, ImmichServerInfo, ImmichAsset } from '../../api/ImmichClient'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -1289,8 +1293,8 @@ this.theme = AppState.getInstance().getTheme()
     .height(52)
     .padding({ left: 8, right: 8 })
     .borderRadius(12)
-    .backgroundColor(this.theme.bgCard)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .border(cardBorder(this.theme))
     .margin({ left: 12, right: 12, top: 2, bottom: 0 })
   }
 
@@ -1325,8 +1329,8 @@ this.theme = AppState.getInstance().getTheme()
         .width('100%')
         .padding(14)
         .borderRadius(16)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .margin({ bottom: 10 })
 
         // 检测本机 Immich
@@ -1378,8 +1382,8 @@ this.theme = AppState.getInstance().getTheme()
         .width('100%')
         .padding(14)
         .borderRadius(16)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .margin({ bottom: 14 })
 
         Text('如何获取 API Key：登录 Immich 网页 → 账号设置 → API 密钥 → 新建API密钥 → 全选权限 → 创建即可')

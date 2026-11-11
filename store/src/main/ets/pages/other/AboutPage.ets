@@ -1,4 +1,9 @@
-﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
@@ -160,9 +165,9 @@ export struct AboutPage {
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .onClick(() => {
             try {
               AppNav.getInstance().back()
@@ -197,9 +202,9 @@ export struct AboutPage {
             .padding({ top: 20, bottom: 20 })
             .borderRadius(14)
             .margin({ top: 4 })
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
+            .border(cardBorder(this.theme))
             .alignItems(HorizontalAlign.Center)
 
             Column() {
@@ -257,9 +262,9 @@ export struct AboutPage {
             .padding(14)
             .borderRadius(14)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
+            .border(cardBorder(this.theme))
 
             Column() {
               Text('作者信息')
@@ -300,9 +305,9 @@ export struct AboutPage {
             .padding(14)
             .borderRadius(14)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
+            .border(cardBorder(this.theme))
 
             Column() {
               Text('项目地址')
@@ -338,9 +343,9 @@ export struct AboutPage {
             .padding(14)
             .borderRadius(14)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
+            .border(cardBorder(this.theme))
 
             Column() {
               Text('鸣谢')
@@ -357,9 +362,9 @@ export struct AboutPage {
             .padding(14)
             .borderRadius(14)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
+            .border(cardBorder(this.theme))
 
             Text('© 2026 iStore 一叶秋枫')
               .fontSize(11)

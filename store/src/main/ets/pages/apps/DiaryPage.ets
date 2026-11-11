@@ -4,7 +4,11 @@
  * 数据源：DiaryStore（事件）+ TrafficStatStore（流量）+ fetchConnectedDevices（在线）
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { DiaryStore, DayDiary, DiaryEvent } from '../../common/store/DiaryStore'
 import { TrafficStatStore } from '../../common/store/TrafficStatStore'
 import { ApiService } from '../../api/ApiService'
@@ -189,7 +193,7 @@ export struct DiaryPage {
         Text('‹‹')
           .fontSize(15).fontColor(this.theme.textSecondary).fontWeight(FontWeight.Bold)
           .width(34).height(34).borderRadius(11)
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .textAlign(TextAlign.Center)
           .shadow({ radius: 8, color: 'rgba(180,160,120,0.15)', offsetY: 3 })
           .margin({ right: 8 })
@@ -197,19 +201,19 @@ export struct DiaryPage {
         Text('‹')
           .fontSize(18).fontColor(this.theme.textSecondary).fontWeight(FontWeight.Bold)
           .width(34).height(34).borderRadius(11)
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .textAlign(TextAlign.Center)
           .shadow({ radius: 8, color: 'rgba(180,160,120,0.15)', offsetY: 3 })
           .onClick(() => { this.loadDay(this.dayOffset + 1) })
         Text(this.dateLabel)
           .fontSize(12).fontWeight(FontWeight.Bold).fontColor(this.theme.textSecondary)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .borderRadius(10).backgroundColor(this.theme.bgCard)
+          .borderRadius(10).backgroundColor(cardTint(this.theme))
           .margin({ left: 8, right: 8 })
         Text('›')
           .fontSize(18).fontColor(this.theme.textSecondary).fontWeight(FontWeight.Bold)
           .width(34).height(34).borderRadius(11)
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .textAlign(TextAlign.Center)
           .shadow({ radius: 8, color: 'rgba(180,160,120,0.15)', offsetY: 3 })
           .enabled(this.dayOffset > 0)
@@ -313,7 +317,7 @@ export struct DiaryPage {
                 .layoutWeight(1)
                 .padding(12)
                 .borderRadius(14)
-                .backgroundColor(this.theme.bgCard)
+                .backgroundColor(cardTint(this.theme))
                 .shadow({ radius: 10, color: 'rgba(180,160,120,0.12)', offsetY: 3 })
                 .margin({ bottom: 10 })
               }
@@ -360,7 +364,7 @@ export struct DiaryPage {
     .layoutWeight(1)
     .padding({ top: 10, bottom: 10 })
     .borderRadius(14)
-    .backgroundColor(this.theme.bgCard)
+    .backgroundColor(cardTint(this.theme))
     .shadow({ radius: 10, color: 'rgba(180,160,120,0.12)', offsetY: 3 })
     .margin({ right: 8 })
   }

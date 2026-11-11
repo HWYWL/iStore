@@ -7,7 +7,12 @@ import { window } from '@kit.ArkUI'
 import { promptAction } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { WidgetDataStore } from '../../common/store/WidgetDataStore'
 import { AppNav } from '../../common/utils/AppNav'
 
@@ -164,8 +169,8 @@ export struct WidgetSettingsPage {
         }
         .padding({ left: 12, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => {
           AppNav.getInstance().back()
         })
@@ -185,9 +190,9 @@ export struct WidgetSettingsPage {
               this.metricRow(opt)
             }, (opt: MetricOption) => opt.key)
           }
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .borderRadius(14)
           .clip(true)
 

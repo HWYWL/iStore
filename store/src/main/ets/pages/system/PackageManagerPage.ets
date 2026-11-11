@@ -7,7 +7,11 @@ import { window, promptAction } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 
 const DOMAIN = 0x0001
@@ -328,7 +332,7 @@ export struct PackageManagerPage {
             }
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           // 安装输入
           Row({ space: 8 }) {
@@ -401,7 +405,7 @@ export struct PackageManagerPage {
                 .onClick(() => { this.removePkg(p) })
               }
               .width('100%').padding(12).borderRadius(14).margin({ top: 8 })
-              .backgroundColor(this.theme.bgCard)
+              .backgroundColor(cardTint(this.theme))
             }, (p: PkgItem): string => p.name)
           }
         }

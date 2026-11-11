@@ -4,7 +4,12 @@
  * 逐项展示状态（优秀/正常/警告/不可达）+ 延迟 + 丢包，并给出总评分
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { NetworkCheckItem } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { FunStore } from '../../common/store/FunStore'
@@ -243,8 +248,8 @@ export struct NetworkCheckPage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
         if (this.checked) {
@@ -269,7 +274,7 @@ export struct NetworkCheckPage {
                 .fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 4 })
             }
             .width('100%').padding(20).borderRadius(20).margin({ top: 8 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
           } else {
             Column() {
               Image($r('app.media.app_health'))
@@ -281,7 +286,7 @@ export struct NetworkCheckPage {
                 .fontSize(11).fontColor(this.theme.textTertiary).margin({ top: 4 })
             }
             .width('100%').padding(24).borderRadius(20).margin({ top: 8 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
           }
 
           if (this.errorText) {
@@ -356,7 +361,7 @@ export struct NetworkCheckPage {
               .padding({ left: 14, right: 14, top: 12, bottom: 12 })
               .borderRadius(16)
               .margin({ top: 10 })
-              .backgroundColor(this.theme.bgCard)
+              .backgroundColor(cardTint(this.theme))
               .border({
                 width: item.status === 'running' ? 1.2 : 0,
                 color: item.status === 'running' ? this.theme.primary : '#00000000'

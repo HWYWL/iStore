@@ -1,5 +1,9 @@
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder
+} from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { LoadingWhimsy } from '../../common/components/LoadingWhimsy'
 import { AppNav } from '../../common/utils/AppNav'
@@ -173,7 +177,7 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
           .onClick(() => AppNav.getInstance().back())
 
           Blank()
@@ -264,7 +268,7 @@ this.theme = AppState.getInstance().getTheme()
                         .padding({ left: 14, right: 14, top: 8, bottom: 8 })
                         .borderRadius(10)
                         .backgroundColor(port.up ? 'rgba(255,255,255,0.04)' : 'rgba(117,117,117,0.04)')
-                        .border({ width: 0.5, color: this.theme.borderGlass })
+                        .border(cardBorder(this.theme))
                       }
                     }.width('100%')
                   }
@@ -275,7 +279,7 @@ this.theme = AppState.getInstance().getTheme()
                   bottom: idx < this.ports.length - 1 ? 6 : 0
                 })
                 .backgroundColor(port.up ? this.theme.bgCard : 'rgba(117,117,117,0.04)')
-                .backdropBlur(20)
+                .backdropBlur(this.theme.material.blur)
                 .border({
                   width: port.up ? 0.5 : 0,
                   color: port.up ? this.theme.borderGlass : Color.Transparent

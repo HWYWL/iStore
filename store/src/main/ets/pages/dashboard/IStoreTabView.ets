@@ -1,5 +1,9 @@
 ﻿import { AppState } from '../../common/store/AppState'
-import {ThemePalette} from '../../common/theme/ThemeColors'
+import {
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { IStoreApp } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -164,9 +168,9 @@ export struct IStoreTabView {
     .width('100%')
     .padding(12)
     .borderRadius(16)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(this.theme.material.blur)
+    .border(cardBorder(this.theme))
     .onClick(() => this.openApp(app))
   }
 
@@ -236,7 +240,7 @@ export struct IStoreTabView {
         .padding({ top: 12, bottom: 12 })
         .borderRadius(14)
         .backgroundColor(this.theme.bgGlassLight)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .border(cardBorder(this.theme))
         .margin({ top: 18 })
         .onClick(() => this.openStoreInstalled())
       }

@@ -1,4 +1,11 @@
-import { LIGHT_THEME, ThemePalette, cardTint, cardBorder, cardElevation, cardRadius } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint,
+  cardBorder,
+  cardElevation,
+  cardRadius
+} from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { getAppVersionText } from '../../common/utils/AppVersion'
@@ -1213,7 +1220,7 @@ export struct AppsPage {
     .borderRadius(14)
     .backgroundColor(cardTint(this.theme))
     .backdropBlur(this.theme.material.blur)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .border(cardBorder(this.theme))
     .alignItems(HorizontalAlign.Center)
     .opacity(this.itemSlides.length > slideIdx && this.itemSlides[slideIdx] === 0 ? 1 : 0)
     .translate({ x: this.itemSlides.length > slideIdx ? this.itemSlides[slideIdx] : 300 })
@@ -1235,7 +1242,7 @@ export struct AppsPage {
       .borderRadius(11)
       .justifyContent(FlexAlign.Center)
       .backgroundColor('#FFFFFF')
-      .border({ width: 0.5, color: this.theme.borderGlass })
+      .border(cardBorder(this.theme))
     } else {
       Row() {
         AppIcon({ name: tool.icon, iconSize: 18, colors: ['#FFFFFF'], forcePack: 'line' })
@@ -1341,7 +1348,7 @@ export struct AppsPage {
         }
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
         .borderRadius(7)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .border(cardBorder(this.theme))
         .margin({ right: 6, bottom: 6 })
 
         Row() {
@@ -1352,7 +1359,7 @@ export struct AppsPage {
         }
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
         .borderRadius(7)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .border(cardBorder(this.theme))
         .margin({ right: 6, bottom: 6 })
 
         Row() {
@@ -1363,7 +1370,7 @@ export struct AppsPage {
         }
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
         .borderRadius(7)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .border(cardBorder(this.theme))
         .margin({ right: 6, bottom: 6 })
 
         Row() {
@@ -1374,7 +1381,7 @@ export struct AppsPage {
         }
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
         .borderRadius(7)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .border(cardBorder(this.theme))
         .margin({ right: 6, bottom: 6 })
       }
       .width('100%')
@@ -1385,7 +1392,7 @@ export struct AppsPage {
     .borderRadius(24)
     .backgroundColor(cardTint(this.theme))
     .backdropBlur(this.theme.material.blur)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .border(cardBorder(this.theme))
     .onClick(() => {
       this.switchDevice()
     })
@@ -1439,7 +1446,7 @@ export struct AppsPage {
     .borderRadius(19)
     .backgroundColor(cardTint(this.theme))
     .backdropBlur(this.theme.material.blur)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .border(cardBorder(this.theme))
     .opacity(this.itemSlides.length > slideIdx && this.itemSlides[slideIdx] === 0 ? 1 : 0)
     .translate({ x: this.itemSlides.length > slideIdx ? this.itemSlides[slideIdx] : 300 })
     .onClick(() => this.handleClick(tool))
@@ -1625,7 +1632,7 @@ export struct AppsPage {
         .padding({ left: 7, right: 8, top: 4, bottom: 4 })
         .borderRadius(100)
         .backgroundColor(this.theme.bgGlassLight)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .border(cardBorder(this.theme))
         .margin({ right: 6, top: 4 })
         .onClick(() => this.openPage(p.route))
       }, (p: PageEntry): string => `rc_${p.route}`)
@@ -1675,7 +1682,7 @@ export struct AppsPage {
     .padding({ left: 12, right: 8 })
     .borderRadius(12)
     .backgroundColor(cardTint(this.theme))
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .border(cardBorder(this.theme))
   }
 
   /** 嵌入分栏 + 薄玻璃时透明，让 MainPage 的统一背景透出 */
@@ -1704,7 +1711,7 @@ export struct AppsPage {
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
           .onClick(() => {
             try { AppNav.getInstance().back() }
             catch (e) { hilog.error(0x0001, 'AppsPage', `router.back failed: ${e}`) }

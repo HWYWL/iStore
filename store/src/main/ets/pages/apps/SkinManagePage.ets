@@ -11,7 +11,8 @@ import {
   SkinDef,
   MATERIALS,
   MaterialDef,
-  applyMaterial
+  applyMaterial,
+  cardElevation
 } from '../../common/theme/ThemeColors'
 import { window } from '@kit.ArkUI'
 import { vibrator } from '@kit.SensorServiceKit'
@@ -175,7 +176,7 @@ export struct SkinManagePage {
       width: def.id === this.currentMaterialId ? 1.5 : 0.5,
       color: def.id === this.currentMaterialId ? this.theme.primary : this.theme.borderGlass
     })
-    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+    .shadow(cardElevation(this.theme))
     .onClick(() => { this.applyMaterialDef(def) })
   }
 
@@ -255,7 +256,7 @@ export struct SkinManagePage {
       width: skin.id === this.currentSkinId ? 1.5 : 0.5,
       color: skin.id === this.currentSkinId ? this.theme.primary : this.theme.borderGlass
     })
-    .shadow({ radius: this.theme.cardShadowRadius, color: this.theme.cardShadow, offsetY: 4 })
+    .shadow(cardElevation(this.theme))
     .onClick(() => { this.applySkin(skin) })
   }
 

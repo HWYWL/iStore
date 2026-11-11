@@ -1,5 +1,10 @@
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { OafStatus, AppFilterBase, AppClass, AppItem, AppFilterTime, AppFilterUser, TimeSlot } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -189,9 +194,9 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .onClick(() => AppNav.getInstance().back())
         }
         .width('100%')
@@ -237,7 +242,7 @@ this.theme = AppState.getInstance().getTheme()
               }
               .width('100%').padding(16).borderRadius(14).margin({ top: 8, left: 16, right: 16 })
               .backgroundColor('transparent')
-              .border({ width: 0.5, color: this.theme.borderGlass })
+              .border(cardBorder(this.theme))
 
               // ======== 基础配置卡片 ========
               Column() {
@@ -252,7 +257,7 @@ this.theme = AppState.getInstance().getTheme()
                     .padding({ left: 14, right: 14, top: 5, bottom: 5 })
                     .borderRadius(12)
                     .backgroundColor(this.theme.bgGlassLight)
-                    .border({ width: 0.5, color: this.theme.borderGlass })
+                    .border(cardBorder(this.theme))
                     .onClick(() => {
                       if (!this.isSaving) this.saveBase()
                     })
@@ -266,7 +271,7 @@ this.theme = AppState.getInstance().getTheme()
               }
               .width('100%').padding(16).borderRadius(14).margin({ top: 10, left: 16, right: 16 })
               .backgroundColor('transparent')
-              .border({ width: 0.5, color: this.theme.borderGlass })
+              .border(cardBorder(this.theme))
 
               // ======== 应用分类管控 ========
               Column() {
@@ -283,7 +288,7 @@ this.theme = AppState.getInstance().getTheme()
                     .padding({ left: 14, right: 14, top: 5, bottom: 5 })
                     .borderRadius(12)
                     .backgroundColor(this.theme.bgGlassLight)
-                    .border({ width: 0.5, color: this.theme.borderGlass })
+                    .border(cardBorder(this.theme))
                     .onClick(() => {
                       if (!this.isSaving) this.saveApps()
                     })
@@ -335,7 +340,7 @@ this.theme = AppState.getInstance().getTheme()
                     .width('100%')
                     .padding({ left: 12, right: 12 })
                     .borderRadius(10)
-                    .border({ width: 0.5, color: this.theme.borderGlass })
+                    .border(cardBorder(this.theme))
                     .margin({ bottom: idx < this.appClasses.length - 1 ? 8 : 0 })
                   })
                 }
@@ -352,7 +357,7 @@ this.theme = AppState.getInstance().getTheme()
               }
               .width('100%').padding(16).borderRadius(14).margin({ top: 10, left: 16, right: 16 })
               .backgroundColor('transparent')
-              .border({ width: 0.5, color: this.theme.borderGlass })
+              .border(cardBorder(this.theme))
 
               // ======== 时间段配置 ========
               if (this.appTime) {
@@ -390,7 +395,7 @@ this.theme = AppState.getInstance().getTheme()
                 }
                 .width('100%').padding(16).borderRadius(14).margin({ top: 10, left: 16, right: 16 })
                 .backgroundColor('transparent')
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .border(cardBorder(this.theme))
               }
 
               // ======== 管控用户 ========
@@ -406,7 +411,7 @@ this.theme = AppState.getInstance().getTheme()
                 }
                 .width('100%').padding(16).borderRadius(14).margin({ top: 10, left: 16, right: 16 })
                 .backgroundColor('transparent')
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .border(cardBorder(this.theme))
               }
 
               // 底部留白

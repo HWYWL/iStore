@@ -1,4 +1,10 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint,
+  listCardBlur
+} from '../../common/theme/ThemeColors'
 /**
  * 客户端设备详情页面
  * 展示单个设备的应用使用统计（访问时长、访问记录）
@@ -345,9 +351,9 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(listCardBlur(this.theme))
+          .border(cardBorder(this.theme))
           .onClick(() => {
             try {
               AppNav.getInstance().back()
@@ -425,7 +431,7 @@ this.theme = AppState.getInstance().getTheme()
         .height(44)
         .padding({ left: 16, right: 16 })
         .borderRadius(12)
-        .backgroundColor(this.theme.bgCard)
+        .backgroundColor(cardTint(this.theme))
         .margin({ left: 16, right: 16, bottom: 8 })
 
         Scroll() {
@@ -480,8 +486,8 @@ this.theme = AppState.getInstance().getTheme()
         .padding(16)
         .borderRadius(14)
         .margin({ top: 8 })
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
       } else {
         if (this.dhcpDevice) {
           this.DhcpInfoSection()
@@ -507,8 +513,8 @@ this.theme = AppState.getInstance().getTheme()
           .padding(16)
           .borderRadius(14)
           .margin({ top: 8 })
-          .backgroundColor(this.theme.bgCard)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .border(cardBorder(this.theme))
         }
       }
     }
@@ -545,9 +551,9 @@ this.theme = AppState.getInstance().getTheme()
     .padding(14)
     .borderRadius(14)
     .margin({ top: 8 })
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(listCardBlur(this.theme))
+    .border(cardBorder(this.theme))
   }
 
   @Builder
@@ -724,9 +730,9 @@ this.theme = AppState.getInstance().getTheme()
     .padding(14)
     .borderRadius(14)
     .margin({ top: 8 })
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(listCardBlur(this.theme))
+    .border(cardBorder(this.theme))
   }
 
   @Builder
@@ -761,9 +767,9 @@ this.theme = AppState.getInstance().getTheme()
     .padding(14)
     .borderRadius(14)
     .margin({ top: 8 })
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(listCardBlur(this.theme))
+    .border(cardBorder(this.theme))
   }
 
   getSignalColor(signal: number): string {
@@ -806,8 +812,8 @@ this.theme = AppState.getInstance().getTheme()
         .padding(16)
         .borderRadius(14)
         .margin({ top: 8 })
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
       } else {
         Column() {
           Row() {
@@ -828,9 +834,9 @@ this.theme = AppState.getInstance().getTheme()
         .padding(14)
         .borderRadius(14)
         .margin({ top: 8 })
-        .backgroundColor(this.theme.bgCard)
-        .backdropBlur(20)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .backdropBlur(listCardBlur(this.theme))
+        .border(cardBorder(this.theme))
       }
     }
     .width('100%')
@@ -916,8 +922,8 @@ this.theme = AppState.getInstance().getTheme()
         .padding(16)
         .borderRadius(14)
         .margin({ top: 8 })
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
       } else {
         Column() {
           Row() {
@@ -978,9 +984,9 @@ this.theme = AppState.getInstance().getTheme()
         .padding(14)
         .borderRadius(14)
         .margin({ top: 8 })
-        .backgroundColor(this.theme.bgCard)
-        .backdropBlur(20)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .backdropBlur(listCardBlur(this.theme))
+        .border(cardBorder(this.theme))
       }
     }
     .width('100%')

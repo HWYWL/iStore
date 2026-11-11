@@ -1,4 +1,9 @@
-﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 /**
  * 恢复出厂设置页面
  * 调用路由器 API 执行恢复出厂设置，操作前需二次确认
@@ -105,9 +110,9 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .onClick(() => {
             try {
               AppNav.getInstance().back()
@@ -144,8 +149,8 @@ this.theme = AppState.getInstance().getTheme()
             .width('100%')
             .padding(16)
             .borderRadius(14)
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
             .border({ width: 1, color: this.theme.danger })
             .margin({ bottom: 24 })
 
@@ -183,9 +188,9 @@ this.theme = AppState.getInstance().getTheme()
               .width('100%')
               .padding(14)
               .borderRadius(14)
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
+              .backgroundColor(cardTint(this.theme))
+              .backdropBlur(this.theme.material.blur)
+              .border(cardBorder(this.theme))
             }
             .width('100%')
             .margin({ bottom: 24 })
@@ -308,7 +313,7 @@ export struct FactoryResetConfirmDialog {
         Button('取消')
           .fontSize(14)
           .fontColor(this.theme.textPrimary)
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .borderRadius(10)
           .layoutWeight(1)
           .margin({ right: 8 })

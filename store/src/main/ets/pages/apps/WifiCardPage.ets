@@ -3,7 +3,12 @@
  * SSID 自动获取 + 密码手输 → 生成扫码连接卡片，可截图分享给访客
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { WifiApInfo } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -79,8 +84,8 @@ export struct WifiCardPage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
@@ -123,7 +128,7 @@ export struct WifiCardPage {
             }
           }
           .width('100%').padding(22).borderRadius(24).margin({ top: 8 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .alignItems(HorizontalAlign.Center)
 
           // 选网络
@@ -160,7 +165,7 @@ export struct WifiCardPage {
               })
           }
           .width('100%').padding(16).borderRadius(18).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           Row() {
             AppIcon({ name: 'lightbulb', iconSize: 13, colors: ['#F59E0B'] })

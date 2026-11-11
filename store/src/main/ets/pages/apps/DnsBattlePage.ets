@@ -3,7 +3,12 @@
  * 对多个公共 DNS 依次 ping 测延迟，出排行榜 + 推荐
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
@@ -127,8 +132,8 @@ export struct DnsBattlePage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
@@ -171,7 +176,7 @@ export struct DnsBattlePage {
             .padding({ left: 14, right: 14, top: 12, bottom: 12 })
             .borderRadius(16)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
           }, (row: DnsRow): string => row.name)
 
           if (this.recommend) {
@@ -187,7 +192,7 @@ export struct DnsBattlePage {
             .width('100%').padding(14).borderRadius(14)
             .border({ width: 0.5, color: 'rgba(255,138,61,0.4)' })
             .margin({ top: 14 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
             .alignItems(HorizontalAlign.Start)
           }
 

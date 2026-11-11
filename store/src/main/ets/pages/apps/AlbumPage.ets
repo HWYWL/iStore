@@ -3,7 +3,11 @@
  * 复用 AlbumTab 组件（Immich 相册），顶部标题栏由 AlbumTab 内部提供
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder
+} from '../../common/theme/ThemeColors'
 import { AlbumTab } from '../dashboard/AlbumTab'
 import { AppNav } from '../../common/utils/AppNav'
 import { window } from '@kit.ArkUI'
@@ -49,7 +53,7 @@ export struct AlbumPage {
           .fontColor(this.theme.textPrimary)
           .padding({ left: 10, right: 14, top: 5, bottom: 5 })
           .borderRadius(100)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
           .onClick(() => AppNav.getInstance().back())
         Blank()
       }

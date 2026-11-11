@@ -3,7 +3,12 @@
  * wget 下载已知大小测试文件计时测速，按档位给出「击败全国 xx%」排位
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { SshService } from '../../common/ssh/SshService'
 import { http } from '@kit.NetworkKit'
@@ -264,8 +269,8 @@ export struct SpeedTestPage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
@@ -324,7 +329,7 @@ export struct SpeedTestPage {
                 .fontSize(11).fontColor(this.theme.textTertiary).margin({ top: 4 })
             }
             .width('100%').padding(30).borderRadius(24).margin({ top: 8 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
             .alignItems(HorizontalAlign.Center)
           }
 

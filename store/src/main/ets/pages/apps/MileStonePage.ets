@@ -3,7 +3,12 @@
  * 展示路由器连续运行天数、App 使用天数，里程碑达成撒花庆祝
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -163,8 +168,8 @@ export struct MileStonePage {
           }
           .padding({ left: 4, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .border(cardBorder(this.theme))
           .onClick(() => { AppNav.getInstance().back() })
           Blank()
         }
@@ -184,7 +189,7 @@ export struct MileStonePage {
                 .fontSize(11).fontColor(this.theme.textTertiary).margin({ top: 6 })
             }
             .width('100%').padding(28).borderRadius(24).margin({ top: 8 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
             .alignItems(HorizontalAlign.Center)
 
             // 里程碑进度条
@@ -219,7 +224,7 @@ export struct MileStonePage {
               .width('100%').margin({ top: 10 })
             }
             .width('100%').padding(18).borderRadius(20).margin({ top: 14 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
 
             // App 使用卡
             Row() {
@@ -244,7 +249,7 @@ export struct MileStonePage {
               .layoutWeight(1).alignItems(HorizontalAlign.Center)
             }
             .width('100%').padding(20).borderRadius(20).margin({ top: 14 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
 
             // 新里程碑达成横幅
             if (this.celebrate) {

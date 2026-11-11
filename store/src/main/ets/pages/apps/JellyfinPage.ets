@@ -6,7 +6,10 @@
  *  - 剧集: Sx:Ex - 名称
  */
 import { AppState } from '../../common/store/AppState'
-import { ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  ThemePalette,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { JellyfinStore, JellyfinConfig } from '../../common/store/JellyfinStore'
 import { JellyfinClient, JellyfinItem, JellyfinView } from '../../api/JellyfinClient'
 import { common } from '@kit.AbilityKit'
@@ -260,18 +263,18 @@ export struct JellyfinPage {
             Column() {
               TextInput({ placeholder: '服务器地址（如 http://192.168.1.1:8096）', text: this.baseUrlInput })
                 .fontSize(13).height(46).borderRadius(12)
-                .backgroundColor(this.theme.bgCard).placeholderColor(this.theme.textTertiary)
+                .backgroundColor(cardTint(this.theme)).placeholderColor(this.theme.textTertiary)
                 .fontColor(this.theme.textPrimary)
                 .onChange((v: string) => { this.baseUrlInput = v })
               TextInput({ placeholder: '用户名', text: this.usernameInput })
                 .fontSize(13).height(46).borderRadius(12)
-                .backgroundColor(this.theme.bgCard).placeholderColor(this.theme.textTertiary)
+                .backgroundColor(cardTint(this.theme)).placeholderColor(this.theme.textTertiary)
                 .fontColor(this.theme.textPrimary)
                 .onChange((v: string) => { this.usernameInput = v })
                 .margin({ top: 10 })
               TextInput({ placeholder: '密码', text: this.passwordInput })
                 .fontSize(13).height(46).borderRadius(12)
-                .backgroundColor(this.theme.bgCard).placeholderColor(this.theme.textTertiary)
+                .backgroundColor(cardTint(this.theme)).placeholderColor(this.theme.textTertiary)
                 .fontColor(this.theme.textPrimary)
                 .type(InputType.Password)
                 .onChange((v: string) => { this.passwordInput = v })
@@ -292,7 +295,7 @@ export struct JellyfinPage {
             .width('100%')
             .padding(16)
             .borderRadius(20)
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
             .shadow({ radius: 12, color: 'rgba(180,160,120,0.14)', offsetY: 4 })
             .margin({ top: 30 })
           }

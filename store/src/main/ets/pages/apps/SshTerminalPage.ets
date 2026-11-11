@@ -4,7 +4,12 @@
  * 终端风格：深色底 + 等宽字体 + 快捷命令
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { SavedDevice } from '../../common/store/DeviceStore'
 import { window } from '@kit.ArkUI'
@@ -261,8 +266,8 @@ this.theme = AppState.getInstance().getTheme()
         }
         .padding({ left: 12, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => {
           AppNav.getInstance().back()
         })

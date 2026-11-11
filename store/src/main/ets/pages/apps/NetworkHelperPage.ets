@@ -3,7 +3,12 @@
  * 本地规则引擎：快捷提问 + 自由输入，实时拉取路由器数据回答
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { AiHelper, ChatMsg } from '../../common/ai/AiHelper'
 import { window } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
@@ -125,9 +130,9 @@ export struct NetworkHelperPage {
         .alignItems(HorizontalAlign.Start)
         .padding(12)
         .borderRadius(14)
-        .backgroundColor(this.theme.bgCard)
-        .backdropBlur(20)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .backdropBlur(this.theme.material.blur)
+        .border(cardBorder(this.theme))
         .constraintSize({ maxWidth: '85%' })
       }
     }
@@ -214,7 +219,7 @@ export struct NetworkHelperPage {
         TextInput({ placeholder: '问问网络问题…', text: this.inputText })
           .placeholderColor(this.theme.textTertiary)
           .fontColor(this.theme.textPrimary)
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .height(42)
           .borderRadius(21)
           .layoutWeight(1)

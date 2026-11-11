@@ -5,7 +5,12 @@
  * 注意：@Builder 参数不能为函数类型，用 tag 分发处理各行的回调
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { ScheduleStore, ScheduleTask } from '../../common/store/ScheduleStore'
 import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -332,8 +337,8 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .border(cardBorder(this.theme))
           .onClick(() => {
             AppNav.getInstance().back()
           })
@@ -372,9 +377,9 @@ this.theme = AppState.getInstance().getTheme()
               }
             }
             .width('100%')
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
+            .border(cardBorder(this.theme))
             .borderRadius(16)
             .clip(true)
 
@@ -402,9 +407,9 @@ this.theme = AppState.getInstance().getTheme()
             }
             .width('100%')
             .margin({ top: 12 })
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
+            .border(cardBorder(this.theme))
             .borderRadius(16)
             .clip(true)
 
@@ -454,9 +459,9 @@ this.theme = AppState.getInstance().getTheme()
               .padding(14)
             }
             .width('100%')
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
+            .border(cardBorder(this.theme))
             .borderRadius(16)
             .clip(true)
 

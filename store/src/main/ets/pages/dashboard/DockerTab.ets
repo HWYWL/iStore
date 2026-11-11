@@ -1,5 +1,10 @@
 import { AppState } from '../../common/store/AppState'
-import {ThemePalette} from '../../common/theme/ThemeColors'
+import {
+  ThemePalette,
+  cardBorder,
+  cardTint,
+  listCardBlur
+} from '../../common/theme/ThemeColors'
 import { DockerOverview, DockerContainer, DockerStats, DockerImage, DockerNetwork } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -387,8 +392,8 @@ export struct DockerTab {
             .alignItems(HorizontalAlign.Center).layoutWeight(1)
           }
           .width('100%').padding(20).borderRadius(24).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard).backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme)).backdropBlur(listCardBlur(this.theme))
+          .border(cardBorder(this.theme))
 
           if (this.overview.daemonStatus !== 'running') {
             Row() {
@@ -410,8 +415,8 @@ export struct DockerTab {
               }
             }
             .width('100%').padding(18).borderRadius(20).margin({ top: 12 })
-            .backgroundColor(this.theme.bgCard).backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme)).backdropBlur(listCardBlur(this.theme))
+            .border(cardBorder(this.theme))
           } else {
             // ========== Docker API 开启引导（未开启时显示） ==========
             if (!this.apiAvailable) {
@@ -459,8 +464,8 @@ export struct DockerTab {
                 }
               }
               .width('100%').padding(16).borderRadius(20).margin({ top: 12 })
-              .backgroundColor(this.theme.bgCard).backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
+              .backgroundColor(cardTint(this.theme)).backdropBlur(listCardBlur(this.theme))
+              .border(cardBorder(this.theme))
             }
 
             // ========== 容器 / 镜像 / 网络 切换 ==========
@@ -596,8 +601,8 @@ export struct DockerTab {
                   .width('100%').margin({ top: 10 })
                 }
                 .width('100%').padding(16).borderRadius(20).margin({ top: 10 })
-                .backgroundColor(this.theme.bgCard).backdropBlur(20)
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .backgroundColor(cardTint(this.theme)).backdropBlur(listCardBlur(this.theme))
+                .border(cardBorder(this.theme))
               }, (c: DockerContainer): string => c.id)
               } else {
                 Text('暂无容器')
@@ -653,8 +658,8 @@ export struct DockerTab {
                     .width('100%')
                   }
                   .width('100%').padding(16).borderRadius(20).margin({ top: 10 })
-                  .backgroundColor(this.theme.bgCard).backdropBlur(20)
-                  .border({ width: 0.5, color: this.theme.borderGlass })
+                  .backgroundColor(cardTint(this.theme)).backdropBlur(listCardBlur(this.theme))
+                  .border(cardBorder(this.theme))
                 }, (img: DockerImage): string => img.id)
               } else {
                 Column() {
@@ -713,8 +718,8 @@ export struct DockerTab {
                     .width('100%')
                   }
                   .width('100%').padding(16).borderRadius(20).margin({ top: 10 })
-                  .backgroundColor(this.theme.bgCard).backdropBlur(20)
-                  .border({ width: 0.5, color: this.theme.borderGlass })
+                  .backgroundColor(cardTint(this.theme)).backdropBlur(listCardBlur(this.theme))
+                  .border(cardBorder(this.theme))
                 }, (nw: DockerNetwork): string => nw.id)
               } else {
                 Column() {

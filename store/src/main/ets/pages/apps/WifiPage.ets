@@ -1,5 +1,11 @@
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint,
+  listCardBlur
+} from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { WifiApInfo, WifiClientDetail } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -390,9 +396,9 @@ this.theme = AppState.getInstance().getTheme()
     .padding(16)
     .borderRadius(14)
     .margin({ top: 10, left: 16, right: 16 })
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(listCardBlur(this.theme))
+    .border(cardBorder(this.theme))
   }
 
   @Builder
@@ -458,8 +464,8 @@ this.theme = AppState.getInstance().getTheme()
               .height(44)
           }
           .width('100%').height(44).borderRadius(20)
-          .backgroundColor('transparent').backdropBlur(10)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor('transparent').backdropBlur(this.theme.material.blurControl)
+          .border(cardBorder(this.theme))
           .padding({ left: 12, right: 12 })
           .margin({ bottom: 10 })
 
@@ -472,8 +478,8 @@ this.theme = AppState.getInstance().getTheme()
               .height(44)
           }
           .width('100%').height(44).borderRadius(20)
-          .backgroundColor('transparent').backdropBlur(10)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor('transparent').backdropBlur(this.theme.material.blurControl)
+          .border(cardBorder(this.theme))
           .padding({ left: 12, right: 12 })
           .margin({ bottom: 10 })
 
@@ -530,9 +536,9 @@ this.theme = AppState.getInstance().getTheme()
     .padding(16)
     .borderRadius(14)
     .margin({ top: 10, left: 16, right: 16 })
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(listCardBlur(this.theme))
+    .border(cardBorder(this.theme))
   }
 
   build() {
@@ -553,7 +559,7 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
           .onClick(() => AppNav.getInstance().back())
 
           Blank()
@@ -697,7 +703,7 @@ this.theme = AppState.getInstance().getTheme()
           .padding(18)
           .borderRadius(18)
           .backgroundColor(this.theme.bgCardSolid)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
         }
         .width('100%').height('100%')
         .justifyContent(FlexAlign.Center)
@@ -727,7 +733,7 @@ this.theme = AppState.getInstance().getTheme()
           }
           .width('82%').padding(18).borderRadius(18)
           .backgroundColor(this.theme.bgCardSolid)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
         }
         .width('100%').height('100%')
         .justifyContent(FlexAlign.Center)

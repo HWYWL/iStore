@@ -7,7 +7,12 @@ import { notificationManager } from '@kit.NotificationKit'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { NotifyStore, NotifyRecord } from '../../common/store/NotifyStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
@@ -146,9 +151,9 @@ this.theme = AppState.getInstance().getTheme()
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(this.theme.material.blur)
+    .border(cardBorder(this.theme))
     .borderRadius(14)
   }
 
@@ -207,8 +212,8 @@ this.theme = AppState.getInstance().getTheme()
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .backgroundColor(this.theme.bgCard)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .border(cardBorder(this.theme))
     .borderRadius(14)
   }
 
@@ -283,8 +288,8 @@ this.theme = AppState.getInstance().getTheme()
         }
         .padding({ left: 12, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => {
           AppNav.getInstance().back()
         })
@@ -343,9 +348,9 @@ this.theme = AppState.getInstance().getTheme()
               this.aiHealthAlert, 3)
           }
           .margin({ top: 8 })
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .borderRadius(14)
           .clip(true)
 
@@ -362,9 +367,9 @@ this.theme = AppState.getInstance().getTheme()
             }
           }
           .margin({ top: 8 })
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .borderRadius(14)
           .clip(true)
 
@@ -378,9 +383,9 @@ this.theme = AppState.getInstance().getTheme()
             this.stepperRow('CPU 告警', 'CPU 占用超过该百分比提醒', 4, 5)
           }
           .margin({ top: 8 })
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .borderRadius(14)
           .clip(true)
 
@@ -431,9 +436,9 @@ this.theme = AppState.getInstance().getTheme()
             }
           }
           .margin({ top: 8 })
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .borderRadius(14)
           .clip(true)
 
@@ -484,9 +489,9 @@ this.theme = AppState.getInstance().getTheme()
             .padding(14)
           }
           .width('100%')
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .borderRadius(14)
           .clip(true)
 

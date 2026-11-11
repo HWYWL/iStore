@@ -12,7 +12,11 @@ import { picker } from '@kit.CoreFileKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { FileManagerService } from '../../common/fs/FileManagerService'
 import { AppIcon } from '../../common/components/AppIcon'
@@ -209,7 +213,7 @@ export struct ConfigBackupPage {
             .width('100%')
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           // 备份卡
           Column() {
@@ -258,7 +262,7 @@ export struct ConfigBackupPage {
             .onClick(() => { this.doBackup() })
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           // 恢复卡
           Column() {
@@ -284,7 +288,7 @@ export struct ConfigBackupPage {
             .onClick(() => { this.doRestore() })
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           if (this.statusMsg) {
             Text(this.statusMsg)

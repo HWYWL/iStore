@@ -3,7 +3,12 @@
  * 每秒 ping 一次公网目标，Canvas 实时绘制延迟波形（正常绿波/卡顿红尖峰）
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
@@ -158,8 +163,8 @@ export struct NetEcgPage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
@@ -183,7 +188,7 @@ export struct NetEcgPage {
               .fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 6 })
           }
           .width('100%').padding(16).borderRadius(18).margin({ top: 8 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .alignItems(HorizontalAlign.Center)
 
           // 波形图
@@ -207,7 +212,7 @@ export struct NetEcgPage {
               .fontSize(9).fontColor(this.theme.textTertiary).width('100%').margin({ top: 6 })
           }
           .width('100%').padding(16).borderRadius(18).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .alignItems(HorizontalAlign.Start)
 
           Row() {

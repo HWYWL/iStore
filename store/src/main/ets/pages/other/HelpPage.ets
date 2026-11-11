@@ -1,4 +1,9 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 /**
  * 帮助页面
  * FAQ 常见问题解答，支持展开/折叠查看
@@ -65,9 +70,9 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .onClick(() => {
             try {
               AppNav.getInstance().back()
@@ -111,9 +116,9 @@ this.theme = AppState.getInstance().getTheme()
               .padding(14)
               .borderRadius(14)
               .margin({ top: index === 0 ? 4 : 10 })
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
+              .backgroundColor(cardTint(this.theme))
+              .backdropBlur(this.theme.material.blur)
+              .border(cardBorder(this.theme))
               .onClick(() => {
                 const newStates: boolean[] = [...this.expandedStates]
                 newStates[index] = !newStates[index]

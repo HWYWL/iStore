@@ -624,3 +624,11 @@ export function cardRadius(p: ThemePalette): number {
   return p.material.radiusCard
 }
 
+/**
+ * 列表行/密集卡片的模糊半径：叠几十层页级模糊会掎帧，
+ * 玻璃材质下降到控件级（blurControl），实色材质仍为 0。
+ */
+export function listCardBlur(p: ThemePalette): number {
+  return p.material.kind === 'liquid' ? p.material.blurControl : 0
+}
+

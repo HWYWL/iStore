@@ -6,7 +6,11 @@
  * - 宽屏：作为页面挂到右侧面板（AppNav / PageHost）
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder
+} from '../../common/theme/ThemeColors'
 import { AppNav } from '../../common/utils/AppNav'
 import { DockerTab } from '../dashboard/DockerTab'
 
@@ -50,7 +54,7 @@ export struct DockerPage {
             .fontColor(this.theme.textPrimary)
             .padding({ left: 12, right: 16, top: 6, bottom: 6 })
             .borderRadius(100)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .border(cardBorder(this.theme))
             .onClick(() => AppNav.getInstance().back())
           Blank()
         }

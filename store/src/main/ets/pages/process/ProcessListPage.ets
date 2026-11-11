@@ -1,4 +1,10 @@
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint,
+  listCardBlur
+} from '../../common/theme/ThemeColors'
 /**
  * 系统进程列表页面
  * 展示路由器运行中的进程，支持点击展开查看详情
@@ -87,9 +93,9 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(listCardBlur(this.theme))
+          .border(cardBorder(this.theme))
           .onClick(() => {
             try {
               AppNav.getInstance().back()
@@ -133,8 +139,8 @@ this.theme = AppState.getInstance().getTheme()
                 }
                 .padding({ left: 18, right: 18, top: 8, bottom: 8 })
                 .borderRadius(100)
-                .backgroundColor(this.theme.bgCard)
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .backgroundColor(cardTint(this.theme))
+                .border(cardBorder(this.theme))
                 .onClick(() => {
                   this.loadData()
                 })

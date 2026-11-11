@@ -7,7 +7,11 @@ import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { TrafficStatStore, DayTraffic, HourTraffic } from '../../common/store/TrafficStatStore'
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
@@ -285,7 +289,7 @@ export struct TrafficBillPage {
               .width('100%')
             }
             .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
 
             // 峰值日
             if (this.peakTotal > 0) {
@@ -302,7 +306,7 @@ export struct TrafficBillPage {
                 .width('100%')
               }
               .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-              .backgroundColor(this.theme.bgCard)
+              .backgroundColor(cardTint(this.theme))
             }
 
             // 近 7 天趋势
@@ -333,7 +337,7 @@ export struct TrafficBillPage {
               .alignItems(VerticalAlign.Bottom)
             }
             .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
 
             // 设备排行
             Column() {
@@ -368,7 +372,7 @@ export struct TrafficBillPage {
               }
             }
             .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
           }
         }
         .width('100%').padding({ left: 16, right: 16, bottom: 30 })

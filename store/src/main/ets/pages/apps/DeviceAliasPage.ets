@@ -3,7 +3,12 @@
  * 根据设备厂商 / 类型 / 信号 / 速率生成趣味「社交外号」，图标统一为系统符号 + 同色系底座
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -334,8 +339,8 @@ export struct DeviceAliasPage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
         Text(`${this.rows.length} 台`)
@@ -387,8 +392,8 @@ export struct DeviceAliasPage {
             .padding({ left: 14, right: 14, top: 12, bottom: 12 })
             .borderRadius(18)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .border(cardBorder(this.theme))
           }, (row: AliasRow): string => row.name)
 
           if (this.rows.length === 0 && !this.loading) {

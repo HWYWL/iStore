@@ -1,4 +1,9 @@
-﻿import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+﻿import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 /**
  * 重启设备页面
  * 调用路由器 API 执行系统重启，提供 60 秒倒计时
@@ -104,9 +109,9 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .onClick(() => {
             try {
               AppNav.getInstance().back()
@@ -143,8 +148,8 @@ this.theme = AppState.getInstance().getTheme()
             .width('100%')
             .padding(16)
             .borderRadius(14)
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(this.theme.material.blur)
             .border({ width: 1, color: this.theme.danger })
             .margin({ bottom: 24 })
 
@@ -163,9 +168,9 @@ this.theme = AppState.getInstance().getTheme()
               .width('100%')
               .padding(14)
               .borderRadius(14)
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
+              .backgroundColor(cardTint(this.theme))
+              .backdropBlur(this.theme.material.blur)
+              .border(cardBorder(this.theme))
             }
             .width('100%')
             .margin({ bottom: 24 })

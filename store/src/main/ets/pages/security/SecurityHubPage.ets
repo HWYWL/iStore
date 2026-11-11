@@ -3,7 +3,12 @@
  * R1 安全评分（0-100 三档）+ R2 一键体检（5 项）+ R4 一键处置（隔离/信任）+ R6 历史
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { SecurityHubEngine, SecurityItem, SecurityResult, SecurityHistory } from '../../common/security/SecurityHubEngine'
 import { SshService } from '../../common/ssh/SshService'
 import { promptAction } from '@kit.ArkUI'
@@ -187,9 +192,9 @@ export struct SecurityHubPage {
           .width('100%')
           .padding(20)
           .borderRadius(20)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .margin({ top: 8 })
 
           // R2：体检项列表
@@ -225,8 +230,8 @@ export struct SecurityHubPage {
                 .padding(14)
                 .borderRadius(14)
                 .margin({ top: 8 })
-                .backgroundColor(this.theme.bgCard)
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .backgroundColor(cardTint(this.theme))
+                .border(cardBorder(this.theme))
               }, (item: SecurityItem) => `${item.key}_${item.level}`)
             }
             .width('100%')

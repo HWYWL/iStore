@@ -7,7 +7,11 @@ import { window, promptAction } from '@kit.ArkUI'
 import { AppNav } from '../../common/utils/AppNav'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { SshService } from '../../common/ssh/SshService'
 import { AppIcon } from '../../common/components/AppIcon'
 
@@ -161,7 +165,7 @@ export struct NetworkRestartPage {
               .fontSize(11).fontColor(this.theme.textTertiary).margin({ top: 6 }).textAlign(TextAlign.Center)
           }
           .width('100%').padding({ top: 30, bottom: 28 }).borderRadius(24).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
           .alignItems(HorizontalAlign.Center)
 
           // 说明卡
@@ -176,7 +180,7 @@ export struct NetworkRestartPage {
               .width('100%')
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           // 执行按钮
           Row() {

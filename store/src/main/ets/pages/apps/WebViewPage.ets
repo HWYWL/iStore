@@ -4,7 +4,12 @@ import { webview } from '@kit.ArkWeb'
  * 通过 WebView 加载路由器的 Web 管理界面
  * 支持自动登录（注入用户名密码到登录表单）
  */
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
 import { SavedDevice } from '../../common/store/DeviceStore'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -318,9 +323,9 @@ struct WebViewPage {
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100)
-          .backgroundColor(this.theme.bgCard)
-          .backdropBlur(20)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .backgroundColor(cardTint(this.theme))
+          .backdropBlur(this.theme.material.blur)
+          .border(cardBorder(this.theme))
           .onClick(() => {
             try {
               AppNav.getInstance().back()

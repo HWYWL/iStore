@@ -1,5 +1,10 @@
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { NetworkInterface, WanStatus } from '../../models/Models'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -109,7 +114,7 @@ this.theme = AppState.getInstance().getTheme()
           }
           .padding({ left: 12, right: 16, top: 6, bottom: 6 })
           .borderRadius(100).backgroundColor('transparent')
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
           .onClick(() => AppNav.getInstance().back())
 
           Blank()
@@ -141,8 +146,8 @@ this.theme = AppState.getInstance().getTheme()
                 .padding(16)
                 .borderRadius(14)
                 .margin({ top: 8 })
-                .backgroundColor(this.theme.bgCard)
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .backgroundColor(cardTint(this.theme))
+                .border(cardBorder(this.theme))
               }
 
               // LAN 网络状态卡片
@@ -200,9 +205,9 @@ this.theme = AppState.getInstance().getTheme()
               .padding(20)
               .borderRadius(24)
               .margin({ top: 8 })
-              .backgroundColor(this.theme.bgCard)
-              .backdropBlur(20)
-              .border({ width: 0.5, color: this.theme.borderGlass })
+              .backgroundColor(cardTint(this.theme))
+              .backdropBlur(this.theme.material.blur)
+              .border(cardBorder(this.theme))
 
               // 接口列表
               ForEach(this.interfaces, (iface: NetworkInterface) => {
@@ -271,9 +276,9 @@ this.theme = AppState.getInstance().getTheme()
                 .padding(14)
                 .borderRadius(20)
                 .margin({ top: 12 })
-                .backgroundColor(this.theme.bgCard)
-                .backdropBlur(20)
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .backgroundColor(cardTint(this.theme))
+                .backdropBlur(this.theme.material.blur)
+                .border(cardBorder(this.theme))
               }, (item: NetworkInterface): string => item.name)
             }
           }

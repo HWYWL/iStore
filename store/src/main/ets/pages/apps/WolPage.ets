@@ -8,7 +8,11 @@ import { promptAction } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { FunStore, WolDevice } from '../../common/store/FunStore'
 import { SshService } from '../../common/ssh/SshService'
 import { ApiService } from '../../api/ApiService'
@@ -215,7 +219,7 @@ export struct WolPage {
             .width('100%')
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           // 添加设备
           Column() {
@@ -251,7 +255,7 @@ export struct WolPage {
             .width('100%').margin({ top: 12 })
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           if (this.statusMsg) {
             Text(this.statusMsg)
@@ -270,7 +274,7 @@ export struct WolPage {
               Text('还没有设备，添加一台试试').fontSize(12).fontColor(this.theme.textTertiary).margin({ top: 8 })
             }
             .width('100%').padding(30).borderRadius(16).margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
             .alignItems(HorizontalAlign.Center)
           } else {
             ForEach(this.devices, (d: WolDevice, idx: number) => {
@@ -305,7 +309,7 @@ export struct WolPage {
                 .onClick(() => { this.wake(d) })
               }
               .width('100%').padding(12).borderRadius(14).margin({ top: 8 })
-              .backgroundColor(this.theme.bgCard)
+              .backgroundColor(cardTint(this.theme))
             }, (d: WolDevice): string => d.mac)
           }
         }

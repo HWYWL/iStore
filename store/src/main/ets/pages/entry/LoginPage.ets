@@ -11,7 +11,14 @@ import { SavedDevice } from '../../common/store/DeviceStore'
 import { ImmichStore } from '../../common/store/ImmichStore'
 import { ConnectionConfig } from '../../models/Models'
 import { ApiClient, NormalizedAddress } from '../../api/ApiClient'
-import {LIGHT_THEME, ThemePalette, cardTint, cardBorder, cardElevation, cardRadius} from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint,
+  cardBorder,
+  cardElevation,
+  cardRadius
+} from '../../common/theme/ThemeColors'
 import { common } from '@kit.AbilityKit'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { deviceInfo } from '@kit.BasicServicesKit'
@@ -540,7 +547,7 @@ struct LoginPage {
           }
           .width('100%').padding(20).borderRadius(cardRadius(this.theme))
           .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blur)
-          .border({ width: 0.5, color: this.theme.borderGlass })
+          .border(cardBorder(this.theme))
           .shadow(cardElevation(this.theme))
         }
         .width('100%').padding({ left: 16, right: 16 }).margin({ bottom: 12 })
@@ -579,7 +586,7 @@ struct LoginPage {
                 }
                 .width('100%').height(40).borderRadius(20)
                 .backgroundColor(cardTint(this.theme))
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .border(cardBorder(this.theme))
                 .padding({ left: 12, right: 12 }).margin({ bottom: 10 })
               }
 
@@ -691,7 +698,7 @@ struct LoginPage {
                 }
                 .width('100%').padding(20).borderRadius(cardRadius(this.theme)).margin({ top: 16 })
                 .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blur)
-                .border({ width: 0.5, color: this.theme.borderGlass })
+                .border(cardBorder(this.theme))
                 .shadow(cardElevation(this.theme))
               }, (item: SavedDevice): string => `${item.id}_v${item.version}`)
             }
@@ -765,7 +772,7 @@ struct LoginPage {
       }
       .width('100%').height(52).borderRadius(24)
       .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
-      .border({ width: 0.5, color: this.theme.borderGlass })
+      .border(cardBorder(this.theme))
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
       // 分组（可选，用于设备较多时筛选）
@@ -778,7 +785,7 @@ struct LoginPage {
       }
       .width('100%').height(52).borderRadius(24)
       .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
-      .border({ width: 0.5, color: this.theme.borderGlass })
+      .border(cardBorder(this.theme))
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
       // 设备地址（IP 或域名）
@@ -840,7 +847,7 @@ struct LoginPage {
       }
       .width('100%').height(52).borderRadius(24)
       .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
-      .border({ width: 0.5, color: this.theme.borderGlass })
+      .border(cardBorder(this.theme))
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
       // 用户名
@@ -853,7 +860,7 @@ struct LoginPage {
       }
       .width('100%').height(52).borderRadius(24)
       .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
-      .border({ width: 0.5, color: this.theme.borderGlass })
+      .border(cardBorder(this.theme))
       .padding({ left: 14, right: 14 }).margin({ bottom: 14 })
 
       // 密码
@@ -871,7 +878,7 @@ struct LoginPage {
       }
       .width('100%').height(52).borderRadius(24)
       .backgroundColor(cardTint(this.theme)).backdropBlur(this.theme.material.blurControl)
-      .border({ width: 0.5, color: this.theme.borderGlass })
+      .border(cardBorder(this.theme))
       .padding({ left: 14, right: 8 }).margin({ bottom: 14 })
 
       // 错误提示

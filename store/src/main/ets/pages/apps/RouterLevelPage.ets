@@ -7,7 +7,11 @@ import { window } from '@kit.ArkUI'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
 import { AppIcon } from '../../common/components/AppIcon'
@@ -198,7 +202,7 @@ export struct RouterLevelPage {
               .width('100%')
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
 
           // 称号表
           Column() {
@@ -213,7 +217,7 @@ export struct RouterLevelPage {
             this.titleRow('Lv.99', '网络之神 👑')
           }
           .width('100%').padding(14).borderRadius(16).margin({ top: 12 })
-          .backgroundColor(this.theme.bgCard)
+          .backgroundColor(cardTint(this.theme))
         }
         .width('100%').padding({ left: 16, right: 16, bottom: 30 })
       }
@@ -235,7 +239,7 @@ export struct RouterLevelPage {
       Text(label).fontSize(10).fontColor(this.theme.textTertiary).margin({ top: 2 })
     }
     .layoutWeight(1).padding({ top: 14, bottom: 14 }).borderRadius(16)
-    .backgroundColor(this.theme.bgCard)
+    .backgroundColor(cardTint(this.theme))
     .alignItems(HorizontalAlign.Center)
   }
 

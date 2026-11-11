@@ -3,7 +3,12 @@
  * 徽章收集：运行稳定 / 夜猫子 / 流量之王 / 设备云集 / 七日全勤 / 体检卫士
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { FunStore } from '../../common/store/FunStore'
 import { TrafficStatStore } from '../../common/store/TrafficStatStore'
 import { ApiService } from '../../api/ApiService'
@@ -156,8 +161,8 @@ export struct AchievementPage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
         Text(`${this.doneCount}/${ACHS.length}`)
@@ -218,7 +223,7 @@ export struct AchievementPage {
             .padding({ left: 14, right: 14, top: 14, bottom: 14 })
             .borderRadius(16)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
           }, (a: AchDef): string => a.id)
         }
         .width('100%')

@@ -1,5 +1,10 @@
 import { AppState } from '../../common/store/AppState'
-import {ThemePalette} from '../../common/theme/ThemeColors'
+import {
+  ThemePalette,
+  cardBorder,
+  cardTint,
+  listCardBlur
+} from '../../common/theme/ThemeColors'
 import { ConnectedDevice, WirelessClient } from '../../models/Models'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { ApiService } from '../../api/ApiService'
@@ -230,9 +235,9 @@ export struct DeviceTab {
     .width('48%')
     .padding(14)
     .borderRadius(18)
-    .backgroundColor(this.theme.bgCard)
-    .backdropBlur(20)
-    .border({ width: 0.5, color: this.theme.borderGlass })
+    .backgroundColor(cardTint(this.theme))
+    .backdropBlur(listCardBlur(this.theme))
+    .border(cardBorder(this.theme))
     .alignItems(HorizontalAlign.Start)
     .onClick(() => {
       try {
@@ -281,9 +286,9 @@ export struct DeviceTab {
       .width('100%')
       .height(44)
       .borderRadius(20)
-      .backgroundColor(this.theme.bgCard)
-      .backdropBlur(10)
-      .border({ width: 0.5, color: this.theme.borderGlass })
+      .backgroundColor(cardTint(this.theme))
+      .backdropBlur(this.theme.material.blurControl)
+      .border(cardBorder(this.theme))
       .padding({ left: 14, right: 14 })
       .margin({ left: 16, right: 16, top: 8, bottom: 8 })
 
@@ -351,8 +356,8 @@ export struct DeviceTab {
             .padding(16)
             .borderRadius(14)
             .margin({ top: 8 })
-            .backgroundColor(this.theme.bgCard)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .border(cardBorder(this.theme))
           } else if (this.devices.length === 0) {
             Column() {
               Text('📡')
@@ -367,8 +372,8 @@ export struct DeviceTab {
             .padding(40)
             .borderRadius(14)
             .margin({ top: 8 })
-            .backgroundColor(this.theme.bgCard)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .border(cardBorder(this.theme))
             .alignItems(HorizontalAlign.Center)
           } else {
             // 设备双列网格（每行 2 个，仿应用商店列表）
@@ -428,8 +433,8 @@ export struct DeviceTab {
             .padding(40)
             .borderRadius(14)
             .margin({ top: 8 })
-            .backgroundColor(this.theme.bgCard)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .border(cardBorder(this.theme))
             .alignItems(HorizontalAlign.Center)
           } else {
             ForEach(this.wirelessClients, (client: WirelessClient, idx: number) => {
@@ -479,9 +484,9 @@ export struct DeviceTab {
               .padding(16)
               .borderRadius(20)
               .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
-            .backdropBlur(20)
-            .border({ width: 0.5, color: this.theme.borderGlass })
+            .backgroundColor(cardTint(this.theme))
+            .backdropBlur(listCardBlur(this.theme))
+            .border(cardBorder(this.theme))
             .onClick(() => {
               try {
                 this.getUIContext().getRouter().pushUrl({

@@ -3,7 +3,12 @@
  * 打开本页即采样在线设备，记录 24h 活跃，色块深浅展示
  */
 import { AppState } from '../../common/store/AppState'
-import { LIGHT_THEME, ThemePalette } from '../../common/theme/ThemeColors'
+import {
+  LIGHT_THEME,
+  ThemePalette,
+  cardBorder,
+  cardTint
+} from '../../common/theme/ThemeColors'
 import { FunStore } from '../../common/store/FunStore'
 import { ApiService } from '../../api/ApiService'
 import { ConnectedDevice } from '../../models/Models'
@@ -123,8 +128,8 @@ export struct DeviceActivityPage {
         }
         .padding({ left: 4, right: 16, top: 6, bottom: 6 })
         .borderRadius(100)
-        .backgroundColor(this.theme.bgCard)
-        .border({ width: 0.5, color: this.theme.borderGlass })
+        .backgroundColor(cardTint(this.theme))
+        .border(cardBorder(this.theme))
         .onClick(() => { AppNav.getInstance().back() })
         Blank()
       }
@@ -196,7 +201,7 @@ export struct DeviceActivityPage {
             .padding({ left: 14, right: 14, top: 12, bottom: 10 })
             .borderRadius(16)
             .margin({ top: 10 })
-            .backgroundColor(this.theme.bgCard)
+            .backgroundColor(cardTint(this.theme))
           }, (row: ActRow): string => row.mac)
 
           if (this.rows.length === 0) {
