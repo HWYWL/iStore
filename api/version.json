@@ -1,8 +1,7 @@
 {
-
-  "version": "3.8.0",
-  "versionCode": 8,
-  "description": "小管家新增网络流量双通道曲线，全站实时速率统一 5 秒刷新，分栏背景统一，修复 OpenWRT 自动登录与部分页面内容居中",
-  "releaseDate": "2026-11-09",
+  "version": "3.9.0",
+  "versionCode": 9,
+  "description": "主题改为色板 × 材质，新增苹果液态玻璃并设为默认材质，老用户一次性迁移；页面网络访问收敛、图标包选择下线、包体精简",
+  "releaseDate": "2026-11-11",
   "downloadUrl": "https://github.com/HWYWL/iStore/releases"
 }

@@ -46,5 +46,7 @@ parent: istore-architecture
 ## Known limitations
 
 - `router-api`（33 KB 单文件 shell）自身没有测试，改动只能靠真机验证。
-- `version.json` 的版本号需要人工与 `AppScope/app.json5` 的 `versionName`/`versionCode` 对齐，没有构建期校验
-  （曾出现过 `store/oh-package.json5` 停在 3.5.0、而实际版本已是 3.8.0 的漂移）。
+- **发版要人工改三处版本号，没有构建期校验**：`AppScope/app.json5`（`versionName` / `versionCode`，
+  决定包内版本与商店识别）、`api/version.json`（关于页的更新检查从这里读 `version`）、
+  `store/oh-package.json5`（仅模块元数据）。3.9.0 起三者已对齐；历史上曾出现 `oh-package.json5`
+  停在 3.5.0 而实际是 3.8.0 的漂移，是因为没人把第三处算进发版清单。
