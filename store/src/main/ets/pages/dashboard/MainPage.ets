@@ -470,6 +470,14 @@ struct MainPage {
    * 上一个功能页——会从新页面里透出来，看上去就是一层灰色蒙层迟迟不消失。
    * 直接结束转场：页面立刻以最终状态出现，既没有蒙层也没有"卡一下"的感觉。
    */
+  /**
+   * 面板内导航不做系统转场（见 mod-nav）。
+   *
+   * 系统默认会给新推入的 NavDestination 做淡入，而分栏里的功能页背景是透明的
+   * （三栏共用 MainPage 那一块背景），淡入期间下层内容会从新页面里透出来，
+   * 看上去就是一层灰色蒙层迟迟不消失。滑入效果改由 PageHost 自己进场完成，
+   * 那里只动内容、不改变背景，因此不会透底。
+   */
   private panelTransition(): NavigationAnimatedTransition {
     const anim: NavigationAnimatedTransition = {
       timeout: 0,

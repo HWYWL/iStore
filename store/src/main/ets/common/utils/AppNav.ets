@@ -125,7 +125,9 @@ const EMBEDDABLE: string[] = [
   'pages/system/PackageManagerPage',
   'pages/system/RebootPage',
   'pages/system/SystemLogPage',
-  'pages/other/AboutPage'
+  'pages/other/AboutPage',
+  'pages/network/RouteTablePage',
+  'pages/other/HelpPage'
 ]
 
 /** 无参数占位（ArkTS 不允许无类型对象字面量） */

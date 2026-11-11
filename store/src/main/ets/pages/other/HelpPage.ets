@@ -17,9 +17,21 @@ interface FaqItem {
   answer: string
 }
 
+// 作为可嵌栏组件导出；手机/全屏走下面的 Route 包装（@Entry 只能有一个）
 @Entry
 @Component
-struct HelpPage {
+struct HelpPageRoute {
+  build() {
+    Column() {
+      HelpPage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
+@Component
+export struct HelpPage {
   @State theme: ThemePalette = LIGHT_THEME
   @State expandedStates: boolean[] = [false, false, false, false, false, false]
   private faqs: FaqItem[] = [

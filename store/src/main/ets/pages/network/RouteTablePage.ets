@@ -15,9 +15,21 @@ import { RouteEntry } from '../../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 
+// 作为可嵌栏组件导出；手机/全屏走下面的 Route 包装（@Entry 只能有一个）
 @Entry
 @Component
-struct RouteTablePage {
+struct RouteTablePageRoute {
+  build() {
+    Column() {
+      RouteTablePage()
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
+@Component
+export struct RouteTablePage {
   @State theme: ThemePalette = LIGHT_THEME
   @State isLoading: boolean = true
   @State errorText: string = ''

@@ -62,6 +62,8 @@ import { FactoryResetPage } from '../../pages/system/FactoryResetPage'
 import { NetworkRestartPage } from '../../pages/system/NetworkRestartPage'
 import { PackageManagerPage } from '../../pages/system/PackageManagerPage'
 import { RebootPage } from '../../pages/system/RebootPage'
+import { RouteTablePage } from '../../pages/network/RouteTablePage'
+import { HelpPage } from '../../pages/other/HelpPage'
 import { SystemLogPage } from '../../pages/system/SystemLogPage'
 import { AboutPage } from '../../pages/other/AboutPage'
 
@@ -69,15 +71,25 @@ import { AboutPage } from '../../pages/other/AboutPage'
 export struct PageHost {
   /** 页面路径（与 main_pages.json / AppNav 保持一致） */
   @Prop url: string = ''
+  /** 进场滑入的横向位移（vp），挂载后归零：只动内容、不动背景，避免透出下层页面 */
+  @State private enterX: number = 26
   @State theme: ThemePalette = LIGHT_THEME
 
   aboutToAppear(): void {
     this.theme = AppState.getInstance().getTheme()
+    this.enterX = 26
+    setTimeout(() => {
+      this.enterX = 0
+    }, 16)
   }
 
   build() {
     Column() {
-      if (this.url === 'pages/apps/AchievementPage') {
+      if (this.url === 'pages/network/RouteTablePage') {
+        RouteTablePage()
+      } else if (this.url === 'pages/other/HelpPage') {
+        HelpPage()
+      } else if (this.url === 'pages/apps/AchievementPage') {
         AchievementPage()
       } else if (this.url === 'pages/apps/AlbumPage') {
         AlbumPage()
@@ -182,6 +194,8 @@ export struct PageHost {
       }
     }
     .width('100%')
+    .translate({ x: this.enterX })
+    .animation({ duration: 200, curve: Curve.EaseOut })
     .height('100%')
   }
 

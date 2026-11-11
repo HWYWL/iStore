@@ -41,11 +41,16 @@ parent: istore-architecture
   必须逐字一致；`PetStore.TASK_ROUTES`（见 `mod-pet`）也按页面字符串匹配，改名要全库搜。
 - 宽度判断只在 `AppNav.isWide()` 一处（600 vp 断点），页面不要自己判断"能不能嵌栏"。
 
-- **面板内导航不做系统转场**：两处 `Navigation` 都挂了 `customNavContentTransition` 并在回调里
-  直接 `finishTransition()`。原因：系统默认给新推入的 `NavDestination` 做淡入，而分栏里的功能页背景
-  是透明的（三栏共用 MainPage 的一块背景），淡入过程中下层内容（小管家、上一个功能页）会从新页面里
-  透出来，表现为"一层灰色蒙层迟迟不消失 / 像卡了一下"。若以后想要滑入动画，必须同时让页面在过渡期
-  画不透明背景（否则同样的透底问题会回来）。
+- **面板内导航不做系统转场，滑入由 `PageHost` 自己实现**：
+  - 两处 `Navigation` 都挂 `customNavContentTransition` 并在回调里直接 `finishTransition()`。原因是
+    系统默认给新推入的 `NavDestination` 做淡入，而分栏里的功能页背景是透明的（三栏共用 MainPage 的
+    一块背景），淡入期间下层内容（小管家 / 上一个功能页）会从新页面里透出来，表现为"一层灰蒙层迟迟
+    不消失 / 像卡了一下"。
+  - 滑入感改在 `PageHost` 里做：`enterX` 26vp → 0，200ms easeOut，**只动内容不动背景**，所以不会透底。
+  - 注意别把它做成"整页位移 + 过渡期不透明底"：实测这种状态驱动的整页 translate 在导航转场里不生效
+    （截帧看不到任何位移），而 PageHost 内容层的位移是可靠的。
+- **可嵌栏 ≠ 自动全屏**：`PageRegistry` 里登记过的磁贴如果不在 `EMBEDDABLE`，点击会走
+  `openFullscreen`（路由表、帮助曾如此，已修）。`WebViewPage` 是**刻意**不可嵌栏——网页要整屏。
 
 ## Known limitations
 
