@@ -43,6 +43,10 @@ parent: istore-architecture
 
 - **颜色只从色板取**（`this.theme.<field>`），**形态只从材质取**（`theme.material.*` 或四个派生函数）。
   调色板缺字段先扩 `ThemePalette`，不要就地硬编码。
+- **半透明强调底用 `withAlpha(theme.<field>, a)`**，不要写 `rgba(255,138,61,…)`——那是米色主色的硬拷贝，
+  换到薄荷青/暮紫后会残留橙色。
+- **字面色只允许三种用途**：`#FFFFFF` 之类的中性白（盖在有色底上的文字）、服务/插画品牌色
+  （如 Docker 蓝、iStore 绿）、插画细节（小管家形象）。其余一律走调色板。
 - **`SKINS[0]` 必须是 `LIGHT_THEME`**（默认皮肤），`AppState` 的新装默认值 `skinId='beige'`、
   `uiStyle='solid'`；旧的 `classic`/`glass` 持久值在 init 时迁移为 `solid`/`liquid`。
 - **图标只经 `AppIcon`**，包固定 `hos`；`name` 是跨包契约，五种包必须覆盖同名资源并有回退。
@@ -52,12 +56,16 @@ parent: istore-architecture
 
 ## Known limitations
 
-- **表面与模糊已全量材质化，剩颜色字面量**：`backgroundColor(bgCard)` / 卡片描边 / 硬编码 `backdropBlur(20|28|10)`
+- **表面与模糊已全量材质化**：`backgroundColor(bgCard)` / 卡片描边 / 硬编码 `backdropBlur(20|28|10)`
   已由 codemod 换为 `cardTint/cardBorder/cardElevation/material.blur`（57 个页面文件、368 处），现在没有任何
-  页面再自己写卡片底色或模糊半径。但仍有 **732 处 `#RRGGBB` / 274 处 `rgba(`**，集中在
-  `PetPage`(79)、`AppsPage`(75)、`DeviceAliasPage`(36)、`SmartHubPage`(34)、`AlbumTab`(28)、
-  `FileManagerPage`(24)；其中相当一部分是语义色（状态点/图表序列）与插画色（小管家形象、磁贴徽标），
-  必须逐处判断能不能换主题值，不能批量替换。
+  页面再自己写卡片底色或模糊半径。
+- **主色/警示色硬拷贝也已收敛**（2026-11 实测）：`'#FF8A3D'`/`'#E6A800'`/`'#F0EBE0'`/`'#00C853'` 共 78 处
+  改为 `theme.primary/warning/progressTrack/success`（值与默认调色板一致，默认外观不变）；67 处
+  `rgba(255,138,61,…)` 强调底改为 `withAlpha(theme.<field>, a)`。
+- **剩下的字面色是刻意保留的**：654 处 `#RRGGBB` / 207 处 `rgba(`，头部为 `#FFFFFF` 133（盖在有色底上的
+  文字）、`#FF5252` 37、`#F59E0B` 30、`#00E676` 28、`#94A3B8` 20，以及各服务品牌蓝/紫。它们是**固定的
+  语义/品牌色**，不随色板：映射到主题语义色会改变默认主题外观，属产品决策而非清理——如需“主题也有
+  语义色家族”，要单独引入一层语义色映射并重新验收默认外观。
 - **密集列表的模糊降级是白名单式**：只有 8 个明确的长列表页（设备详情/Docker/路由表/启动项/进程/
   WiFi/流量报表/仪表盘设备列表）改用 `listCardBlur()`（降到控件级）；其余含 `ForEach` 的页面仍用页级
   blur 28，若后续出现大量行列表需继续归类。
