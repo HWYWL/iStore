@@ -8,6 +8,7 @@ import {
   withAlpha
 } from '../../common/theme/ThemeColors'
 import { AppState } from '../../common/store/AppState'
+import { Poller } from '../../common/utils/Poller'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { getAppVersionText } from '../../common/utils/AppVersion'
 import { ApiService } from '../../api/ApiService'
@@ -145,7 +146,7 @@ export struct AppsPage {
   @State dockerRunning: number = 0
   @State dockerTotal: number = -1    // -1 = 尚未取到
   @State dockerDaemon: string = ''
-  private storeTimer: number = -1
+  private storePoller: Poller | null = null
   // ===== 磁贴通用指标（各应用胶囊共用的一批轻量数据）=====
   @State onlineDevices: number = -1
   @State totalDevices: number = -1
@@ -186,7 +187,7 @@ export struct AppsPage {
   // ===== 全局搜索（标题 / 拼音首字母 / 最近使用）=====
   @State searchText: string = ''
   @State searchFocused: boolean = false
-  private overviewTimer: number = -1
+  private overviewPoller: Poller | null = null
   private rateListener: RateListener | null = null
   private sparkCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   /** 左侧分类栏当前宽度（0 = 收起，RAIL_W = 完全展开）；拖动时逐帧更新，松手用弹簧补间 */
@@ -991,13 +992,14 @@ export struct AppsPage {
     LiveRateStore.getInstance().subscribe(this.rateListener)
     // Bento 主卡其余指标（IP / CPU / 内存 / 连接）走较慢的节奏即可
     this.loadOverview()
-    if (this.overviewTimer >= 0) {
-      clearInterval(this.overviewTimer)
+    if (this.overviewPoller !== null) {
+      this.overviewPoller.dispose()
     }
-    this.overviewTimer = setInterval(() => {
+    this.overviewPoller = new Poller(() => {
       this.loadOverview()
       this.syncPet()
     }, LIVE_REFRESH_MS * 2)
+    this.overviewPoller.start()
 
     // 磁贴指标：宠物状态本地同步读取；iStore 插件数走 HTTP，60 秒一次足够
     this.initPet()
@@ -1006,14 +1008,15 @@ export struct AppsPage {
     this.loadPluginCount()
     this.loadDockerInfo()
     this.loadTileMetrics()
-    if (this.storeTimer >= 0) {
-      clearInterval(this.storeTimer)
+    if (this.storePoller !== null) {
+      this.storePoller.dispose()
     }
-    this.storeTimer = setInterval(() => {
+    this.storePoller = new Poller(() => {
       this.loadPluginCount()
       this.loadDockerInfo()
       this.loadTileMetrics()
     }, 60000)
+    this.storePoller.start()
 
     const tools: ToolEntry[] = this.flatTools()
     const slides: number[] = []
@@ -1036,13 +1039,13 @@ export struct AppsPage {
       LiveRateStore.getInstance().unsubscribe(this.rateListener)
       this.rateListener = null
     }
-    if (this.overviewTimer >= 0) {
-      clearInterval(this.overviewTimer)
-      this.overviewTimer = -1
+    if (this.overviewPoller !== null) {
+      this.overviewPoller.dispose()
+      this.overviewPoller = null
     }
-    if (this.storeTimer >= 0) {
-      clearInterval(this.storeTimer)
-      this.storeTimer = -1
+    if (this.storePoller !== null) {
+      this.storePoller.dispose()
+      this.storePoller = null
     }
     if (this.themeListener) {
       AppState.getInstance().offThemeChange(this.themeListener)

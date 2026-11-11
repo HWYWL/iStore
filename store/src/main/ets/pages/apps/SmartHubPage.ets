@@ -17,6 +17,7 @@ import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { promptAction } from '@kit.ArkUI'
 import { NetProbe } from '../../api/NetProbe'
+import { Poller } from '../../common/utils/Poller'
 import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
@@ -98,7 +99,7 @@ export struct SmartHubPage {
   private deviceId: string = ''
   private store: SmartGuardStore = SmartGuardStore.getInstance()
   private contentScroller: Scroller = new Scroller()
-  private sampleTimer: number = -1
+  private samplePoller: Poller | null = null
   private scoreTimer: number = -1
 
   aboutToAppear(): void {
@@ -127,9 +128,9 @@ export struct SmartHubPage {
   }
 
   aboutToDisappear(): void {
-    if (this.sampleTimer >= 0) {
-      clearInterval(this.sampleTimer)
-      this.sampleTimer = -1
+    if (this.samplePoller !== null) {
+      this.samplePoller.dispose()
+      this.samplePoller = null
     }
     if (this.scoreTimer >= 0) {
       clearInterval(this.scoreTimer)
@@ -139,7 +140,10 @@ export struct SmartHubPage {
 
   async initAll(): Promise<void> {
     await this.collectSample()
-    this.sampleTimer = setInterval(() => { this.collectSample() }, 60000)
+    this.samplePoller = new Poller(() => {
+      this.collectSample()
+    }, 60000)
+    this.samplePoller.start()
     await this.runOracle()
     await this.loadNight()
     await this.loadWeek()

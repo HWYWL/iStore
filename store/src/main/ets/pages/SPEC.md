@@ -53,8 +53,12 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
   背景直接透出。两个渐变各自从自己的左上角起算，不透明就会在分栏边界形成一道色差接缝。
   不能嵌栏的页面（登录/应用中心/设备详情/路由表/WebView/播放页/帮助）仍画自己的页面渐变。
 - **长列表不叠实时模糊**：密集列表页传 `noBlur` 或直接用 tint + 描边（见 `mod-theme` 的性能保底约定）。
-- **轮询用 `common/utils/Poller`**（可见性门控 + in-flight 锁 + `dispose`），速率只用 `LiveRateStore`；
-  大页面自己写 `setInterval` 是已知的偏差来源。
+- **数据轮询一律用 `common/utils/Poller`**（可见性门控 + in-flight 锁 + `dispose`），速率只用
+  `LiveRateStore`；`setInterval` 只允许用于**动画与倒计时**（它们不该被可见性门控或无谓地加锁）。
+  目前已迁移：`AppsPage`（Bento 指标 10s、磁贴指标 60s）、`SmartHubPage`（夜间采样 60s）、
+  `PetPage`（路由器体征 30s）。仍在用 `setInterval` 的是 `DashboardTab`/`PetPage`/`MileStonePage`/
+  `NetEcgPage`/`NetworkCheckPage`/`SpeedTestPage`/`RebootPage`/`FactoryResetPage` 的呼吸、眨眼、
+  波形、进度与倒计时动画——这些都是刻意保留的。
 - **离开页面释放资源**：定时器、监听器、`AppNav` 面板监听、`LiveRateStore` 订阅都要在 `aboutToDisappear`
   注销。
 - **错误展示用 `ApiService.getLastError()`** 的既有中文文案，不另造一套。
@@ -66,7 +70,7 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
   已知并接受，改动时局部收敛（见 `istore-architecture`）。
 - **材质已全量覆盖**：57 个页面文件的卡片底色/描边/模糊半径已改为材质派生值，所以切到液态玻璃时
   **每个页面的表面都会变**；剩余偏差是页面内的语义色与插画色（见 `mod-theme` 的限制）。
-- 部分页面仍自带 `setInterval`（`DashboardTab`/`AppsPage`/`PetPage`/`SmartHubPage`/`NetEcgPage`/
-  `NetworkCheckPage`/`SpeedTestPage`/`RebootPage`/`FactoryResetPage`），与 `Poller` 约定不一致。
+- 另有一处口径偏差：PetPage 的「心情小话」8s 轮播与各页动画仍用 `setInterval`，属刻意保留（纯本地
+  渲染节奏，无网络请求）；如果以后要在后台/分屏下省电，可以再评估给它们加可见性门控。
 - `AlbumTab` 仍直接 import `@kit.NetworkKit`：分享需要**可取消**的长下载（60s 上限、中途 `destroy`），
   `NetProbe` 目前只提供一次性请求，属已批准例外；若要收敛，需给 `NetProbe` 加可取消句柄。

@@ -15,6 +15,7 @@ import {
 import { PetStore, PetState } from '../../common/store/PetStore'
 import { FormatUtils } from '../../common/utils/FormatUtils'
 import { LIVE_REFRESH_MS } from '../../common/utils/RefreshRate'
+import { Poller } from '../../common/utils/Poller'
 import { LiveRateStore, RateListener } from '../../common/store/LiveRateStore'
 import { common } from '@kit.AbilityKit'
 import { promptAction } from '@kit.ArkUI'
@@ -141,7 +142,7 @@ export struct PetView {
   @State cpuTemp: number = 0
   @State uptimeDays: number = 0
   private api: ApiService = new ApiService()
-  private sysTimerId: number = -1
+  private sysPoller: Poller | null = null
   private speedCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private store: PetStore = PetStore.getInstance()
   private timerId: number = -1
@@ -204,9 +205,10 @@ export struct PetView {
     }, 4600)
     // 路由器体征：进入时取一次，之后每 30s 刷新（心情文案据此变化）
     this.loadRouterState()
-    this.sysTimerId = setInterval(() => {
+    this.sysPoller = new Poller(() => {
       this.loadRouterState()
     }, 30000)
+    this.sysPoller.start()
     // 心情小话轮播（按当前状态挑，8s 换一条）
     this.timerId = setInterval(() => {
       this.refreshMoodText()
@@ -234,9 +236,9 @@ export struct PetView {
       clearInterval(this.taskTimerId)
       this.taskTimerId = -1
     }
-    if (this.sysTimerId >= 0) {
-      clearInterval(this.sysTimerId)
-      this.sysTimerId = -1
+    if (this.sysPoller !== null) {
+      this.sysPoller.dispose()
+      this.sysPoller = null
     }
   }
 
