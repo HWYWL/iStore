@@ -10,7 +10,7 @@ import { AppState } from '../../common/store/AppState'
 import { SavedDevice } from '../../common/store/DeviceStore'
 import { ImmichStore } from '../../common/store/ImmichStore'
 import { ConnectionConfig } from '../../models/Models'
-import { ApiClient, NormalizedAddress } from '../../api/ApiClient'
+import { NormalizedAddress, normalizeAddress } from '../../api/ApiUtils'
 import {
   LIGHT_THEME,
   ThemePalette,
@@ -191,7 +191,7 @@ struct LoginPage {
 
   /** 从表单输入构造连接配置（地址统一规范化：支持域名 / 带协议 / 带端口的写法） */
   getConfig(): ConnectionConfig {
-    const addr: NormalizedAddress = ApiClient.normalizeAddress(this.host, Number.parseInt(this.port, 10), this.useHttps)
+    const addr: NormalizedAddress = normalizeAddress(this.host, Number.parseInt(this.port, 10), this.useHttps)
     // 回写表单，保存与显示保持一致
     this.host = addr.host
     this.port = String(addr.port)
@@ -287,7 +287,7 @@ struct LoginPage {
     const password: string = savedDevice ? (savedDevice.password || '') : this.password
     const savedHttps: boolean = savedDevice ? savedDevice.useHttps : this.useHttps
     // 兼容历史数据：host 里可能带协议或端口，统一拆干净
-    const addr: NormalizedAddress = ApiClient.normalizeAddress(rawHost, Number.parseInt(port, 10), savedHttps)
+    const addr: NormalizedAddress = normalizeAddress(rawHost, Number.parseInt(port, 10), savedHttps)
     const host: string = addr.host
     const config: ConnectionConfig = {
       host: addr.host, port: addr.port, token, useHttps: addr.useHttps, username, password

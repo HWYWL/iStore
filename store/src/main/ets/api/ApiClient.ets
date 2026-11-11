@@ -14,6 +14,7 @@
  * 2. legacy 模式（兼容）：使用旧版 router-api CGI 脚本 + Token，
  *    仅用于兼容已保存的旧设备，新设备不再使用。
  */
+import { NormalizedAddress, normalizeAddress } from './ApiUtils'
 import { http } from '@kit.NetworkKit'
 import { ConnectionConfig, DhcpBindingInfo, GuestWifiInfo } from '../models/Models'
 import { hilog } from '@kit.PerformanceAnalysisKit'
@@ -258,11 +259,6 @@ class RpcResponse {
 type ConnMode = 'none' | 'ubus' | 'legacy'
 
 /** 规范化后的设备地址 */
-export interface NormalizedAddress {
-  host: string      // 纯主机名或 IP（不含协议、端口、路径）
-  port: number      // 实际端口
-  useHttps: boolean
-}
 
 export class ApiClient {
   baseUrl: string = ''       // API 基础 URL（协议://主机:端口）
@@ -321,42 +317,9 @@ export class ApiClient {
    * - 端口缺省时按协议补 80/443，并按端口推断协议（443/8443 → https）
    */
   static normalizeAddress(rawHost: string, rawPort: number, useHttps: boolean): NormalizedAddress {
-    let host: string = rawHost ? rawHost.trim() : ''
-    let https: boolean = useHttps
-    let port: number = rawPort > 0 ? rawPort : 0
-    const scheme: RegExpMatchArray | null = host.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//)
-    if (scheme) {
-      https = scheme[1].toLowerCase() === 'https'
-      host = host.substring(scheme[0].length)
-    }
-    const slash: number = host.indexOf('/')
-    if (slash >= 0) {
-      host = host.substring(0, slash)
-    }
-    host = host.trim()
-    // 只有非 IPv6 字面量（不含 []）时，末尾的 :数字 才当作端口
-    const colon: number = host.lastIndexOf(':')
-    if (colon > 0 && colon < host.length - 1 && host.indexOf('[') < 0) {
-      const tail: string = host.substring(colon + 1)
-      if (/^\d+$/.test(tail)) {
-        const p: number = Number.parseInt(tail, 10)
-        if (p > 0 && p < 65536) {
-          port = p
-          host = host.substring(0, colon)
-          if (p === 443 || p === 8443) {
-            https = true
-          } else if (p === 80 || p === 8080) {
-            https = false
-          }
-        }
-      }
-    }
-    if (port <= 0) {
-      port = https ? 443 : 80
-    }
-    const addr: NormalizedAddress = { host: host, port: port, useHttps: https }
-    return addr
+    return normalizeAddress(rawHost, rawPort, useHttps)
   }
+
 
   /**
    * 配置连接参数

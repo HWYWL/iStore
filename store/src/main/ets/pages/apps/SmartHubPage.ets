@@ -12,12 +12,12 @@ import {
   withAlpha
 } from '../../common/theme/ThemeColors'
 import { SmartGuardStore, HourSample, NightEvent, DaySummary } from '../../common/store/SmartGuardStore'
-import { ApiClient } from '../../api/ApiClient'
 import { AiHelper } from '../../common/ai/AiHelper'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { promptAction } from '@kit.ArkUI'
-import { http } from '@kit.NetworkKit'
+import { NetProbe } from '../../api/NetProbe'
+import { ApiService } from '../../api/ApiService'
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import { AppNav } from '../../common/utils/AppNav'
 import { AppIcon } from '../../common/components/AppIcon'
@@ -148,13 +148,13 @@ export struct SmartHubPage {
   async collectSample(): Promise<void> {
     if (!this.deviceId) return
     try {
-      const api = ApiClient.getInstance()
-      if (!api.getConnected()) return
+      const api: ApiService = ApiService.getInstance()
+      if (!api.isConnected()) return
       const now: Date = new Date()
-      const traffic: number[] = await api.getWanTrafficBytes()
+      const traffic: number[] = await api.fetchWanTrafficBytes()
       let devCount: number = 0
       try {
-        const st: Object = await api.getNetworkDeviceStats('')
+        const st: Object = await api.fetchNetworkDeviceStats()
         const obj: Record<string, Object> = st as Record<string, Object>
         devCount = Number(obj['count'] || 0)
       } catch (e) {}
@@ -228,7 +228,7 @@ export struct SmartHubPage {
     this.detectRunning = true
     this.detectDone = false
     this.detectItems = []
-    const api = ApiClient.getInstance()
+    const api: ApiService = ApiService.getInstance()
     this.detectItems.push({ name: '网关连通性', status: 'running', detail: '检测中…' })
     const gateways: string[] = ['192.168.1.1', '192.168.200.1']
     let gwOk: boolean = false
@@ -248,7 +248,7 @@ export struct SmartHubPage {
     this.detectItems.push({ name: 'WAN 流量', status: 'running', detail: '检测中…' })
     let wanOk: boolean = false
     try {
-      const t: number[] = await api.getWanTrafficBytes()
+      const t: number[] = await api.fetchWanTrafficBytes()
       wanOk = (t[0] > 0 || t[1] > 0)
     } catch (e) {}
     this.detectItems[3] = { name: 'WAN 流量', status: wanOk ? 'ok' : 'warn', detail: wanOk ? '有流量流动' : '无流量，可能闲置或故障' }
@@ -257,35 +257,11 @@ export struct SmartHubPage {
   }
 
   async ping(host: string): Promise<boolean> {
-    const req = http.createHttp()
-    try {
-      const resp = await req.request(`http://${host}/`, {
-        method: http.RequestMethod.HEAD,
-        connectTimeout: 3000,
-        readTimeout: 3000
-      })
-      return resp.responseCode >= 0
-    } catch (e) {
-      return false
-    } finally {
-      req.destroy()
-    }
+    return await NetProbe.reachable(`http://${host}/`, 3000)
   }
 
   async httpProbe(): Promise<boolean> {
-    const req = http.createHttp()
-    try {
-      const resp = await req.request('http://www.baidu.com/', {
-        method: http.RequestMethod.HEAD,
-        connectTimeout: 4000,
-        readTimeout: 4000
-      })
-      return resp.responseCode >= 0
-    } catch (e) {
-      return false
-    } finally {
-      req.destroy()
-    }
+    return await NetProbe.reachable('http://www.baidu.com/', 4000)
   }
 
   async loadNight(): Promise<void> {
@@ -340,7 +316,7 @@ export struct SmartHubPage {
     this.cmdBusy = true
     this.cmdResult = ''
     try {
-      const api = ApiClient.getInstance()
+      const api: ApiService = ApiService.getInstance()
       if (cmd.includes('重启')) {
         this.getUIContext().getPromptAction().showDialog({
           title: '重启路由器',
@@ -355,7 +331,7 @@ export struct SmartHubPage {
         const ans: string = await AiHelper.ask(`列出当前在线设备，用简短中文回答`)
         this.cmdResult = ans
       } else if (cmd.includes('流量') || cmd.includes('多少')) {
-        const t: number[] = await api.getWanTrafficBytes()
+        const t: number[] = await api.fetchWanTrafficBytes()
         this.cmdResult = `📊 WAN 口累计：下载 ${this.fmtBytes(t[0])} / 上传 ${this.fmtBytes(t[1])}`
       } else if (cmd.includes('限速') || cmd.includes('断网') || cmd.includes('拉黑')) {
         this.cmdResult = '⚠️ 限速/拉黑设备需要指定设备（如"限速电视"）。此操作请在设备列表中操作。'

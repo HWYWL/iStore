@@ -11,7 +11,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { common } from '@kit.AbilityKit'
 import { pasteboard } from '@kit.BasicServicesKit'
 import { promptAction } from '@kit.ArkUI'
-import { http } from '@kit.NetworkKit'
+import { NetProbe } from '../../api/NetProbe'
 import { util } from '@kit.ArkTS'
 import { getAppVersion } from '../../common/utils/AppVersion'
 import { AppNav } from '../../common/utils/AppNav'
@@ -80,54 +80,35 @@ export struct AboutPage {
     this.checking = true
     this.checkDone = false
     this.checkText = ''
-    let req: http.HttpRequest | null = null
     try {
-      req = http.createHttp()
-      const result = await Promise.race([
-        req.request(VERSION_URL, {
-          method: http.RequestMethod.GET,
-          expectDataType: http.HttpDataType.STRING,
-          connectTimeout: 4000,
-          readTimeout: 4000
-        }),
-        new Promise<null>(r => setTimeout(() => r(null), 5000))
-      ])
-      if (result && (result as http.HttpResponse).responseCode === 200) {
-        const resp = result as http.HttpResponse
-        let bodyStr = ''
-        if (typeof resp.result === 'string') {
-          bodyStr = resp.result as string
+      const bodyStr: string | null = await NetProbe.getText(VERSION_URL, 4000)
+      if (bodyStr === null) {
+        this.checkText = '检查失败，请稍后重试'
+        this.checkDone = true
+        this.checking = false
+        return
+      }
+      const body = JSON.parse(bodyStr) as Record<string, Object>
+      const ver: string = (body['version'] as string) || ''
+      if (ver) {
+        this.latestVersion = ver
+        const cur: string = getAppVersion()
+        if (this.isNewer(ver, cur)) {
+          this.checkText = `发现新版本 ${ver}，当前 ${cur}`
         } else {
-          const decoder = new util.TextDecoder('utf-8')
-          bodyStr = decoder.decodeToString(new Uint8Array(resp.result as ArrayBuffer))
-        }
-        const body = JSON.parse(bodyStr) as Record<string, Object>
-        const ver: string = (body['version'] as string) || ''
-        if (ver) {
-          this.latestVersion = ver
-          const cur: string = getAppVersion()
-          if (this.isNewer(ver, cur)) {
-            this.checkText = `发现新版本 ${ver}，当前 ${cur}`
-          } else {
-            this.checkText = '已是最新版本'
-          }
-        } else {
-          this.latestVersion = '获取失败'
-          this.checkText = '版本信息解析失败，可重试'
+          this.checkText = '已是最新版本'
         }
       } else {
-        this.latestVersion = '获取失败'
-        this.checkText = '网络异常，可重试'
+        this.checkText = '检查失败，请稍后重试'
       }
-    } catch (_e) {
-      this.latestVersion = '获取失败'
-      this.checkText = '网络异常，可重试'
+    } catch (e) {
+      this.checkText = '检查失败，请稍后重试'
     } finally {
-      try { req?.destroy() } catch (_e) {}
+      this.checkDone = true
+      this.checking = false
     }
-    this.checking = false
-    this.checkDone = true
   }
+
 
   /** 版本号比较：remote > current 返回 true */
   private isNewer(remote: string, cur: string): boolean {

@@ -33,6 +33,9 @@ parent: istore-architecture
   3. `PageRegistry.PAGE_REGISTRY` 追加登记（含拼音首字母 `py`，否则搜不到/无磁贴）；
   4. `AppNav.PAGE_TITLES` 补标题；若允许嵌栏，还要 `EMBEDDABLE` + `PageHost` 分支。
 - **`PageRegistry` 顶部注释（"新增页面只改这一个文件"）与实际不符**，以本规格的四点清单为准。
+  这四点现已由 `scripts/check-pages.ps1` 校验并接入 `ci.ps1`（漏登记直接中断构建）；详情页与入口页在
+  脚本里是显式 allowlist（它们本就不该有磁贴）。首次跑就查出 `RouteTablePage`（241 行）与
+  `HelpPage`（142 行）两条**没有任何入口的死路由**，现已分别登记到「网络」与「管理」组。
 - **嵌栏页面必须是 `@Component export struct`**，且不自己包 `NavDestination`；`PageHost` 负责外壳。
 - **路由字符串是全应用契约**：`PageRegistry.route`、`main_pages.json`、`AppNav` 标题、`PageHost` 分支
   必须逐字一致；`PetStore.TASK_ROUTES`（见 `mod-pet`）也按页面字符串匹配，改名要全库搜。
@@ -40,5 +43,6 @@ parent: istore-architecture
 
 ## Known limitations
 
-- 四处登记 + 字符串匹配是当前最容易出错的地方（静默失败），暂时没有生成式校验或测试兜住。
+- 四处登记 + 字符串匹配仍是最容易出错的地方；`check-pages.ps1` 只能发现"漏登记"，发现不了
+  "登记了但路由写错/参数不兼容"这类问题。
 - `AppNav`、`PageHost` 各存一份页面清单（标题表 / 分支表），信息重复；新增页面成本随页面数线性增长。

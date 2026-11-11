@@ -14,6 +14,10 @@ parent: istore-architecture
 两层，各管一件事：
 
 - **`api/ApiClient.ets`（单例，底层）**：HTTP 细节 + 连接模式选择 + ubus 动作映射 + 会话维护。
+- **`api/NetProbe.ets`（静态工具，非路由器端点）**：`reachable()` HEAD 探测、`getText()` 读文本、
+  `getBytes()` 读二进制（支持 Range）。这是页面访问外网/任意 HTTP 的**唯一出口**——页面不得自己
+  `import @kit.NetworkKit`。
+- **`api/ApiUtils.ets`**：安全字段读取 + 纯函数（`normalizeAddress` 地址规范化，登录页也用）。
 - **`api/ApiService.ets`（单例，业务层）**：`fetch*/save*/set*` 约七十个方法，调 ApiClient 并用
   `ObjectHelper` 容错读取字段后组装 `Models` 类型；带静态 TTL 缓存。
 
@@ -25,7 +29,8 @@ parent: istore-architecture
   这不是笔误而是现状——本层不持有"当前设备"，也不该持有；两侧改动要同时看。
 - 被依赖：`common/store`、`common/ai`、`common/security`、`pages`（页面只应经过 `ApiService`）。
 - 不做：不渲染、不持久化业务数据（除缓存）、不直接读 Preferences。
-- 唯一允许 import `@kit.NetworkKit` 的路由器通道。外部媒体客户端例外，见 `mod-api-media`。
+- 路由器通道只在这里用 `@kit.NetworkKit`：`ApiClient`（ubus/LuCI）、`NetProbe`（外网探测/版本/测速）、
+  媒体客户端（见 `mod-api-media`）。页面层不出现 NetworkKit。
 
 ## 连接模型
 

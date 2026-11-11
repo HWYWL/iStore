@@ -1123,6 +1123,7 @@ this.theme = AppState.getInstance().getTheme()
     try {
       // 1. 下载原文件（图片用 originalUrl，视频用 videoUrl 或 originalUrl）
       const downloadUrl: string = asset.type === 'VIDEO' ? asset.videoUrl : asset.originalUrl
+      // 例外：分享需要可取消的长下载（60s 上限、中途 destroy），故不用 NetProbe —— 见 pages/SPEC.md
       const req: http.HttpRequest = http.createHttp()
       this.shareReq = req
       let filePath: string = ''

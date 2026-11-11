@@ -126,3 +126,47 @@ export class ApiUtils {
     })
   }
 }
+
+export interface NormalizedAddress {
+  host: string      // 纯主机名或 IP（不含协议、端口、路径）
+  port: number      // 实际端口
+  useHttps: boolean
+}
+
+export function normalizeAddress(rawHost: string, rawPort: number, useHttps: boolean): NormalizedAddress {
+  let host: string = rawHost ? rawHost.trim() : ''
+  let https: boolean = useHttps
+  let port: number = rawPort > 0 ? rawPort : 0
+  const scheme: RegExpMatchArray | null = host.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//)
+  if (scheme) {
+    https = scheme[1].toLowerCase() === 'https'
+    host = host.substring(scheme[0].length)
+  }
+  const slash: number = host.indexOf('/')
+  if (slash >= 0) {
+    host = host.substring(0, slash)
+  }
+  host = host.trim()
+  // 只有非 IPv6 字面量（不含 []）时，末尾的 :数字 才当作端口
+  const colon: number = host.lastIndexOf(':')
+  if (colon > 0 && colon < host.length - 1 && host.indexOf('[') < 0) {
+    const tail: string = host.substring(colon + 1)
+    if (/^\d+$/.test(tail)) {
+      const p: number = Number.parseInt(tail, 10)
+      if (p > 0 && p < 65536) {
+        port = p
+        host = host.substring(0, colon)
+        if (p === 443 || p === 8443) {
+          https = true
+        } else if (p === 80 || p === 8080) {
+          https = false
+        }
+      }
+    }
+  }
+  if (port <= 0) {
+    port = https ? 443 : 80
+  }
+  const addr: NormalizedAddress = { host: host, port: port, useHttps: https }
+  return addr
+}

@@ -36,8 +36,9 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
 
 - 允许依赖：`api/ApiService`、`models`、`common/store/*`、`common/theme`、`components/*`、`AppNav`、
   `common/utils/*`、`common/ssh`（终端/文件页）、`common/ai`、`common/security`、媒体客户端。
-- **不允许**：直接 import `api/ApiClient`（现存违规仅 `pages/entry/LoginPage`、`pages/apps/SmartHubPage`，
-  属待收敛）、直接 import `libentry.so`、把业务逻辑写进页面却不落在 store/api 里、自己另起速率定时器。
+- **不允许**：直接 import `api/ApiClient`（现为零）、直接 import `@kit.NetworkKit`（现仅 `AlbumTab` 的分享
+  下载为已批准例外）、直接 import `libentry.so`、把业务逻辑写进页面却不落在 store/api 里、自己另起速率定时器。
+  非路由器端点（外网探测/版本检查/测速下载）统一走 `api/NetProbe`。
 - 页面不持久化数据：落盘一律交给 store。
 - 一个页面若允许平板内嵌，必须导出 `@Component` 并在 `PageHost` 注册（见 `mod-nav`）。
 
@@ -67,5 +68,5 @@ depends-on: [mod-api, mod-state, mod-nav, mod-theme]
   **每个页面的表面都会变**；剩余偏差是页面内的语义色与插画色（见 `mod-theme` 的限制）。
 - 部分页面仍自带 `setInterval`（`DashboardTab`/`AppsPage`/`PetPage`/`SmartHubPage`/`NetEcgPage`/
   `NetworkCheckPage`/`SpeedTestPage`/`RebootPage`/`FactoryResetPage`），与 `Poller` 约定不一致。
-- 部分页面直接 import `@kit.NetworkKit`（`SmartHubPage` 探测、`SpeedTestPage` 测速、`AlbumTab` 图片、
-  `AboutPage` 版本检查），绕过了"网络访问集中在 `api/`"的约定。
+- `AlbumTab` 仍直接 import `@kit.NetworkKit`：分享需要**可取消**的长下载（60s 上限、中途 `destroy`），
+  `NetProbe` 目前只提供一次性请求，属已批准例外；若要收敛，需给 `NetProbe` 加可取消句柄。

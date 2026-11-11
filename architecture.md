@@ -36,6 +36,10 @@ DEVECO_SDK_HOME='F:\OpenHarmony\command-line-tools\sdk' \
 最简单的入口是 `./scripts/ci.ps1`（`-Lint` 加代码检查、`-Pack` 打包）；它已会在 `DEVECO_SDK_HOME`
 未设置时自动指到 `<command-line-tools>/sdk`。
 
+每次构建还会先跑 `scripts/check-pages.ps1`：校验「新增页面四处登记」是否齐全（`main_pages.json` /
+`PageRegistry` / `AppNav.PAGE_TITLES` / `PageHost`），漏登记直接中断构建。首次运行就查出两个死页面
+（`RouteTablePage`、`HelpPage`），现已登记为磁贴。
+
 ### Lint 门禁
 
 **口径：0 error 通过，warn 不阻塞**（用户确认）。lint 步骤保留在 CI 里，不因存量告警而摘掉检查。
@@ -107,6 +111,7 @@ common/ai/AiHelper, common/security/SecurityHubEngine ──> ApiService / SshSe
 | LuCI 表单/cookie 登录 | 部分动作需要 LuCI 侧权限 | `luciHttp` |
 | Docker Remote API | 容器统计 | ubus 数据不足时探测/启用 |
 | SSH（libentry.so） | ubus 取不到的数据兜底、终端、文件 | 设备树、bridge FDB 等 |
+| `api/NetProbe`（`@kit.NetworkKit`） | 外网探测 / 版本检查 / 测速下载 | 非路由器端点的唯一出口 |
 | `https://istore.istoreos.com/api/store/list` | iStore 应用目录与版本 | 唯一外部业务接口 |
 | Immich / Jellyfin HTTP | 媒体浏览播放 | 局域网地址，凭据按设备存 |
 
@@ -114,8 +119,9 @@ common/ai/AiHelper, common/security/SecurityHubEngine ──> ApiService / SshSe
 
 代码目前已经强制或高度依赖的规则，违反就会出错：
 
-1. **页面不直连 `ApiClient`**：业务数据一律走 `ApiService`（拿到 `Models` 类型）。现存例外是登录
-   页面与 `SmartHubPage`，属于待收敛的越层，不要在别处新增。
+1. **页面不直连 `ApiClient`，也不 import `@kit.NetworkKit`**：路由器数据走 `ApiService`，非路由器端点
+   （外网探测/版本检查/测速下载）走 `api/NetProbe`。当前**零页面**`import ApiClient`；唯一保留的
+   NetworkKit 直连是 `AlbumTab` 的分享下载（需要可取消的长下载），见 `mod-ui`。
 2. **切设备必须同时清理两侧缓存**：`ApiClient.configure()` 会断开 SSH、清 `sshPortCache`/ACL 标记/
    速率 in-flight；`AppState.connectToDevice` 还要调 `ApiService.resetCache()`。`ApiService` 的缓存是
    静态 TTL，漏清一次就会把上一台设备的数据/速率串到新设备上。

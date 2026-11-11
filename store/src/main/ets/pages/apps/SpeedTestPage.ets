@@ -12,7 +12,7 @@ import {
 } from '../../common/theme/ThemeColors'
 import { ApiService } from '../../api/ApiService'
 import { SshService } from '../../common/ssh/SshService'
-import { http } from '@kit.NetworkKit'
+import { NetProbe } from '../../api/NetProbe'
 import { componentSnapshot } from '@kit.ArkUI'
 import { image } from '@kit.ImageKit'
 import { systemShare } from '@kit.ShareKit'
@@ -70,30 +70,19 @@ export struct SpeedTestPage {
   /** 完整下载固定大小文件，返回 [字节数, 耗时ms]（不依赖 dataReceive） */
   /** Range 分块下载：请求固定大小数据块，完整拿到 result 即算速（不依赖 dataReceive 事件） */
   private async appDownload(file: TestFile, msLimit: number): Promise<number[]> {
-    const req: http.HttpRequest = http.createHttp()
     const t0: number = Date.now()
-    try {
-      const hdr: Record<string, string> = { 'Range': `bytes=0-${file.size - 1}` }
-      const resp: http.HttpResponse = await req.request(file.url, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER,
-        readTimeout: msLimit,
-        header: hdr
-      })
-      const ms: number = Date.now() - t0
-      if (resp.responseCode === 206) {
-        const arr: ArrayBuffer = resp.result as ArrayBuffer
-        return [arr.byteLength, ms]
-      }
-      hilog.error(0x0001, 'SpeedTest', `src no-range code=${resp.responseCode}`)
+    const buf: ArrayBuffer | null = await NetProbe.getBytes(file.url, msLimit, `bytes=0-${file.size - 1}`)
+    const ms: number = Date.now() - t0
+    if (buf === null) {
+      hilog.error(0x0001, 'SpeedTest', 'dl failed')
       return [0, ms]
-    } catch (e) {
-      const ec: Record<string, Object> = e as Record<string, Object>
-      hilog.error(0x0001, 'SpeedTest', `dl err code=${ec['code']} msg=${ec['message']}`)
-      return [0, Date.now() - t0]
-    } finally {
-      try { req.destroy() } catch (e) {}
     }
+    // 服务端忽略 Range 时会回整个文件：字节数超过请求块即视为无效样本
+    if (buf.byteLength > file.size) {
+      hilog.error(0x0001, 'SpeedTest', `src no-range bytes=${buf.byteLength} want=${file.size}`)
+      return [0, ms]
+    }
+    return [buf.byteLength, ms]
   }
 
   /** SSH 执行命令（懒连接，失败返回空）——wget 不在 rpcd 白名单，必须走 SSH */

@@ -1456,6 +1456,26 @@ export class ApiService {
    *   3. ubus luci-rpc / /proc/net/dev
    * 之前只用了第 3 条，在 luci-rpc 被 ACL 拒绝的固件上恒为 [0,0]，导致所有流量统计页永远为空
    */
+  /** 重启路由器（供智能管家的命令面板使用） */
+  async reboot(): Promise<boolean> {
+    try {
+      return await this.client.reboot()
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `reboot err: ${String(e)}`)
+      return false
+    }
+  }
+
+  /** 网络设备统计（连接数等），供智能管家的夜间采样使用 */
+  async fetchNetworkDeviceStats(): Promise<Object> {
+    try {
+      return await this.client.getNetworkDeviceStats('')
+    } catch (e) {
+      hilog.error(DOMAIN, TAG, `fetchNetworkDeviceStats err: ${String(e)}`)
+      return new EmptyRecord()
+    }
+  }
+
   async fetchWanTrafficBytes(): Promise<number[]> {
     try {
       // 累计字节数有增量语义，必须拿最新值，不能吃 TTL 缓存
