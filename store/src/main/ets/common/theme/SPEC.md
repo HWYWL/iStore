@@ -82,8 +82,11 @@ parent: istore-architecture
 - **字面色只允许三种用途**：`#FFFFFF` 之类的中性白（盖在有色底上的文字）、服务/插画品牌色
   （如 Docker 蓝、iStore 绿）、插画细节（小管家形象）。其余一律走 `theme.semantic` 或色板字段。
 - **`SKINS[0]` 必须是 `LIGHT_THEME`**（默认皮肤），`AppState` 的新装默认值 `skinId='beige'`、
-  `uiStyle='liquid'`（液态玻璃为默认材质，实色是备选）；旧的 `classic`/`glass` 持久值在 init 时迁移为
-  `solid`/`liquid`，老用户已保存的选择优先于默认值。
+  `uiStyle='liquid'`（液态玻璃为默认材质，实色是备选）。
+- **材质默认值迁移只做一次**：init 里若没有 `materialMigrated` 标记，就把 `uiStyle` 强制写成 `liquid`
+  并打标记——**老用户升级上来也统一是液态玻璃**，即使他们此前存的是 `solid`/`classic`。标记写入后，
+  启动只认 `uiStyle`，用户自己再选实色就会一直保持实色（不再被覆盖）。旧的 `classic`/`glass` 值在
+  有标记的分支里仍然映射为 `solid`/`liquid`。
 - **图标只经 `AppIcon`**：`hos` 是默认且唯一可直接选的口径，`line` 只能由 `forcePack` 指定；`name` 是跨包
   契约，两套包都要覆盖同名资源，缺资源回退 `SymbolGlyph`，不能渲染成空白。
 - **长列表页不叠实时模糊**：`material.listBlurDisabled` 为真时，密集列表（设备列表/流量排行/进程/包管理）

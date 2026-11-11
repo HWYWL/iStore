@@ -23,6 +23,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 const TAG = 'AppState'
 const DOMAIN = 0x0001
 const PREFS_NAME = 'iStore_app_settings'  // Preferences 存储文件名
+const MATERIAL_MIGRATED_KEY = 'materialMigrated'  // 材质默认值迁移标记（一次性）
 
 // 事件监听器类型定义
 type ThemeListener = () => void
@@ -80,10 +81,18 @@ export class AppState {
       if (savedSkin && getSkinById(savedSkin).id === savedSkin) {
         this.currentSkinId = savedSkin
       }
-      // 恢复上次材质；旧版本存的是 classic / glass，一并迁移
-      // 新装默认液态玻璃；老用户已保存的选择优先（classic/glass 迁移到 solid/liquid）
-      const savedUiStyle: string = this.settingsPrefs.getSync('uiStyle', 'liquid') as string
-      if (savedUiStyle === 'liquid' || savedUiStyle === 'glass') {
+      // 材质默认值迁移（只做一次）：
+      // 液态玻璃成为默认材质后，老用户升级上来也统一用液态玻璃——即使他们之前存的是
+      // solid / classic。迁移写完 MATERIAL_MIGRATED_KEY 后，用户自己再选实色就会一直
+      // 保持实色（之后的启动只认 uiStyle，不再覆盖）。旧值 classic / glass 一并迁移。
+      const migrated: boolean = this.settingsPrefs.getSync(MATERIAL_MIGRATED_KEY, false) as boolean
+      const savedUiStyle: string = this.settingsPrefs.getSync('uiStyle', '') as string
+      if (!migrated) {
+        this.currentUiStyle = 'liquid'
+        this.settingsPrefs.putSync('uiStyle', 'liquid')
+        this.settingsPrefs.putSync(MATERIAL_MIGRATED_KEY, true)
+        this.settingsPrefs.flush()
+      } else if (savedUiStyle === 'liquid' || savedUiStyle === 'glass') {
         this.currentUiStyle = 'liquid'
       } else if (savedUiStyle === 'solid' || savedUiStyle === 'classic') {
         this.currentUiStyle = 'solid'
